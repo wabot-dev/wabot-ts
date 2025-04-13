@@ -6,7 +6,11 @@
     "esModuleInterop": true,
     "downlevelIteration": true,
     "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
+    "emitDecoratorMetadata": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
   },
-  "include": ["src", "rollup.config.ts"]
+  "include": ["src", "test", "rollup.config.ts"]
 }
