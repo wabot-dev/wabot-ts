@@ -1,8 +1,8 @@
+import { IChatMessage } from '../message/IChatMessage'
 import { IChatFunctionCall } from './IChatFunctionCall'
-import { IChatMessage } from './IChatMessage'
 
 export type ISystemMessageItem = {
-  type: 'SYSTEM_MESSAGE'
+  type: 'BOT_MESSAGE'
   content: IChatMessage
 }
 
@@ -13,7 +13,7 @@ export type IUserMessageItem = {
 }
 
 export type ISystemFunctionCallItem = {
-  type: 'SYSTEM_FUNCTION_CALL'
+  type: 'FUNCTION_CALL'
   content: IChatFunctionCall
 }
 
@@ -23,4 +23,3 @@ export type IChatItem = {
 } & (ISystemMessageItem | IUserMessageItem | ISystemFunctionCallItem)
 
 export type IChatItemType = IChatItem['type']
-export type IChatItemContent = IChatItem['content']

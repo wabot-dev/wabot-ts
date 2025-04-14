@@ -6,7 +6,7 @@ export interface IMindsetConfig {
   functions?: IConstructor<IMindsetFunction<IMindsetFunctionParams>>[]
 }
 
-export function Mindset(config: IMindsetConfig)   {
+export function mindset(config: IMindsetConfig)   {
   return function (target: IConstructor<IMindset>) {
     console.log(`Class defined: ${target.name}`)
   }

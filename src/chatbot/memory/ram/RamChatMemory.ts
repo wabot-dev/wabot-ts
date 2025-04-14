@@ -1,4 +1,5 @@
-import { IChatItem } from "../../content";
+
+import { IChatItem } from "../../IChatItem";
 import { IChatMemory } from "../IChatMemory";
 
 export class RamChatMemory implements IChatMemory {

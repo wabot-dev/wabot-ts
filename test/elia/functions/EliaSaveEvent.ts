@@ -1,4 +1,4 @@
-import { MindsetFunction } from '@/mindset'
+import { mindsetFunction } from '@/mindset'
 import { Transform } from 'class-transformer'
 import {
   IsISO8601,
@@ -24,7 +24,7 @@ export class EliaSaveEventParams {
   title: string
 }
 
-@MindsetFunction({
+@mindsetFunction({
   description: `
     Guarda un evento en el calendario de la persona 
     que le está hablando a Elia.

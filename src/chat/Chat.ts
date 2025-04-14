@@ -1,4 +1,4 @@
-import { IChatType } from './IChatType'
+export type IChatType = 'SINGLE_PERSON'
 
 export interface IChatData {
   id?: string
@@ -23,6 +23,13 @@ export class Chat {
     }
   }
 
+  getId(): string {
+    if (!this.data.id) {
+      throw new Error('Chat ID is required')
+    }
+    return this.data.id
+  }
+
   getMobile(): string | null {
     return this.data.mobile ?? null
   }
@@ -36,7 +43,7 @@ export class Chat {
   }
 
   validate() {
-    if (!this.data.id) {  
+    if (!this.data.id) {
       throw new Error('Chat ID is required')
     }
     if (!this.data.createdAt) {

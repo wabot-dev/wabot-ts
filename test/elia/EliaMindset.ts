@@ -1,8 +1,8 @@
-import { Mindset } from '@/mindset'
+import { mindset } from '@/mindset'
 import { EliaGetUpcomingEvents } from './functions/EliaGetUpcomingEvents'
 import { EliaSaveEvent } from './functions/EliaSaveEvent'
 
-@Mindset({
+@mindset({
   functions: [EliaGetUpcomingEvents, EliaSaveEvent],
 })
 export class EliaMindset {

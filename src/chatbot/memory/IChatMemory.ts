@@ -1,4 +1,5 @@
-import { IChatItem } from '../content'
+import { IChatItem } from "../IChatItem"
+
 
 export interface IChatMemory {
   findLastItems(count: number): Promise<IChatItem[]>

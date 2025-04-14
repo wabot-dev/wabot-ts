@@ -1,5 +1,4 @@
-import { Chat, IChatType } from "../model";
-import { IChatMemory } from "./IChatMemory";
+import { Chat, IChatType } from "../Chat";
 
 export interface IChatQuery {
   chatType: IChatType
@@ -9,5 +8,4 @@ export interface IChatQuery {
 
 export interface IChatRepository {
   create(chat: Chat): Promise<void>
-  findMemory(query: IChatQuery): Promise<IChatMemory | null>
 }

@@ -1,4 +1,7 @@
+export * from './channel'
 export * from './chat'
+export * from './chatbot'
 export * from './context'
+export * from './message'
 export * from './mindset'
 export * from './shared'
