@@ -1,4 +1,4 @@
-import { mindsetFunction } from "@/mindset";
+import { mindsetFunction } from '@/mindset'
 
 @mindsetFunction({
   description: `
@@ -7,8 +7,7 @@ import { mindsetFunction } from "@/mindset";
   `,
 })
 export class EliaGetUpcomingEvents {
-
   async execute() {
-    return "EliaGetUpcomingEvents";
+    return 'EliaGetUpcomingEvents'
   }
 }

@@ -1,3 +1,3 @@
 export interface IContext {
-  getPersonId(): Promise<string>
+  getPersonId(): Promise<string | null>
 }

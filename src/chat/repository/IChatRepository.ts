@@ -1,4 +1,4 @@
-import { Chat, IChatType } from "../Chat";
+import { Chat, IChatType } from '../Chat'
 
 export interface IChatQuery {
   chatType: IChatType

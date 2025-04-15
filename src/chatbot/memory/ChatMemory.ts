@@ -1,7 +1,7 @@
 import { IChatItem } from '../IChatItem'
 import { IChatMemory } from './IChatMemory'
 
-export abstract class ChatMemory implements IChatMemory {
+export class ChatMemory implements IChatMemory {
   findLastItems(count: number): Promise<IChatItem[]> {
     throw new Error('Method not implemented.')
   }

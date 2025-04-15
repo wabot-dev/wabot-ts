@@ -1,3 +1,1 @@
-export interface IChatImage {
-    
-}
+export interface IChatImage {}

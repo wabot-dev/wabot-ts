@@ -6,11 +6,17 @@ import { IChatItem, ISystemMessageItem, IUserMessageItem } from '../IChatItem'
 import { ChatMemory } from '../memory/ChatMemory'
 
 import { OpenAI } from 'openai'
-const openai = new OpenAI()
+import { OpenaiChatBotConfig } from './OpenaiChatBotConfig'
 
 @injectable()
 export class OpenaiChatBot implements IChatBot {
-  constructor(private memory: ChatMemory, private mindset: Mindset) {}
+  private openai = new OpenAI()
+
+  constructor(
+    private memory: ChatMemory,
+    private mindset: Mindset,
+    private config: OpenaiChatBotConfig,
+  ) {}
 
   async sendMessage(message: IUserMessageItem, callback: (message: ISystemMessageItem) => void) {
     const newChatItem = {
@@ -35,8 +41,8 @@ export class OpenaiChatBot implements IChatBot {
     const tools = await this.tools()
     const system = await this.system()
 
-    const response = await openai.responses.create({
-      model: 'gpt-4o',
+    const response = await this.openai.responses.create({
+      model: this.config.model,
       input: [...system, ...this.mapChatItems(lastChatItems)],
       tools,
     })

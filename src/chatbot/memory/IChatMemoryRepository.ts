@@ -1,6 +1,5 @@
-
-import { Chat } from "@/chat";
-import { IChatMemory } from "./IChatMemory";
+import { Chat } from '@/chat'
+import { IChatMemory } from './IChatMemory'
 
 export interface IChatMemoryRepository {
   create(chat: Chat): Promise<void>

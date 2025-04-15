@@ -1,2 +1,2 @@
 await import('reflect-metadata')
-export const { injectable } = await import('tsyringe')
+export const { injectable, container } = await import('tsyringe')

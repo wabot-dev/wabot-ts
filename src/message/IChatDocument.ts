@@ -1,3 +1,1 @@
-export interface IChatDocument {
-    
-}
+export interface IChatDocument {}

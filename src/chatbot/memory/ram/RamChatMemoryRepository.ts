@@ -1,4 +1,3 @@
-
 import { Chat } from '@/chat'
 import { IChatMemory } from '../IChatMemory'
 import { RamChatMemory } from './RamChatMemory'
@@ -13,7 +12,7 @@ export class RamChatMemoryRepository implements IChatMemoryRepository {
   private registries: IRamChatRegistry[] = []
 
   async create(chat: Chat): Promise<void> {
-    if(!chat.wasCreated()) {
+    if (!chat.wasCreated()) {
       throw new Error('Chat was not created')
     }
 

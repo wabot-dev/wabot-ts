@@ -1,2 +1,2 @@
-export * from './EliaGetUpcomingEvents';
-export * from './EliaSaveEvent';
+export * from './EliaGetUpcomingEvents'
+export * from './EliaSaveEvent'

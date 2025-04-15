@@ -17,9 +17,7 @@ export class Chat {
 
   private validateSinglePerson() {
     if (!this.data.mobile && !this.data.sessionId) {
-      throw new Error(
-        'Either mobile or sessionId must be provided for SINGLE_PERSON chat type',
-      )
+      throw new Error('Either mobile or sessionId must be provided for SINGLE_PERSON chat type')
     }
   }
 

@@ -1,1 +1,1 @@
-export * from './IConstructor';
+export * from './IConstructor'

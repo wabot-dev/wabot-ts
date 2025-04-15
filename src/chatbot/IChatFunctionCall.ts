@@ -1,5 +1,5 @@
 export interface IChatFunctionCall {
-  foreignId?: string
+  foreignId: string
   name: string
   arguments: {
     [key: string]: string

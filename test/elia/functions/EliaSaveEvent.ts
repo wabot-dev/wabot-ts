@@ -1,11 +1,6 @@
 import { mindsetFunction } from '@/mindset'
 import { Transform } from 'class-transformer'
-import {
-  IsISO8601,
-  IsNotEmpty,
-  IsNumberString,
-  IsString,
-} from 'class-validator'
+import { IsISO8601, IsNotEmpty, IsNumberString, IsString } from 'class-validator'
 import { EliaEventRepository } from '../repositories/EliaEventRepository'
 import { EliaEvent } from '../models/EliaEvent'
 import { Context } from '@/context'
@@ -13,15 +8,15 @@ import { Context } from '@/context'
 export class EliaSaveEventParams {
   @IsISO8601()
   @Transform(({ value }) => new Date(value))
-  dateTime: Date
+  dateTime: Date = new Date(NaN)
 
   @IsNumberString()
   @Transform(({ value }) => parseInt(value))
-  durationInMinutes: number
+  durationInMinutes: number = 0
 
   @IsString()
   @IsNotEmpty()
-  title: string
+  title: string = ''
 }
 
 @mindsetFunction({

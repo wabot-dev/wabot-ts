@@ -1,1 +1,1 @@
-export * from './EliaEvent';
+export * from './EliaEvent'
