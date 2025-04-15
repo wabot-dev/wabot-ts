@@ -1,2 +1,2 @@
-export * from './IOpenIaChatBotConfig'
-export * from './OpenIaChatBot'
+export * from './IOpenaiChatBotConfig'
+export * from './OpenaiChatBot'

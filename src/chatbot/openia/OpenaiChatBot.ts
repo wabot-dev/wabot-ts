@@ -1,13 +1,15 @@
-import { Mindset } from '@/mindset/Mindset'
-import { IChatBot } from '../IChatBot'
-import { IUserMessageItem, ISystemMessageItem, IChatItem } from '../IChatItem'
-import { ChatMemory } from '../memory/ChatMemory'
+import { injectable } from '@/injection'
+import { Mindset } from '@/mindset'
 import { v4 as uuidv4 } from 'uuid'
+import { IChatBot } from '../IChatBot'
+import { IChatItem, ISystemMessageItem, IUserMessageItem } from '../IChatItem'
+import { ChatMemory } from '../memory/ChatMemory'
 
 import { OpenAI } from 'openai'
 const openai = new OpenAI()
 
-export class OpenIaChatBot implements IChatBot {
+@injectable()
+export class OpenaiChatBot implements IChatBot {
   constructor(private memory: ChatMemory, private mindset: Mindset) {}
 
   async sendMessage(message: IUserMessageItem, callback: (message: ISystemMessageItem) => void) {
@@ -38,6 +40,64 @@ export class OpenIaChatBot implements IChatBot {
       input: [...system, ...this.mapChatItems(lastChatItems)],
       tools,
     })
+
+    ;(await this.tryHandleTextResponse(response, callback)) ||
+      (await this.tryHandleFunctionCallResponse(response, callback)) ||
+      (() => {
+        throw new Error('No response from OpenAI')
+      })()
+  }
+
+  private async tryHandleTextResponse(
+    response: OpenAI.Responses.Response,
+    callback: (message: ISystemMessageItem) => void,
+  ) {
+    if (!response.output_text) {
+      return false
+    }
+    const newBotMessage = {
+      id: uuidv4(),
+      createdAt: new Date(),
+      type: 'BOT_MESSAGE',
+      content: {
+        sender: { userName: 'Assistant' },
+        text: response.output_text,
+      },
+    } as const
+    await this.memory.saveItem(newBotMessage)
+    callback(newBotMessage)
+    return true
+  }
+
+  private async tryHandleFunctionCallResponse(
+    response: OpenAI.Responses.Response,
+    callback: (message: ISystemMessageItem) => void,
+  ) {
+    if (
+      !response.output ||
+      response.output.length === 0 ||
+      response.output[0].type !== 'function_call'
+    ) {
+      return false
+    }
+    const functionName = response.output[0].name
+    const functionArguments = JSON.parse(response.output[0].arguments)
+    const functionResult = await this.mindset.callFunction(functionName, functionArguments)
+
+    const newFunctionCall = {
+      id: uuidv4(),
+      createdAt: new Date(),
+      type: 'FUNCTION_CALL',
+      content: {
+        foreignId: response.output[0].call_id,
+        name: functionName,
+        arguments: functionArguments,
+        result: functionResult,
+      },
+    } as const
+    await this.memory.saveItem(newFunctionCall)
+    this.processLoop(callback)
+    return true
   }
 
   private mapChatItems(chatItems: IChatItem[]): OpenAI.Responses.ResponseInput {

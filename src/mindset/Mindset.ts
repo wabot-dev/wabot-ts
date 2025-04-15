@@ -19,4 +19,11 @@ export abstract class Mindset implements IMindset {
   limits?(): Promise<string> {
     throw new Error("Method not implemented.");
   }
+
+  callFunction(
+    functionName: string,
+    parameters: Record<string, any>
+  ): Promise<string> {
+    throw new Error("Method not implemented.");
+  }
 }
