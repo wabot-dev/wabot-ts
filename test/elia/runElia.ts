@@ -5,33 +5,37 @@ import { container, IChatBot, MindsetMetadataStore, OpenaiChatBot, RamChatMemory
 
 import { EliaMindset } from './EliaMindset'
 
-container.register(Type.IMindset, {
+const eliaContainer = container.createChildContainer()
+eliaContainer.register(Type.Container, {useValue: eliaContainer})
+
+eliaContainer.register(Type.IMindset, {
   useClass: EliaMindset,
 })
 
-container.register(Type.IChatMemory, { useValue: new RamChatMemory() })
+eliaContainer.register(Type.IChatMemory, { useValue: new RamChatMemory() })
 
-container.register(Type.IChatBot, {
+eliaContainer.register(Type.IChatBot, {
   useClass: OpenaiChatBot,
 })
 
-container.register(Type.IOpenaiChatbotConfig, {
+eliaContainer.register(Type.IOpenaiChatbotConfig, {
   useValue: { model: 'gpt-4o' },
 })
 
-const metaStore = container.resolve(MindsetMetadataStore)
+const metaStore = eliaContainer.resolve(MindsetMetadataStore)
 const mindsetMetadata = metaStore.getMindsetMetadata(EliaMindset)
-container.register(Type.IMindsetMetadata, {
+eliaContainer.register(Type.IMindsetMetadata, {
   useValue: mindsetMetadata,
 })
 
-const chatBot = container.resolve<IChatBot>(Type.IChatBot)
+const chatBot = eliaContainer.resolve<IChatBot>(Type.IChatBot)
+
 
 chatBot.sendMessage(
   {
     type: 'USER_MESSAGE',
     userId: '1',
-    content: { sender: { userName: 'Jorge' }, text: 'Hola, quien eres' },
+    content: { sender: { userName: 'Jorge' }, text: 'Hola, crea un evento para el dia 23 de abril del 2025 a las 8 de la mañana, duracion 1 hora, con el titulo levantarse' },
   },
   (message) => {
     console.log('Received message:', message)

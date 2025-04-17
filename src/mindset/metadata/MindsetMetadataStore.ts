@@ -114,6 +114,7 @@ export class MindsetMetadataStore {
       }
 
       functionsMetadata.push({
+        moduleConstructor: mainDecoration.constructor,
         config: mainDecoration.decorationConfig,
         name: mainDecoration.functionName,
         requestConstructor: mainDecoration.paramsTypes[0],

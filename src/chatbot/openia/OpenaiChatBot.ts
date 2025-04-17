@@ -1,13 +1,19 @@
-import { inject, injectable, Type } from '@/injection'
+import { DependencyContainer, inject, injectable, Type } from '@/injection'
 import { IMindset } from '@/mindset/IMindset'
 import { v4 as uuidv4 } from 'uuid'
 import { IChatBot } from '../IChatBot'
 import { IChatItem, ISystemMessageItem, IUserMessageItem } from '../IChatItem'
 
-import { IMindsetMetadata } from '@/mindset'
+import {
+  IMindsetFunctionMetadata,
+  IMindsetFunctionParamMetadata,
+  IMindsetMetadata,
+} from '@/mindset'
 import { OpenAI } from 'openai'
 import { IChatMemory } from '../memory/IChatMemory'
 import { IOpenaiChatBotConfig } from './IOpenaiChatBotConfig'
+
+
 
 @injectable()
 export class OpenaiChatBot implements IChatBot {
@@ -16,17 +22,20 @@ export class OpenaiChatBot implements IChatBot {
   private mindset: IMindset
   private config: IOpenaiChatBotConfig
   private metadata: IMindsetMetadata
+  private container: DependencyContainer
 
   constructor(
     @inject(Type.IChatMemory) memory: any,
     @inject(Type.IMindset) mindset: any,
     @inject(Type.IOpenaiChatbotConfig) config: any,
     @inject(Type.IMindsetMetadata) metadata: any,
+    @inject(Type.Container) container: any,
   ) {
     this.memory = memory
     this.mindset = mindset
     this.config = config
     this.metadata = metadata
+    this.container = container
   }
 
   async sendMessage(message: IUserMessageItem, callback: (message: ISystemMessageItem) => void) {
@@ -98,23 +107,26 @@ export class OpenaiChatBot implements IChatBot {
     ) {
       return false
     }
-    // const functionName = response.output[0].name
-    // const functionArguments = JSON.parse(response.output[0].arguments)
-    // const functionResult = await this.mindset.callFunction(functionName, functionArguments)
+    const functionName = response.output[0].name
+    const functionArguments = response.output[0].arguments
+    await this.callFunction(functionName, functionArguments)
 
-    // const newFunctionCall = {
-    //   id: uuidv4(),
-    //   createdAt: new Date(),
-    //   type: 'FUNCTION_CALL',
-    //   content: {
-    //     foreignId: response.output[0].call_id,
-    //     name: functionName,
-    //     arguments: functionArguments,
-    //     result: functionResult,
-    //   },
-    // } as const
-    // await this.memory.saveItem(newFunctionCall)
-    // this.processLoop(callback)
+    debugger
+    const functionResult = '' // await this.mindset.callFunction(functionName, functionArguments)
+
+    const newFunctionCall = {
+      id: uuidv4(),
+      createdAt: new Date(),
+      type: 'FUNCTION_CALL',
+      content: {
+        foreignId: response.output[0].call_id,
+        name: functionName,
+        arguments: functionArguments,
+        result: functionResult,
+      },
+    } as const
+    await this.memory.saveItem(newFunctionCall)
+    this.processLoop(callback)
     return true
   }
 
@@ -150,26 +162,34 @@ export class OpenaiChatBot implements IChatBot {
   }
 
   private async system(): Promise<OpenAI.Responses.ResponseInput> {
-    const [identity, skills, limits] = await Promise.all([
+    let [identity, skills, limits] = await Promise.all([
       this.mindset.identity(),
       this.mindset.skills(),
       this.mindset.limits(),
     ])
 
+    const language = identity.language.replaceAll('#', ' ')
+    const name = identity.name.replaceAll('#', ' ')
+    const age = identity.age ? identity.age.toString().replaceAll('#', ' ') : null
+    const personality = identity.personality ? identity.personality.replaceAll('#', ' ') : null
+
+    skills = skills.replaceAll('#', ' ')
+    limits = limits.replaceAll('#', ' ')
+
     const systemPrompt = `
        # System Instructions
        you should act as a assistant.
-       your primary language is ${identity.language}.
-       your name is ${identity.name}.
-       ${identity.age ? 'you are ' + identity.age + ' years old.' : ''}
+       your main language is ${language}.
+       your name is ${name}.
+       ${age ? 'you are ' + age + ' years old.' : ''}
        
-        ${identity.personality ? '## Personality (on your primary language) \n' + identity.personality.replaceAll('#', ' ') : ''}
+        ${personality ? '## Personality (in your main language) \n' + personality : ''}
 
-        ## Skills (on your primary language)
-        ${skills.replaceAll('#', ' ')}
+        ## Skills (in your main language)
+        ${skills}
 
-        ## System limitations (on your primary language)
-        ${limits.replaceAll('#', ' ')}
+        ## System limitations (in your main language)
+        ${limits}
 
         ## Chat memory
         Next you will receive a chat history,
@@ -179,9 +199,87 @@ export class OpenaiChatBot implements IChatBot {
     return [{ role: 'system', content: systemPrompt }]
   }
 
-  private async tools(): Promise<OpenAI.Responses.Tool[]> {
+  private async callFunction(name: string, params: string) {
     debugger
-    console.log(this.metadata)
-    return []
+    const fnMetadata = this.metadata.modules.map(module => module.functions).flat().find(fn => fn.name === name)
+    if(!fnMetadata) {
+      throw new Error(`Function ${name} not found`)
+    }
+    const paramsObj = JSON.parse(params)
+    const module = this.container.resolve<any>(fnMetadata.moduleConstructor as any)
+
+    const response = await module[name](paramsObj)
+  }
+
+  private async tools(): Promise<OpenAI.Responses.Tool[]> {
+    return this.metadata.modules
+      .map((module) => module.functions.map((fn) => this.toolFunction(fn)))
+      .flat()
+  }
+
+  private toolFunction(fn: IMindsetFunctionMetadata) {
+    const description = fn.config.description.replaceAll('#', ' ')
+    return {
+      type: 'function',
+      name: fn.name,
+      description,
+      parameters: {
+        type: 'object',
+        properties: fn.params.reduce(
+          (prev, param) => ({
+            ...prev,
+            [param.name]: this.toolParam(param),
+          }),
+          {},
+        ),
+        required: fn.params.map((param) => param.name),
+        additionalProperties: false,
+      },
+      strict: true,
+    } as const
+  }
+
+  private toolParam(param: IMindsetFunctionParamMetadata) {
+    const addons: { [key: string]: string } = {
+      description: `
+      ### description (in your main language)
+      ${param.config.description.replaceAll('#', ' ')}
+      `,
+    }
+
+    const type = (() => {
+      if (param.type === Number) return 'number'
+      if (param.type === String) return 'string'
+      if (param.type === Date) {
+        addons.description = `${addons.description}
+          ### format: ISO 8681 - YYYY-MM-DDTHH:mm:ssZ
+          ${addons.description}
+        `
+        return 'string'
+      }
+      debugger
+      throw new Error(`Unsupported type`)
+    })()
+
+    return {
+      type,
+      ...addons,
+    }
   }
 }
+
+// const tools = [{
+//   type: "function",
+//   name: "get_weather",
+//   description: "Get current temperature for provided coordinates in celsius.",
+//   parameters: {
+//       type: "object",
+//       properties: {
+//           latitude: { type: "number" },
+//           longitude: { type: "number" }
+//       },
+//       required: ["latitude", "longitude"],
+//       additionalProperties: false
+//   },
+//   strict: true
+// }];

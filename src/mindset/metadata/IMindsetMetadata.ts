@@ -1,10 +1,9 @@
-import { IConstructor } from "@/shared";
-import { IMindset } from "../IMindset";
-import { IParamConfig } from "./params/IParamConfig";
-import { IMindsetFunctionConfig } from "./functions/IMindsetFunctionConfig";
-import { IMindsetModuleConfig } from "./modules/IMindsetModuleConfig";
-import { IMindsetConfig } from "./mindsets/IMindsetConfig";
-
+import { IConstructor } from '@/shared'
+import { IMindset } from '../IMindset'
+import { IParamConfig } from './params/IParamConfig'
+import { IMindsetFunctionConfig } from './functions/IMindsetFunctionConfig'
+import { IMindsetModuleConfig } from './modules/IMindsetModuleConfig'
+import { IMindsetConfig } from './mindsets/IMindsetConfig'
 
 export interface IMindsetFunctionParamMetadata {
   config: IParamConfig
@@ -13,13 +12,14 @@ export interface IMindsetFunctionParamMetadata {
 }
 
 export interface IMindsetFunctionMetadata {
+  moduleConstructor: Function
   requestConstructor?: Function
   name: string
   config: IMindsetFunctionConfig
   params: IMindsetFunctionParamMetadata[]
 }
 
-export interface IMindsetModuleMetadata{
+export interface IMindsetModuleMetadata {
   constructor: Function
   config: IMindsetModuleConfig
   functions: IMindsetFunctionMetadata[]
