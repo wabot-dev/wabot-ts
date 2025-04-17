@@ -10,7 +10,8 @@
     "emitDecoratorMetadata": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@": ["src"]
     }
   },
   "include": ["src", "test", "rollup.config.ts"]

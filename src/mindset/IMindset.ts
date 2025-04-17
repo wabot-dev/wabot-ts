@@ -1,8 +1,14 @@
+export interface IMindsetIdentity {
+  name: string
+  language: string
+  age?: number
+  personality?: string
+  emotions?: string
+}
+
+
 export interface IMindset {
-  identity(): Promise<string>
-  personality(): Promise<string>
+  identity(): Promise<IMindsetIdentity>
   skills(): Promise<string>
-  emotions?(): Promise<string>
-  attitudes?(): Promise<string>
-  limits?(): Promise<string>
+  limits(): Promise<string>
 }

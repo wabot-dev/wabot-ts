@@ -1,9 +1,18 @@
 import dotenv from 'dotenv'
 dotenv.config()
 
-import { ChatBot, ChatMemory, Mindset, OpenaiChatBot, RamChatMemory, container } from '../../src'
+import {
+  ChatBot,
+  ChatMemory,
+  container,
+  Mindset,
+  OpenaiChatBot,
+  OpenaiChatBotConfig,
+  RamChatMemory,
+} from '@'
+
+
 import { EliaMindset } from './EliaMindset'
-import { OpenaiChatBotConfig } from '@/chatbot/openia/OpenaiChatBotConfig'
 
 container.register(Mindset, {
   useClass: EliaMindset,

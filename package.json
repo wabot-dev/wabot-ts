@@ -5,7 +5,8 @@
     "test:integration": "node --import @yucacodes/ts/src/custom-import.mjs  --test './src/**/*.integration.test.ts'",
     "fmt": "prettier --write .",
     "fmt:check": "prettier --check .",
-    "type:check": "tsc --noEmit"
+    "types:check": "tsc --noEmit",
+    "elia:cmd": "node --import @yucacodes/ts/src/custom-import.mjs  ./test/elia/runElia.ts"
   },
   "devDependencies": {
     "@rollup/plugin-alias": "5.1.1",

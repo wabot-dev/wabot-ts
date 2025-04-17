@@ -1,6 +1,6 @@
-import { mindsetFunction } from '@/mindset'
+import { mindsetModule } from '@/mindset'
 
-@mindsetFunction({
+@mindsetModule({
   description: `
     Devuelve los próximos eventos de la persona
     que le está hablando a Elia.

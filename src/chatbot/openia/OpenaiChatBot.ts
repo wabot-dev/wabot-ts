@@ -61,12 +61,13 @@ export class OpenaiChatBot implements IChatBot {
     if (!response.output_text) {
       return false
     }
+    const userName = (await this.mindset.identity()).name
     const newBotMessage = {
       id: uuidv4(),
       createdAt: new Date(),
       type: 'BOT_MESSAGE',
       content: {
-        sender: { userName: 'Assistant' },
+        sender: { userName },
         text: response.output_text,
       },
     } as const
@@ -138,7 +139,33 @@ export class OpenaiChatBot implements IChatBot {
   }
 
   private async system(): Promise<OpenAI.Responses.ResponseInput> {
-    return [{ role: 'system', content: 'You are a helpful assistant.' }]
+    const [identity, skills, limits] = await Promise.all([
+      this.mindset.identity(),
+      this.mindset.skills(),
+      this.mindset.limits(),
+    ])
+
+    const systemPrompt = `
+       # System Instructions
+       you should act as a assistant.
+       your primary language is ${identity.language}.
+       your name is ${identity.name}.
+       ${identity.age ? 'you are ' + identity.age + ' years old.' : ''}
+       
+        ${identity.personality ? '## Personality (on your primary language) \n' + identity.personality.replaceAll('#', ' ') : ''}
+
+        ## Skills (on your primary language)
+        ${skills.replaceAll('#', ' ')}
+
+        ## System limitations (on your primary language)
+        ${limits.replaceAll('#', ' ')}
+
+        ## Chat memory
+        Next you will receive a chat history,
+        you should use this information to answer the user.
+    `
+
+    return [{ role: 'system', content: systemPrompt }]
   }
 
   private async tools(): Promise<OpenAI.Responses.Tool[]> {

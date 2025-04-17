@@ -1,22 +1,15 @@
-import { IMindset } from './IMindset'
+import { IMindset, IMindsetIdentity } from './IMindset'
 
 export class Mindset implements IMindset {
-  identity(): Promise<string> {
+  identity(): Promise<IMindsetIdentity> {
     throw new Error('Method not implemented.')
   }
-  personality(): Promise<string> {
-    throw new Error('Method not implemented.')
-  }
+
   skills(): Promise<string> {
     throw new Error('Method not implemented.')
   }
-  emotions?(): Promise<string> {
-    throw new Error('Method not implemented.')
-  }
-  attitudes?(): Promise<string> {
-    throw new Error('Method not implemented.')
-  }
-  limits?(): Promise<string> {
+ 
+  limits(): Promise<string> {
     throw new Error('Method not implemented.')
   }
 
