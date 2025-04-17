@@ -4,5 +4,6 @@ export const Type = {
   IOpenaiChatbotConfig: Symbol.for('IOpenaiChatbotConfig'),
   IChatMemory: Symbol.for('IChatMemory'),
   IMindsetMetadata: Symbol.for('IMindsetMetadata'),
+  IContext: Symbol.for('IContext'),
   Container: Symbol.for('Container'),
 }

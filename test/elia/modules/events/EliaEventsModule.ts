@@ -18,8 +18,7 @@ export class EliaEventsModule {
     description: 'Guarda un evento en el calendario',
   })
   async saveEvent(req: EliaSaveEventRequest) {
-    const personId = await this.context.getPersonId()
-    if (!personId) throw new Error('Person ID is required')
+    const personId = this.context.getUserId()
 
     const newEvent = new EliaEvent({
       personId,

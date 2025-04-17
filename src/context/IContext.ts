@@ -1,3 +1,11 @@
+import { ISystemMessageItem } from '@/chatbot'
+
+export interface IChatContext {
+  chatId: string
+  out: (message: ISystemMessageItem) => void
+}
+
 export interface IContext {
-  getPersonId(): Promise<string | null>
+  userId: string
+  chat: IChatContext
 }

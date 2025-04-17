@@ -13,8 +13,6 @@ import { OpenAI } from 'openai'
 import { IChatMemory } from '../memory/IChatMemory'
 import { IOpenaiChatBotConfig } from './IOpenaiChatBotConfig'
 
-
-
 @injectable()
 export class OpenaiChatBot implements IChatBot {
   private openai = new OpenAI()
@@ -109,10 +107,8 @@ export class OpenaiChatBot implements IChatBot {
     }
     const functionName = response.output[0].name
     const functionArguments = response.output[0].arguments
-    await this.callFunction(functionName, functionArguments)
 
-    debugger
-    const functionResult = '' // await this.mindset.callFunction(functionName, functionArguments)
+    const functionResult = await this.callFunction(functionName, functionArguments)
 
     const newFunctionCall = {
       id: uuidv4(),
@@ -199,16 +195,26 @@ export class OpenaiChatBot implements IChatBot {
     return [{ role: 'system', content: systemPrompt }]
   }
 
-  private async callFunction(name: string, params: string) {
-    debugger
-    const fnMetadata = this.metadata.modules.map(module => module.functions).flat().find(fn => fn.name === name)
-    if(!fnMetadata) {
+  private async callFunction(name: string, params: string): Promise<string> {
+    const fnMetadata = this.metadata.modules
+      .map((module) => module.functions)
+      .flat()
+      .find((fn) => fn.name === name)
+    if (!fnMetadata) {
       throw new Error(`Function ${name} not found`)
     }
     const paramsObj = JSON.parse(params)
     const module = this.container.resolve<any>(fnMetadata.moduleConstructor as any)
 
-    const response = await module[name](paramsObj)
+    try {
+      const response = await module[name](paramsObj)
+      if (!response) {
+        return 'success'
+      }
+      return response.toString()
+    } catch (error) {
+      return `Error: ${error}`
+    }
   }
 
   private async tools(): Promise<OpenAI.Responses.Tool[]> {
