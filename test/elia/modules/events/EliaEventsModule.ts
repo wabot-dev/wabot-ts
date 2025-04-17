@@ -5,8 +5,7 @@ import { EliaSaveEventRequest } from './requests'
 
 @mindsetModule({
   description: `
-    Guarda un evento en el calendario de la persona 
-    que le está hablando a Elia.
+    Modulo para administrar eventos en el calendario.
   `,
 })
 export class EliaEventsModule {
@@ -16,7 +15,7 @@ export class EliaEventsModule {
   ) {}
 
   @mindsetFunction({
-    description: 'Guarda un evento en el calendario de la persona que le está hablando a Elia',
+    description: 'Guarda un evento en el calendario',
   })
   async saveEvent(req: EliaSaveEventRequest) {
     const personId = await this.context.getPersonId()
