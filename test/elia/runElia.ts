@@ -1,34 +1,31 @@
 import dotenv from 'dotenv'
 dotenv.config()
 
-import {
-  ChatBot,
-  ChatMemory,
-  container,
-  Mindset,
-  OpenaiChatBot,
-  OpenaiChatBotConfig,
-  RamChatMemory,
-} from '@'
-
+import { container, IChatBot, MindsetMetadataStore, OpenaiChatBot, RamChatMemory, Type } from '@'
 
 import { EliaMindset } from './EliaMindset'
 
-container.register(Mindset, {
+container.register(Type.IMindset, {
   useClass: EliaMindset,
 })
 
-container.register(ChatMemory, { useValue: new RamChatMemory() })
+container.register(Type.IChatMemory, { useValue: new RamChatMemory() })
 
-container.register(ChatBot, {
+container.register(Type.IChatBot, {
   useClass: OpenaiChatBot,
 })
 
-container.register(OpenaiChatBotConfig, {
-  useValue: new OpenaiChatBotConfig('gpt-4o'),
+container.register(Type.IOpenaiChatbotConfig, {
+  useValue: { model: 'gpt-4o' },
 })
 
-const chatBot = container.resolve(ChatBot)
+const metaStore = container.resolve(MindsetMetadataStore)
+const mindsetMetadata = metaStore.getMindsetMetadata(EliaMindset)
+container.register(Type.IMindsetMetadata, {
+  useValue: mindsetMetadata,
+})
+
+const chatBot = container.resolve<IChatBot>(Type.IChatBot)
 
 chatBot.sendMessage(
   {

@@ -2,10 +2,8 @@ import 'reflect-metadata'
 
 import { MindsetMetadataStore } from '../MindsetMetadataStore'
 import { container } from '@/injection'
+import { PARAM_DECORATION_IS_OPTIONAL } from './decoratorNames'
 
-export const PARAM_DECORATION_IS_OPTIONAL = 'isOptional'
-
-export const isOptionalAction = (value: any) => {}
 
 export function isOptional(): PropertyDecorator {
   return (target: any, propertyKey: string | symbol) => {

@@ -1,0 +1,1 @@
+export const MINDSET_DECORATION_MINDSET = 'mindset'

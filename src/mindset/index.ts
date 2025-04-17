@@ -1,5 +1,2 @@
 export * from './metadata'
-export * from './metadata/@mindset'
-export * from './metadata/modules/@mindsetModule'
 export * from './IMindset'
-export * from './Mindset'

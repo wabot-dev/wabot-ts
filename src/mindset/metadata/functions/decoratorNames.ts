@@ -1,0 +1,1 @@
+export const MINDSET_FUNCTION_DECORATION_FUNCTION = 'mindsetFunction'

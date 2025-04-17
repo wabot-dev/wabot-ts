@@ -2,13 +2,9 @@ import 'reflect-metadata'
 
 import { MindsetMetadataStore } from '../MindsetMetadataStore'
 import { container } from '@/injection'
+import { PARAM_DECORATION_PARAM } from './decoratorNames'
+import { IParamConfig } from './IParamConfig'
 
-export const PARAM_DECORATION_PARAM = 'param'
-
-export interface IParamConfig {
-  name?: string
-  description: string
-}
 
 export function param(config: IParamConfig): PropertyDecorator {
   return (target: any, propertyKey: string | symbol) => {

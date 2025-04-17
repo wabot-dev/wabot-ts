@@ -1,22 +1,33 @@
-import { injectable } from '@/injection'
-import { Mindset } from '@/mindset'
+import { inject, injectable, Type } from '@/injection'
+import { IMindset } from '@/mindset/IMindset'
 import { v4 as uuidv4 } from 'uuid'
 import { IChatBot } from '../IChatBot'
 import { IChatItem, ISystemMessageItem, IUserMessageItem } from '../IChatItem'
-import { ChatMemory } from '../memory/ChatMemory'
 
+import { IMindsetMetadata } from '@/mindset'
 import { OpenAI } from 'openai'
-import { OpenaiChatBotConfig } from './OpenaiChatBotConfig'
+import { IChatMemory } from '../memory/IChatMemory'
+import { IOpenaiChatBotConfig } from './IOpenaiChatBotConfig'
 
 @injectable()
 export class OpenaiChatBot implements IChatBot {
   private openai = new OpenAI()
+  private memory: IChatMemory
+  private mindset: IMindset
+  private config: IOpenaiChatBotConfig
+  private metadata: IMindsetMetadata
 
   constructor(
-    private memory: ChatMemory,
-    private mindset: Mindset,
-    private config: OpenaiChatBotConfig,
-  ) {}
+    @inject(Type.IChatMemory) memory: any,
+    @inject(Type.IMindset) mindset: any,
+    @inject(Type.IOpenaiChatbotConfig) config: any,
+    @inject(Type.IMindsetMetadata) metadata: any,
+  ) {
+    this.memory = memory
+    this.mindset = mindset
+    this.config = config
+    this.metadata = metadata
+  }
 
   async sendMessage(message: IUserMessageItem, callback: (message: ISystemMessageItem) => void) {
     const newChatItem = {
@@ -87,23 +98,23 @@ export class OpenaiChatBot implements IChatBot {
     ) {
       return false
     }
-    const functionName = response.output[0].name
-    const functionArguments = JSON.parse(response.output[0].arguments)
-    const functionResult = await this.mindset.callFunction(functionName, functionArguments)
+    // const functionName = response.output[0].name
+    // const functionArguments = JSON.parse(response.output[0].arguments)
+    // const functionResult = await this.mindset.callFunction(functionName, functionArguments)
 
-    const newFunctionCall = {
-      id: uuidv4(),
-      createdAt: new Date(),
-      type: 'FUNCTION_CALL',
-      content: {
-        foreignId: response.output[0].call_id,
-        name: functionName,
-        arguments: functionArguments,
-        result: functionResult,
-      },
-    } as const
-    await this.memory.saveItem(newFunctionCall)
-    this.processLoop(callback)
+    // const newFunctionCall = {
+    //   id: uuidv4(),
+    //   createdAt: new Date(),
+    //   type: 'FUNCTION_CALL',
+    //   content: {
+    //     foreignId: response.output[0].call_id,
+    //     name: functionName,
+    //     arguments: functionArguments,
+    //     result: functionResult,
+    //   },
+    // } as const
+    // await this.memory.saveItem(newFunctionCall)
+    // this.processLoop(callback)
     return true
   }
 
@@ -169,6 +180,8 @@ export class OpenaiChatBot implements IChatBot {
   }
 
   private async tools(): Promise<OpenAI.Responses.Tool[]> {
+    debugger
+    console.log(this.metadata)
     return []
   }
 }

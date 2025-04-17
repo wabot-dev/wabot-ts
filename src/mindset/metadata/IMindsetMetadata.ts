@@ -1,9 +1,9 @@
 import { IConstructor } from "@/shared";
 import { IMindset } from "../IMindset";
-import { IMindsetConfig } from "./@mindset";
-import { IMindsetModuleConfig } from "./modules/@mindsetModule";
-import { IMindsetFunctionConfig } from "./functions";
-import { IParamConfig } from "./params";
+import { IParamConfig } from "./params/IParamConfig";
+import { IMindsetFunctionConfig } from "./functions/IMindsetFunctionConfig";
+import { IMindsetModuleConfig } from "./modules/IMindsetModuleConfig";
+import { IMindsetConfig } from "./mindsets/IMindsetConfig";
 
 
 export interface IMindsetFunctionParamMetadata {

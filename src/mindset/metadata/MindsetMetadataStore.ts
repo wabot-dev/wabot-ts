@@ -1,6 +1,6 @@
 import { singleton } from '@/injection'
 import { IMindsetFunctionDecoration } from './functions/IMindsetFunctionDecoration'
-import { IMindsetDecoration } from './IMindsetDecoration'
+
 import {
   IMindsetFunctionMetadata,
   IMindsetFunctionParamMetadata,
@@ -8,13 +8,15 @@ import {
   IMindsetModuleMetadata,
 } from './IMindsetMetadata'
 import { IMindsetModuleDecoration } from './modules/IMindsetModuleDecoration'
-import { IParamDecoration } from './params'
+import { IParamDecoration } from './params/IParamDecoration'
 
 import { IConstructor } from '@/shared'
 import { IMindset } from '../IMindset'
-import { MINDSET_DECORATION_MINDSET } from './@mindset'
-import { MINDSET_FUNCTION_DECORATION_FUNCTION } from './functions'
-import { MINDSET_MODULE_DECORATION_MODULE } from './modules'
+
+import { MINDSET_FUNCTION_DECORATION_FUNCTION } from './functions/decoratorNames'
+import { IMindsetDecoration } from './mindsets/IMindsetDecoration'
+import { MINDSET_DECORATION_MINDSET } from './mindsets/decoratorNames'
+import { MINDSET_MODULE_DECORATION_MODULE } from './modules/decoratorNames'
 
 @singleton()
 export class MindsetMetadataStore {
@@ -160,7 +162,9 @@ export class MindsetMetadataStore {
       constructor: ctor as any,
       config: mainDecoration.decorationConfig,
       modules: mainDecoration.decorationConfig.modules
-        ? mainDecoration.decorationConfig.modules.map((module) => this.getModuleMetadata(module))
+        ? mainDecoration.decorationConfig.modules.map((module: Function) =>
+            this.getModuleMetadata(module),
+          )
         : [],
     }
   }

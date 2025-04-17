@@ -1,2 +1,3 @@
 await import('reflect-metadata')
-export const { injectable, container, singleton } = await import('tsyringe')
+export const { injectable, container, singleton, inject } = await import('tsyringe')
+export * from './types'

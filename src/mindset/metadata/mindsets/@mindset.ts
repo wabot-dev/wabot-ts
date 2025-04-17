@@ -2,14 +2,11 @@ import 'reflect-metadata'
 
 import { container, injectable } from '@/injection'
 import { IConstructor } from '@/shared'
-import { IMindset } from '../IMindset'
-import { MindsetMetadataStore } from './MindsetMetadataStore'
+import { IMindset } from '../../IMindset'
+import { MindsetMetadataStore } from '../MindsetMetadataStore'
+import { MINDSET_DECORATION_MINDSET } from './decoratorNames'
+import { IMindsetConfig } from './IMindsetConfig'
 
-export const MINDSET_DECORATION_MINDSET = 'mindset'
-
-export interface IMindsetConfig {
-  modules?: IConstructor<any>[]
-}
 
 export function mindset(config: IMindsetConfig) {
   return function (target: IConstructor<IMindset>) {

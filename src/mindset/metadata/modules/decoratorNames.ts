@@ -1,0 +1,1 @@
+export const MINDSET_MODULE_DECORATION_MODULE = 'mindsetModule'
