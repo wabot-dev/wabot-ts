@@ -51,11 +51,24 @@ export abstract class MindsetInterface {
     tempContainer.register(Type.IMindsetMetadata, { useValue: this.metadata })
     tempContainer.register(Type.IMindset, { useValue: this.mindset })
 
+    this.prepareChatBot(tempContainer)
+
+    return tempContainer
+  }
+
+  private prepareChatBot(tempContainer: DependencyContainer) {
+    if (process.env.OPENAI_API_KEY) {
+      this.prepareOpenaiChatBot(tempContainer)
+    } else {
+      throw new Error('Not found configurations for supported LLM apis')
+    }
+  }
+
+  private prepareOpenaiChatBot(tempContainer: DependencyContainer) {
     tempContainer.register(Type.IChatBot, { useClass: OpenaiChatBot })
+
     tempContainer.register(Type.IOpenaiChatbotConfig, {
       useValue: { model: 'gpt-4o' },
     })
-
-    return tempContainer
   }
 }
