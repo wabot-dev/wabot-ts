@@ -1,6 +1,6 @@
-import { Chat } from '@/chat/Chat'
-import { IChatRepository, IGroupChatQuery, IPrivateChatQuery } from '../IChatRepository'
 import { v4 as uuidv4 } from 'uuid'
+import { Chat, IChatConnection } from '../../Chat'
+import { IChatRepository } from '../IChatRepository'
 
 export class RamChatRepository implements IChatRepository {
   private items: Chat[] = []
@@ -17,24 +17,11 @@ export class RamChatRepository implements IChatRepository {
     this.items.push(chat)
   }
 
-  async findPrivateChat(query: IPrivateChatQuery): Promise<Chat | null> {
-    let chat: Chat | null = null
-    if (!chat && query.email) {
-      chat = this.items.find((item) => item.getEmail() === query.email) ?? null
-    }
-    if (!chat && query.phone) {
-      chat = this.items.find((item) => item.getPhone() === query.phone) ?? null
-    }
-    return chat
+  async findPrivateChat(query: IChatConnection): Promise<Chat | null> {
+    return this.items.find((item) => item.isPrivate() && item.hasConnection(query)) ?? null
   }
 
-  async findGroupChat(query: IGroupChatQuery): Promise<Chat | null> {
-    let chat: Chat | null = null
-    chat =
-      this.items.find((item) => {
-        const group = item.getGroup()
-        return group && group.channelType === query.channelType && group.id == query.id
-      }) ?? null
-    return chat
+  async findGroupChat(query: IChatConnection): Promise<Chat | null> {
+    return this.items.find((item) => item.isGroup() && item.hasConnection(query)) ?? null
   }
 }

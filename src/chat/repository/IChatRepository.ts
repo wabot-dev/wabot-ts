@@ -1,17 +1,19 @@
-import { Chat } from '../Chat'
-
-export interface IPrivateChatQuery {
-  phone?: string
-  email?: string
-}
-
-export interface IGroupChatQuery {
-  channelType: string
-  id: string
-}
+import { Chat, IChatConnection } from '../Chat'
 
 export interface IChatRepository {
   create(chat: Chat): Promise<void>
-  findPrivateChat(query: IPrivateChatQuery): Promise<Chat | null>
-  findGroupChat(query: IGroupChatQuery): Promise<Chat | null>
+  findPrivateChat(query: IChatConnection): Promise<Chat | null>
+  findGroupChat(query: IChatConnection): Promise<Chat | null>
+}
+
+export class ChatRepository implements IChatRepository {
+  create(chat: Chat): Promise<void> {
+    throw new Error('Method not implemented.')
+  }
+  findPrivateChat(query: IChatConnection): Promise<Chat | null> {
+    throw new Error('Method not implemented.')
+  }
+  findGroupChat(query: IChatConnection): Promise<Chat | null> {
+    throw new Error('Method not implemented.')
+  }
 }

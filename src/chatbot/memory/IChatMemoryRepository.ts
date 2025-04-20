@@ -5,7 +5,7 @@ export interface IChatMemoryRepository {
 }
 
 export class ChatMemoryRepository implements IChatMemoryRepository {
-  find(chatId: string): Promise<IChatMemory | null> {
+  find(chatId: string): Promise<IChatMemory> {
     throw new Error('Method not implemented.')
   }
 }

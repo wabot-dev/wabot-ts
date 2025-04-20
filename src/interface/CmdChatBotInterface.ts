@@ -23,7 +23,7 @@ export class CmdChatBotInterface extends ChatBotInterface {
       }
 
       this.handleIncomingMessage({
-        origin: { channelType: CmdChatBotInterface },
+        origin: { channelType: CmdChatBotInterface, chatId: 'cmd', chatType: 'PRIVATE' },
         chatId: 'cmd',
         reply: (message: IChatMessage) => {
           console.log(`\n[${ALIAS_NAME}]: ${message.text}\n`)

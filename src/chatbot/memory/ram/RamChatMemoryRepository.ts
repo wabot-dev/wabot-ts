@@ -1,4 +1,3 @@
-import { Chat } from '@/chat'
 import { IChatMemory } from '../IChatMemory'
 import { RamChatMemory } from './RamChatMemory'
 import { IChatMemoryRepository } from '../IChatMemoryRepository'
@@ -13,18 +12,6 @@ interface IRamChatRegistry {
 export class RamChatMemoryRepository implements IChatMemoryRepository {
   private registries: IRamChatRegistry[] = []
 
-  async create(chat: Chat): Promise<void> {
-    if (!chat.wasCreated()) {
-      throw new Error('Chat was not created')
-    }
-
-    const registry: IRamChatRegistry = {
-      memory: new RamChatMemory(),
-      chatId: chat.getId(),
-    }
-    this.registries.push(registry)
-  }
-
   find(chatId: string): Promise<IChatMemory | null> {
     const registry = this.getRegistry(chatId)
     if (!registry) {
@@ -33,7 +20,16 @@ export class RamChatMemoryRepository implements IChatMemoryRepository {
     return Promise.resolve(registry.memory)
   }
 
-  private getRegistry(chatId: string): IRamChatRegistry | null {
-    return this.registries.find((r) => r.chatId === chatId) || null
+  private getRegistry(chatId: string): IRamChatRegistry {
+    return this.registries.find((r) => r.chatId === chatId) || this.createRegistry(chatId)
+  }
+
+  private createRegistry(chatId: string): IRamChatRegistry {
+    const registry: IRamChatRegistry = {
+      memory: new RamChatMemory(),
+      chatId,
+    }
+    this.registries.push(registry)
+    return registry
   }
 }

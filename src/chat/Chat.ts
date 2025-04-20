@@ -1,21 +1,15 @@
 export type IChatType = 'PRIVATE' | 'GROUP'
 
-export interface IChatPrivateData {
-  phone?: string
-  email?: string
-}
-
-export interface IChatGroupData {
+export interface IChatConnection {
   channelType: string
-  id: string
+  chatId: string
 }
 
 export interface IChatData {
   id?: string
   createdAt?: Date
   type: IChatType
-  private?: IChatPrivateData
-  group?: IChatGroupData
+  connections: IChatConnection[]
 }
 
 export class Chat {
@@ -25,15 +19,32 @@ export class Chat {
     this.data = data
   }
 
+  isPrivate() {
+    return this.data.type === 'PRIVATE'
+  }
+
+  isGroup() {
+    return this.data.type === 'GROUP'
+  }
+
+  hasConnection(connection: IChatConnection) {
+    for (const con of this.data.connections) {
+      if (con.channelType === connection.channelType && con.chatId === connection.chatId) {
+        return true
+      }
+    }
+    return false
+  }
+
   private validatePrivateChat() {
-    if (!this.data.private?.phone && !this.data.private?.email) {
-      throw new Error('Should set phone or email for PRIVATE chat type')
+    if (this.data.connections.length < 1) {
+      throw new Error('PRIVATE chat should have one or more connections')
     }
   }
 
   private validateGroupChat() {
-    if (!this.data.group) {
-      throw new Error('Should set group data')
+    if (this.data.connections.length != 1) {
+      throw new Error('GROUP chat should have exactly one connection')
     }
   }
 
@@ -42,18 +53,6 @@ export class Chat {
       throw new Error('Chat ID is required')
     }
     return this.data.id
-  }
-
-  getPhone(): string | null {
-    return this.data.private?.phone ?? null
-  }
-
-  getEmail(): string | null {
-    return this.data.private?.email ?? null
-  }
-
-  getGroup(): IChatGroupData | null {
-    return this.data.group ?? null
   }
 
   wasCreated(): boolean {
