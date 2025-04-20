@@ -1,7 +1,7 @@
 import dotenv from 'dotenv'
 dotenv.config()
 
-import { MindsetCmdInterface } from '@'
+import { CmdChatBotInterface, OpenaiChatBotAdapter, RamChatMemoryRepository } from '@'
 import { EliaMindset } from './EliaMindset'
 
-new MindsetCmdInterface(EliaMindset).start()
+new CmdChatBotInterface(EliaMindset, OpenaiChatBotAdapter, RamChatMemoryRepository).start()

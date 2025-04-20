@@ -1,28 +1,20 @@
-import { ISystemMessageItem, RamChatMemoryRepository } from '@/chatbot'
-import { IMindset } from '@/mindset'
-import { MindsetInterface } from '@/mindset/MindsetInterface'
-import { IConstructor } from '@/shared'
+import { ISystemMessageItem } from '@/chatbot'
 import { Chat } from '@/chat'
 
 import * as readline from 'readline'
+import { ChatBotInterface } from '@/chatbot/ChatBotInterface'
+import { v4 as uuidv4 } from 'uuid'
 
-export class MindsetCmdInterface extends MindsetInterface {
+export class CmdChatBotInterface extends ChatBotInterface {
   private rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
   })
 
-  constructor(mindsetConstructor: IConstructor<IMindset>) {
-    const chatMemoryRepository = new RamChatMemoryRepository()
-
-    super(mindsetConstructor, chatMemoryRepository)
-  }
-
   async start() {
-    const chat = new Chat({ id: 'cmd-chat', createdAt: new Date(), type: 'SINGLE_PERSON' })
-    this.chatMemoryRepository.create(chat)
+    const chat = new Chat({ id: uuidv4(), createdAt: new Date(), type: 'SINGLE_PERSON' })
+    await this.chatMemoryRepository.create(chat)
 
-    console.log('Start chatting! Type a message and hit Enter.\n')
     const ALIAS_NAME = (await this.mindset.identity()).name
 
     this.rl.setPrompt('> ')

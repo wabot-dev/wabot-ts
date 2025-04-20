@@ -2,12 +2,14 @@ import { Chat } from '@/chat'
 import { IChatMemory } from '../IChatMemory'
 import { RamChatMemory } from './RamChatMemory'
 import { IChatMemoryRepository } from '../IChatMemoryRepository'
+import { singleton } from '@/injection'
 
 interface IRamChatRegistry {
   chatId: string
   memory: RamChatMemory
 }
 
+@singleton()
 export class RamChatMemoryRepository implements IChatMemoryRepository {
   private registries: IRamChatRegistry[] = []
 

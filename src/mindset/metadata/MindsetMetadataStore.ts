@@ -146,7 +146,7 @@ export class MindsetMetadataStore {
     }
   }
 
-  public getMindsetMetadata(ctor: IConstructor<IMindset>): IMindsetMetadata {
+  public getMindsetMetadata(ctor: Function): IMindsetMetadata {
     const decorations = this.mindsetsDecorations.get(ctor)
     if (!decorations) {
       throw new Error(`Mindset ${ctor.name} not found`)

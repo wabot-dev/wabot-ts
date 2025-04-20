@@ -1,1 +1,1 @@
-export * from './MindsetCmdInterface'
+export * from './CmdChatBotInterface'
