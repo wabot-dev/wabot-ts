@@ -1,3 +1,4 @@
 export interface IChatSender {
-  userName: string
+  shortName: string
+  id?: string
 }

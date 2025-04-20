@@ -1,8 +1,8 @@
-import { ChatMemory, IChatMemoryRepository, IUserMessageItem } from '@/chatbot'
+import { ChatMemory, IChatMemoryRepository } from '@/chatbot'
 import { Context, IContext } from '@/context'
-import { IChatMessage } from '@/message'
 import { IConstructor } from '@/shared'
 
+import { IMessageContext } from '@/channel/IMessageContext'
 import { Container, container, DependencyContainer } from '@/injection'
 import { IMindset, Mindset } from '@/mindset'
 import { ChatBot } from './ChatBot'
@@ -23,19 +23,13 @@ export abstract class ChatBotInterface {
 
   abstract start(): void | Promise<void>
 
-  protected async handleIncomingMessage(context: IContext, chatMessage: IChatMessage) {
-    const tempContainer = await this.prepareContainer(context)
+  protected async handleIncomingMessage(context: IMessageContext) {
+    const tempContainer = await this.prepareContainer({ chat: context })
 
     const chatBot = tempContainer.resolve(ChatBot)
 
-    const chatItem: IUserMessageItem = {
-      type: 'USER_MESSAGE',
-      userId: context.userId,
-      content: chatMessage,
-    }
-
-    chatBot.sendMessage(chatItem, (botMessage) => {
-      context.chat.out(botMessage)
+    chatBot.sendMessage(context.message, (botMessage) => {
+      context.reply(botMessage)
     })
   }
 
@@ -43,7 +37,7 @@ export abstract class ChatBotInterface {
     const tempContainer = container.createChildContainer()
     tempContainer.register(Container, { useValue: tempContainer })
 
-    tempContainer.register(Context, { useValue: new Context(context.userId, context.chat) })
+    tempContainer.register(Context, { useValue: new Context(context.chat, context.user) })
 
     const chatMemory = await this.chatMemoryRepository.find(context.chat.chatId)
     tempContainer.register(ChatMemory, { useValue: chatMemory })

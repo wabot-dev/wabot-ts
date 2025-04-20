@@ -1,9 +1,6 @@
-import { ISystemMessageItem } from '@/chatbot'
-import { Chat } from '@/chat'
-
-import * as readline from 'readline'
 import { ChatBotInterface } from '@/chatbot/ChatBotInterface'
-import { v4 as uuidv4 } from 'uuid'
+import { IChatMessage } from '@/message'
+import * as readline from 'readline'
 
 export class CmdChatBotInterface extends ChatBotInterface {
   private rl = readline.createInterface({
@@ -12,9 +9,6 @@ export class CmdChatBotInterface extends ChatBotInterface {
   })
 
   async start() {
-    const chat = new Chat({ id: uuidv4(), createdAt: new Date(), type: 'SINGLE_PERSON' })
-    await this.chatMemoryRepository.create(chat)
-
     const ALIAS_NAME = (await this.mindset.identity()).name
 
     this.rl.setPrompt('> ')
@@ -24,24 +18,22 @@ export class CmdChatBotInterface extends ChatBotInterface {
       const trimmedInput = input.trim()
 
       if (trimmedInput.toLowerCase() === 'exit') {
-        console.log(`${ALIAS_NAME}: Bye!`)
         this.rl.close()
         return
       }
 
-      this.handleIncomingMessage(
-        {
-          userId: 'cmd',
-          chat: {
-            chatId: chat.getId(),
-            out: (message: ISystemMessageItem) => {
-              console.log(`\n[${ALIAS_NAME}]: ${message.content.text}\n`)
-              this.rl.prompt()
-            },
-          },
+      this.handleIncomingMessage({
+        origin: { channelType: CmdChatBotInterface },
+        chatId: 'cmd',
+        reply: (message: IChatMessage) => {
+          console.log(`\n[${ALIAS_NAME}]: ${message.text}\n`)
+          this.rl.prompt()
         },
-        { sender: { userName: 'cmd' }, text: trimmedInput },
-      )
+        message: {
+          sender: { shortName: 'cmd' },
+          text: trimmedInput,
+        },
+      })
     })
   }
 }

@@ -49,16 +49,16 @@ export abstract class ChatBotAdapter implements IChatBotAdapter {
   }
 
   protected async buildBotMessageItem(text: string) {
-    const userName = (await this.mindset.identity()).name
-    const newBotMessage = {
+    const shortName = (await this.mindset.identity()).name
+    const newBotMessage: IChatItem = {
       id: uuidv4(),
       createdAt: new Date(),
       type: 'BOT_MESSAGE',
       content: {
-        sender: { userName },
+        sender: { shortName },
         text,
       },
-    } as const
+    }
     return newBotMessage
   }
 

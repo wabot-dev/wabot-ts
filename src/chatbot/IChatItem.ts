@@ -8,7 +8,6 @@ export type ISystemMessageItem = {
 
 export type IUserMessageItem = {
   type: 'USER_MESSAGE'
-  userId: string
   content: IChatMessage
 }
 

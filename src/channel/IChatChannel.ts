@@ -1,5 +1,7 @@
-export type IChatChannelType = 'SIMULATOR' | 'TELEGRAM'
+import { IMessageContext } from "./IMessageContext"
+
 
 export interface IChatChannel {
-  type: IChatChannelType
+  listen(callback: (message: IMessageContext) => void): void
+  connect(): void
 }

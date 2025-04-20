@@ -1,6 +1,7 @@
 export interface IEliaEventData {
   id?: string
-  personId: string
+  createdAt?: Date
+  userId: string
   title: string
   description?: string
   dateTime: Date

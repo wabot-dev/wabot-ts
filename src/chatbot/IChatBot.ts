@@ -1,8 +1,8 @@
-import { ISystemMessageItem, IUserMessageItem } from './IChatItem'
+import { IChatMessage } from '@/message'
 
 export interface IChatBot {
   sendMessage(
-    message: IUserMessageItem,
-    callback: (message: ISystemMessageItem) => void,
+    message: IChatMessage,
+    callback: (message: IChatMessage) => void,
   ): void | Promise<void>
 }

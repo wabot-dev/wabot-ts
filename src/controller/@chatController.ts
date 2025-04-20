@@ -1,10 +1,9 @@
-import { IOpenaiChatBotConfig } from '@/chatbot'
-import { IMindset } from '@/mindset'
-import { IConstructor } from '@/shared'
+import { IchatControllerConfig } from "./IChatControllerConfig";
 
-export interface IchatControllerConfig {
-  chatBot: {
-    mindset: IConstructor<IMindset>
-    openai?: IOpenaiChatBotConfig
+
+export function chatController(config: IchatControllerConfig) {
+  return function(target: Function){
+
   }
 }
+

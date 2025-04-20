@@ -1,11 +1,21 @@
-export type IChatType = 'SINGLE_PERSON'
+export type IChatType = 'PRIVATE' | 'GROUP'
+
+export interface IChatPrivateData {
+  phone?: string
+  email?: string
+}
+
+export interface IChatGroupData {
+  channelType: string
+  id: string
+}
 
 export interface IChatData {
   id?: string
   createdAt?: Date
   type: IChatType
-  mobile?: string
-  sessionId?: string
+  private?: IChatPrivateData
+  group?: IChatGroupData
 }
 
 export class Chat {
@@ -15,9 +25,15 @@ export class Chat {
     this.data = data
   }
 
-  private validateSinglePerson() {
-    if (!this.data.mobile && !this.data.sessionId) {
-      throw new Error('Either mobile or sessionId must be provided for SINGLE_PERSON chat type')
+  private validatePrivateChat() {
+    if (!this.data.private?.phone && !this.data.private?.email) {
+      throw new Error('Should set phone or email for PRIVATE chat type')
+    }
+  }
+
+  private validateGroupChat() {
+    if (!this.data.group) {
+      throw new Error('Should set group data')
     }
   }
 
@@ -28,12 +44,16 @@ export class Chat {
     return this.data.id
   }
 
-  getMobile(): string | null {
-    return this.data.mobile ?? null
+  getPhone(): string | null {
+    return this.data.private?.phone ?? null
   }
 
-  getSessionId(): string | null {
-    return this.data.sessionId ?? null
+  getEmail(): string | null {
+    return this.data.private?.email ?? null
+  }
+
+  getGroup(): IChatGroupData | null {
+    return this.data.group ?? null
   }
 
   wasCreated(): boolean {
@@ -47,8 +67,10 @@ export class Chat {
     if (!this.data.createdAt) {
       throw new Error('Chat createdAt is required')
     }
-    if (this.data.type === 'SINGLE_PERSON') {
-      this.validateSinglePerson()
+    if (this.data.type === 'PRIVATE') {
+      this.validatePrivateChat()
+    } else if (this.data.type === 'GROUP') {
+      this.validateGroupChat()
     }
   }
 }
