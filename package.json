@@ -6,7 +6,8 @@
     "fmt": "prettier --write .",
     "fmt:check": "prettier --check .",
     "types:check": "tsc --noEmit",
-    "elia:cmd": "node --import @yucacodes/ts/src/custom-import.mjs  ./test/elia/runElia.ts"
+    "elia:cmd": "node --import @yucacodes/ts/src/custom-import.mjs  ./test/elia/runEliaCmd.ts",
+    "elia:telegram": "node --import @yucacodes/ts/src/custom-import.mjs  ./test/elia/runEliaTelegram.ts"
   },
   "devDependencies": {
     "@rollup/plugin-alias": "5.1.1",

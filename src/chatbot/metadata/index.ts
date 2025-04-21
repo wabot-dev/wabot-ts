@@ -1,2 +1,3 @@
 export * from './@chatBot'
-export * from './IchatBotConfig'
+export * from './ChatBotMetadataStore'
+export * from './IChatBotMetadata'

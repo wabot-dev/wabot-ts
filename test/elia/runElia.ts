@@ -1,7 +1,8 @@
-import dotenv from 'dotenv'
-dotenv.config()
+import { runServer } from '@/server/runServer'
+import { EliaController } from './EliaController'
 
-import { CmdChatBotInterface, OpenaiChatBotAdapter, RamChatMemoryRepository } from '@'
-import { EliaMindset } from './EliaMindset'
+// new CmdChatBotInterface(EliaMindset, OpenaiChatBotAdapter, RamChatMemoryRepository).start()
 
-new CmdChatBotInterface(EliaMindset, OpenaiChatBotAdapter, RamChatMemoryRepository).start()
+runServer({
+  controllers: [EliaController],
+})

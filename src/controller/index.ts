@@ -1,2 +1,3 @@
-export * from './@chatController'
-export * from './IChatControllerConfig'
+export * from './channel'
+export * from './metadata'
+

@@ -1,15 +1,17 @@
 import { MindsetOperator } from '@/mindset/MindsetOperator'
 import { v4 as uuidv4 } from 'uuid'
-import { IChatItem } from './IChatItem'
+import { IChatItem } from './chat/IChatItem'
 
 export interface IChatBotAdapter {
   generateNextChatItem(chatItems: IChatItem[]): Promise<IChatItem>
 }
 
-export abstract class ChatBotAdapter implements IChatBotAdapter {
+export class ChatBotAdapter implements IChatBotAdapter {
   constructor(protected mindset: MindsetOperator) {}
 
-  abstract generateNextChatItem(chatItems: IChatItem[]): Promise<IChatItem>
+  public generateNextChatItem(chatItems: IChatItem[]): Promise<IChatItem> {
+    throw new Error('Not implemented')
+  }
 
   protected async systemPrompt(): Promise<string> {
     let [identity, skills, limits] = await Promise.all([

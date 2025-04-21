@@ -1,20 +1,8 @@
-import {
-  chatBot,
-  ChatBot,
-  chatController,
-  OpenaiChatBotAdapter,
-  RamChatMemoryRepository,
-  telegram,
-} from '@'
-import { IMessageContext } from '@/channel/IMessageContext'
+import { chatBot, ChatBot, chatController, IMessageContext, telegram } from '@'
+
 import { EliaMindset } from './EliaMindset'
 
-@chatController({
-  chatBot: {
-    adapter: OpenaiChatBotAdapter,
-    memory: RamChatMemoryRepository,
-  },
-})
+@chatController()
 export class EliaController {
   constructor(@chatBot(EliaMindset) private eliaBot: ChatBot) {}
 

@@ -6,9 +6,15 @@
   "configurations": [
     {
       "type": "node-terminal",
-      "name": "Elia",
+      "name": "Elia:Cmd",
       "request": "launch",
       "command": "npm run elia:cmd",
+    },
+    {
+      "type": "node-terminal",
+      "name": "Elia:Telegram",
+      "request": "launch",
+      "command": "npm run elia:telegram",
     }
   ]
 }
