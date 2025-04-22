@@ -15,6 +15,12 @@
       "name": "Elia:Telegram",
       "request": "launch",
       "command": "npm run elia:telegram",
+    },
+    {
+      "type": "node-terminal",
+      "name": "Elia",
+      "request": "launch",
+      "command": "npx @yucacodes/ts ./test/elia/runElia.ts",
     }
   ]
 }

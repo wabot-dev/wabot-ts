@@ -8,10 +8,11 @@ import {
   ChatMemory,
   ChatRepository,
 } from '@/chatbot'
-import { Container, container, DependencyContainer } from '@/injection'
+import { Container, DependencyContainer } from '@/injection'
 import { IMindset, Mindset } from '@/mindset'
 
 export async function prepareChatContainer(
+  container: DependencyContainer,
   context: IContext,
   mindsetCtor?: IConstructor<IMindset>,
 ): Promise<DependencyContainer> {

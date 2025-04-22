@@ -4,14 +4,14 @@ import { IChannelMetadata } from './channel/IChannelMetadata'
 
 @singleton()
 export class ControllerMetadataStore {
-  private channelsMetadata = new Map<Function, Map<string, IChannelMetadata[]>>()
-  private controllersMetadata = new Map<Function, IChatControllerMetadata[]>()
+  private channels = new Map<Function, Map<string, IChannelMetadata[]>>()
+  private chatControllers = new Map<Function, IChatControllerMetadata>()
 
   saveChannelMetadata(channelMetadata: IChannelMetadata) {
-    let controllerChannels = this.channelsMetadata.get(channelMetadata.controllerConstructor)
+    let controllerChannels = this.channels.get(channelMetadata.controllerConstructor)
     if (!controllerChannels) {
       controllerChannels = new Map<string, IChannelMetadata[]>()
-      this.channelsMetadata.set(channelMetadata.channelConstructor, controllerChannels)
+      this.channels.set(channelMetadata.channelConstructor, controllerChannels)
     }
 
     let functionChannels = controllerChannels.get(channelMetadata.functionName)
@@ -23,11 +23,22 @@ export class ControllerMetadataStore {
   }
 
   saveChatControllerMetadata(controllerMetadata: IChatControllerMetadata) {
-    let controllerMetadatas = this.controllersMetadata.get(controllerMetadata.controllerConstructor)
-    if(!controllerMetadatas) {
-      controllerMetadatas = []
-      this.controllersMetadata.set(controllerMetadata.controllerConstructor, controllerMetadatas)
+    this.chatControllers.set(controllerMetadata.controllerConstructor, controllerMetadata)
+  }
+
+  getChatControllerMetadata(controllerConstructor: Function) {
+    const mainMetadata = this.chatControllers.get(controllerConstructor)
+    if (!mainMetadata) return null
+    const config = mainMetadata
+
+    const channelsMap = this.channels.get(controllerConstructor)
+    const channels = Array.from(channelsMap?.values() ?? [])
+      .map((channelMetadata) => channelMetadata)
+      .flat()
+
+    return {
+      config,
+      channels,
     }
-    controllerMetadatas.push(controllerMetadata)
   }
 }
