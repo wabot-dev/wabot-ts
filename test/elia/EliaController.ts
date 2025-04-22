@@ -1,4 +1,4 @@
-import { chatBot, ChatBot, chatController, IMessageContext, telegram } from '@'
+import { chatBot, ChatBot, chatController, type IMessageContext, telegram } from '@'
 
 import { EliaMindset } from './EliaMindset'
 
