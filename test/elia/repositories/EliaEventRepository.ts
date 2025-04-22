@@ -1,4 +1,4 @@
-import { injectable } from '@/injection'
+import { injectable } from '@'
 import { EliaEvent } from '../models/EliaEvent'
 
 @injectable()

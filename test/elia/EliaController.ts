@@ -9,7 +9,7 @@ export class EliaController {
   @telegram({
     botToken: process.env.TELEGRAM_ELIA_BOT_TOKEN!,
   })
-  onMessage(context: any) {
+  onMessage(context: IMessageContext) {
     this.eliaBot.sendMessage(context.message, (response) => {
       context.reply(response)
     })
