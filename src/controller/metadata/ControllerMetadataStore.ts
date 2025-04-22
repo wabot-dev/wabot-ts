@@ -21,4 +21,13 @@ export class ControllerMetadataStore {
     }
     functionChannels.push(channelMetadata)
   }
+
+  saveChatControllerMetadata(controllerMetadata: IChatControllerMetadata) {
+    let controllerMetadatas = this.controllersMetadata.get(controllerMetadata.controllerConstructor)
+    if(!controllerMetadatas) {
+      controllerMetadatas = []
+      this.controllersMetadata.set(controllerMetadata.controllerConstructor, controllerMetadatas)
+    }
+    controllerMetadatas.push(controllerMetadata)
+  }
 }
