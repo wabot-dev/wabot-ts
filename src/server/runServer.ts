@@ -43,7 +43,7 @@ export function runServer(config: IServerConfig) {
         const chatController = chatContainer.resolve(channelMetadata.controllerConstructor)
         chatController[channelMetadata.functionName](messageContext)
       })
-      
+
       channel.connect()
     }
   }

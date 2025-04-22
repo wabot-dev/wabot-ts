@@ -3,7 +3,6 @@ import { IConstructor } from '@/shared'
 
 import {
   ChatBot,
-  ChatBotAdapter,
   ChatBotMetadataStore,
   ChatMemory,
   ChatRepository,
@@ -29,13 +28,13 @@ export async function prepareChatContainer(
 
   const chatBotMetadataStore = container.resolve(ChatBotMetadataStore)
   const chatBots = chatBotMetadataStore.getChatBotsMetadata()
-
   for (const chatBotMetadata of chatBots) {
-    const subContainer = chatContainer.createChildContainer()
-    subContainer.register(Mindset, { useClass: chatBotMetadata.mindsetConstructor })
-    const adapter = subContainer.resolve(ChatBotAdapter)
-    const chatBot = new ChatBot(chatMemory, adapter)
-    chatContainer.register(chatBotMetadata.injectionToken, { useValue: chatBot })
+    chatContainer.beforeResolution(chatBotMetadata.constructor, (a, b) => {
+      const subContainer = chatContainer.createChildContainer()
+      subContainer.register(Mindset, { useClass: chatBotMetadata.mindsetConstructor })
+      const chatBot = subContainer.resolve(ChatBot)
+      chatContainer.register(chatBotMetadata.injectionToken, {useValue: chatBot})
+    })
   }
   if (mindsetCtor) {
     chatContainer.register(Mindset, { useClass: mindsetCtor })

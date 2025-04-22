@@ -95,7 +95,6 @@ export class MindsetOperator implements IMindset {
         `
         return 'string'
       }
-      debugger
       throw new Error(`Unsupported type`)
     })()
 

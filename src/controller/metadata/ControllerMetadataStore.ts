@@ -11,7 +11,7 @@ export class ControllerMetadataStore {
     let controllerChannels = this.channels.get(channelMetadata.controllerConstructor)
     if (!controllerChannels) {
       controllerChannels = new Map<string, IChannelMetadata[]>()
-      this.channels.set(channelMetadata.channelConstructor, controllerChannels)
+      this.channels.set(channelMetadata.controllerConstructor, controllerChannels)
     }
 
     let functionChannels = controllerChannels.get(channelMetadata.functionName)
