@@ -25,7 +25,8 @@ const config: RollupOptions = {
     'tsyringe',
     'uuid',
     'openai',
-    'grammy'
+    'grammy',
+    'dotenv'
   ],
   output: {
     dir: 'dist/src',

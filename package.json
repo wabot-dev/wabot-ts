@@ -10,7 +10,7 @@
     "dist/src"
   ],
   "scripts": {
-    "build": "rollup --config rollup.config.ts --configPlugin typescript && tsc --declaration --emitDeclarationOnly --declarationDir dist",
+    "build": "rollup --config rollup.config.ts --configPlugin typescript && tsup --dts-only --format esm --out-dir dist/src src/index.ts",
     "test:units": "node --import @yucacodes/ts/src/custom-import.mjs  --test './src/**/*.unit.test.ts'",
     "test:integration": "node --import @yucacodes/ts/src/custom-import.mjs  --test './src/**/*.integration.test.ts'",
     "fmt": "prettier --write .",
@@ -27,9 +27,9 @@
     "@rollup/plugin-typescript": "12.1.2",
     "@types/node": "22.14.1",
     "@yucacodes/ts": "^0.0.4",
-    "dotenv": "^16.5.0",
     "prettier": "^3.5.3",
     "rollup": "4.39.0",
+    "tsup": "^8.4.0",
     "typescript": "5.8.3"
   },
   "peerDependencies": {
@@ -41,6 +41,7 @@
     "reflect-metadata": "^0.2.2",
     "tslib": "^2.8.1",
     "tsyringe": "^4.9.1",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "dotenv": "^16.5.0"
   }
 }
