@@ -24,6 +24,8 @@ const config: RollupOptions = {
     'express',
     'tsyringe',
     'uuid',
+    'openai',
+    'grammy'
   ],
   output: {
     dir: 'dist/src',
