@@ -5,5 +5,5 @@ export interface IChannelMetadata {
   controllerConstructor: IConstructor<any>
   functionName: string
   channelConstructor: IConstructor<IChatChannel>
-  channelConfig: object
+  channelConfig?: object
 }
