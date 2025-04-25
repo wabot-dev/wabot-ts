@@ -26,7 +26,7 @@ const config: RollupOptions = {
     'uuid',
     'openai',
     'grammy',
-    'dotenv'
+    'dotenv',
   ],
   output: {
     dir: 'dist/src',

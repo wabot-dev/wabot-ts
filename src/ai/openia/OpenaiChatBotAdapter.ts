@@ -2,7 +2,7 @@ import { injectable } from '@/injection'
 
 import { OpenAI } from 'openai'
 
-import { ChatBotAdapter, IChatItem } from '@/chatbot'
+import { ChatBotAdapter, type IChatItem } from '@/chatbot'
 import { MindsetOperator } from '@/mindset'
 
 @injectable()

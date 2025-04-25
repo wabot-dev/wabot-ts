@@ -1,4 +1,4 @@
-import { IConstructor } from "@/shared";
+import { type IConstructor } from '@/shared'
 
 export interface IMindsetConfig {
   modules?: IConstructor<any>[]

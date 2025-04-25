@@ -1,4 +1,3 @@
-
 export interface IParamDecoration {
   decorationName: string
   paramType: any

@@ -1,6 +1,9 @@
-import { DependencyContainer, InjectionToken } from "tsyringe"
-import { InterceptionOptions } from "tsyringe/dist/typings/types"
-import { PostResolutionInterceptorCallback, PreResolutionInterceptorCallback } from "tsyringe/dist/typings/types/dependency-container"
+import { type DependencyContainer, type InjectionToken } from 'tsyringe'
+import { type InterceptionOptions } from 'tsyringe/dist/typings/types'
+import {
+  type PostResolutionInterceptorCallback,
+  type PreResolutionInterceptorCallback,
+} from 'tsyringe/dist/typings/types/dependency-container'
 
 export class Container implements DependencyContainer {
   register(token: unknown, provider: unknown, options?: unknown): DependencyContainer {
@@ -33,10 +36,18 @@ export class Container implements DependencyContainer {
   createChildContainer(): DependencyContainer {
     throw new Error('Method not implemented.')
   }
-  beforeResolution<T>(token: InjectionToken<T>, callback: PreResolutionInterceptorCallback<T>, options?: InterceptionOptions): void {
+  beforeResolution<T>(
+    token: InjectionToken<T>,
+    callback: PreResolutionInterceptorCallback<T>,
+    options?: InterceptionOptions,
+  ): void {
     throw new Error('Method not implemented.')
   }
-  afterResolution<T>(token: InjectionToken<T>, callback: PostResolutionInterceptorCallback<T>, options?: InterceptionOptions): void {
+  afterResolution<T>(
+    token: InjectionToken<T>,
+    callback: PostResolutionInterceptorCallback<T>,
+    options?: InterceptionOptions,
+  ): void {
     throw new Error('Method not implemented.')
   }
   dispose(): Promise<void> | void {

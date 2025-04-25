@@ -1,4 +1,4 @@
-import { IMindsetConfig } from "./IMindsetConfig"
+import { type IMindsetConfig } from './IMindsetConfig'
 
 export interface IMindsetDecoration {
   decorationName: string

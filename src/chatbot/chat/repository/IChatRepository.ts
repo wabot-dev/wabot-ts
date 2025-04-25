@@ -1,6 +1,6 @@
 import { singleton } from '@/injection'
-import { Chat, IChatConnection } from '../Chat'
-import { IChatMemory } from './IChatMemory'
+import { Chat, type IChatConnection } from '../Chat'
+import { type IChatMemory } from './IChatMemory'
 
 export interface IChatRepository {
   create(chat: Chat): Promise<void>

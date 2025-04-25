@@ -4,13 +4,13 @@ dotenv.config()
 import {
   ChatBotAdapter,
   ChatRepository,
-  IChatBotAdapter,
-  IChatRepository,
+  type IChatBotAdapter,
+  type IChatRepository,
   RamChatRepository,
 } from '@/chatbot'
-import { IConstructor } from '@/shared'
+import { type IConstructor } from '@/shared'
 import { container } from '@/injection'
-import { ControllerMetadataStore, IMessageContext } from '@/controller'
+import { ControllerMetadataStore, type IMessageContext } from '@/controller'
 import { OpenaiChatBotAdapter } from '@/ai'
 import { prepareChatContainer } from './prepareChatContainer'
 

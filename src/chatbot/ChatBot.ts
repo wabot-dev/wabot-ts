@@ -1,8 +1,8 @@
 import { v4 as uuidv4 } from 'uuid'
-import { IChatMessage } from '@/message'
+import { type IChatMessage } from '@/message'
 import { ChatBotAdapter } from './ChatBotAdapter'
-import { IChatBot } from './IChatBot'
-import { ChatMemory , IChatItem} from './chat'
+import { type IChatBot } from './IChatBot'
+import { ChatMemory, type IChatItem } from './chat'
 import { injectable } from '@/injection'
 
 @injectable()

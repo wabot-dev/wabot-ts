@@ -1,4 +1,4 @@
-import { IMindsetIdentity, mindset } from '@/mindset'
+import { type IMindsetIdentity, mindset } from '@/mindset'
 import { EliaEventsModule } from './modules/events/EliaEventsModule'
 
 @mindset({

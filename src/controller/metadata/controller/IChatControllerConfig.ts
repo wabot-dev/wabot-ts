@@ -1,6 +1,1 @@
-
-
-export interface IchatControllerConfig {
-
-}
-
+export interface IchatControllerConfig {}

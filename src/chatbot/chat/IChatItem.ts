@@ -1,5 +1,5 @@
-import { IChatMessage } from '../../message/IChatMessage'
-import { IChatFunctionCall } from './IChatFunctionCall'
+import { type IChatMessage } from '../../message/IChatMessage'
+import { type IChatFunctionCall } from './IChatFunctionCall'
 
 export type ISystemMessageItem = {
   type: 'BOT_MESSAGE'

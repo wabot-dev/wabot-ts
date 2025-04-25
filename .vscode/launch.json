@@ -8,19 +8,19 @@
       "type": "node-terminal",
       "name": "Elia:Cmd",
       "request": "launch",
-      "command": "npm run elia:cmd",
+      "command": "npm run elia:cmd"
     },
     {
       "type": "node-terminal",
       "name": "Elia:Telegram",
       "request": "launch",
-      "command": "npm run elia:telegram",
+      "command": "npm run elia:telegram"
     },
     {
       "type": "node-terminal",
       "name": "Elia",
       "request": "launch",
-      "command": "npx @yucacodes/ts ./test/elia/runElia.ts",
+      "command": "npx @yucacodes/ts ./test/elia/runElia.ts"
     }
   ]
 }

@@ -1,6 +1,11 @@
-import { ChatResolver, IChatChannel, IMessageContext, IMessageOrigin } from '@/controller'
+import {
+  ChatResolver,
+  type IChatChannel,
+  type IMessageContext,
+  type IMessageOrigin,
+} from '@/controller'
 import { injectable } from '@/injection'
-import { IChatMessage } from '@/message'
+import { type IChatMessage } from '@/message'
 
 import * as readline from 'readline'
 

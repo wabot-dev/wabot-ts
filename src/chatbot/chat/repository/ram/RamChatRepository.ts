@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid'
-import { Chat, IChatConnection } from '../../Chat'
-import { IChatRepository } from '../IChatRepository'
-import { IChatMemory } from '../IChatMemory'
+import { Chat, type IChatConnection } from '../../Chat'
+import { type IChatRepository } from '../IChatRepository'
+import { type IChatMemory } from '../IChatMemory'
 import { RamChatMemory } from './RamChatMemory'
 import { singleton } from '@/injection'
 

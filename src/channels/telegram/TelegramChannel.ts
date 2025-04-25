@@ -1,9 +1,9 @@
-import { IChatMessage } from '@/message'
-import { IChatChannel } from '../../controller/channel/IChatChannel'
+import { type IChatMessage } from '@/message'
+import { type IChatChannel } from '../../controller/channel/IChatChannel'
 
 import { Bot } from 'grammy'
 import { ChatResolver } from '../../controller/channel/ChatResolver'
-import { IMessageContext, IMessageOrigin } from '../../controller/channel/IMessageContext'
+import { type IMessageContext, type IMessageOrigin } from '../../controller/channel/IMessageContext'
 import { TelegramChannelConfig } from './TelegramChannelConfig'
 import { injectable } from '@/injection'
 

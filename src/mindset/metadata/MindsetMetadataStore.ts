@@ -1,20 +1,17 @@
 import { singleton } from '@/injection'
-import { IMindsetFunctionDecoration } from './functions/IMindsetFunctionDecoration'
+import { type IMindsetFunctionDecoration } from './functions/IMindsetFunctionDecoration'
 
 import {
-  IMindsetFunctionMetadata,
-  IMindsetFunctionParamMetadata,
-  IMindsetMetadata,
-  IMindsetModuleMetadata,
+  type IMindsetFunctionMetadata,
+  type IMindsetFunctionParamMetadata,
+  type IMindsetMetadata,
+  type IMindsetModuleMetadata,
 } from './IMindsetMetadata'
-import { IMindsetModuleDecoration } from './modules/IMindsetModuleDecoration'
-import { IParamDecoration } from './params/IParamDecoration'
-
-import { IConstructor } from '@/shared'
-import { IMindset } from '../IMindset'
+import { type IMindsetModuleDecoration } from './modules/IMindsetModuleDecoration'
+import { type IParamDecoration } from './params/IParamDecoration'
 
 import { MINDSET_FUNCTION_DECORATION_FUNCTION } from './functions/decoratorNames'
-import { IMindsetDecoration } from './mindsets/IMindsetDecoration'
+import { type IMindsetDecoration } from './mindsets/IMindsetDecoration'
 import { MINDSET_DECORATION_MINDSET } from './mindsets/decoratorNames'
 import { MINDSET_MODULE_DECORATION_MODULE } from './modules/decoratorNames'
 

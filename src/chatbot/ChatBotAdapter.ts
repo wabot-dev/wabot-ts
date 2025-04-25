@@ -1,6 +1,6 @@
 import { MindsetOperator } from '@/mindset/MindsetOperator'
 import { v4 as uuidv4 } from 'uuid'
-import { IChatItem } from './chat/IChatItem'
+import { type IChatItem } from './chat/IChatItem'
 
 export interface IChatBotAdapter {
   generateNextChatItem(chatItems: IChatItem[]): Promise<IChatItem>

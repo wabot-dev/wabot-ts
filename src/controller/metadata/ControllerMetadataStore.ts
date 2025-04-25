@@ -1,6 +1,6 @@
 import { singleton } from '@/injection'
-import { IChatControllerMetadata } from './controller/IChatControllerMetadata'
-import { IChannelMetadata } from './channel/IChannelMetadata'
+import { type IChatControllerMetadata } from './controller/IChatControllerMetadata'
+import { type IChannelMetadata } from './channel/IChannelMetadata'
 
 @singleton()
 export class ControllerMetadataStore {

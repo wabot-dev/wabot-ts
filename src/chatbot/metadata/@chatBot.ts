@@ -1,5 +1,5 @@
-import { IMindset } from '@/mindset'
-import { IConstructor } from '@/shared'
+import { type IMindset } from '@/mindset'
+import { type IConstructor } from '@/shared'
 import { container, inject } from '@/injection'
 import { v4 as uuidv4 } from 'uuid'
 import { ChatBotMetadataStore } from './ChatBotMetadataStore'

@@ -1,8 +1,7 @@
-import { ControllerMetadataStore } from "@/controller"
-import { container } from "@/injection"
-import { CmdChannel } from "./CmdChannel"
-import { IConstructor } from "@/shared"
-
+import { ControllerMetadataStore } from '@/controller'
+import { container } from '@/injection'
+import { CmdChannel } from './CmdChannel'
+import { type IConstructor } from '@/shared'
 
 export function cmd() {
   return function (target: object, propertyKey: string | symbol) {

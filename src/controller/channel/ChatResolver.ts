@@ -1,5 +1,5 @@
-import { Chat, IChatConnection, ChatRepository } from '@/chatbot'
-import { IMessageOrigin } from './IMessageContext'
+import { Chat, type IChatConnection, ChatRepository } from '@/chatbot'
+import { type IMessageOrigin } from './IMessageContext'
 import { injectable } from '@/injection'
 
 @injectable()

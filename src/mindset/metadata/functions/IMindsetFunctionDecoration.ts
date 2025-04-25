@@ -1,4 +1,3 @@
-
 export interface IMindsetFunctionDecoration {
   decorationName: string
   functionName: string

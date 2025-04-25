@@ -1,4 +1,4 @@
-import { IChatItem } from '../IChatItem'
+import { type IChatItem } from '../IChatItem'
 
 export interface IChatMemory {
   findLastItems(count: number): Promise<IChatItem[]>

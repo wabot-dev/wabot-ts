@@ -1,14 +1,9 @@
-import { Context, IContext } from '@/context'
-import { IConstructor } from '@/shared'
+import { Context, type IContext } from '@/context'
+import { type IConstructor } from '@/shared'
 
-import {
-  ChatBot,
-  ChatBotMetadataStore,
-  ChatMemory,
-  ChatRepository,
-} from '@/chatbot'
-import { Container, DependencyContainer } from '@/injection'
-import { IMindset, Mindset } from '@/mindset'
+import { ChatBot, ChatBotMetadataStore, ChatMemory, ChatRepository } from '@/chatbot'
+import { Container, type DependencyContainer } from '@/injection'
+import { type IMindset, Mindset } from '@/mindset'
 
 export async function prepareChatContainer(
   container: DependencyContainer,
@@ -33,7 +28,7 @@ export async function prepareChatContainer(
       const subContainer = chatContainer.createChildContainer()
       subContainer.register(Mindset, { useClass: chatBotMetadata.mindsetConstructor })
       const chatBot = subContainer.resolve(ChatBot)
-      chatContainer.register(chatBotMetadata.injectionToken, {useValue: chatBot})
+      chatContainer.register(chatBotMetadata.injectionToken, { useValue: chatBot })
     })
   }
   if (mindsetCtor) {

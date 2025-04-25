@@ -1,5 +1,5 @@
-import { singleton } from "@/injection";
-import { IChatBotMetadata } from "./IChatBotMetadata";
+import { singleton } from '@/injection'
+import { type IChatBotMetadata } from './IChatBotMetadata'
 
 @singleton()
 export class ChatBotMetadataStore {

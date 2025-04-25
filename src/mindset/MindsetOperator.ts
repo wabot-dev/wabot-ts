@@ -1,6 +1,10 @@
 import { Container, injectable } from '@/injection'
-import { IMindset, IMindsetIdentity, Mindset } from './IMindset'
-import { IMindsetFunctionMetadata, IMindsetFunctionParamMetadata, IMindsetMetadata } from './metadata/IMindsetMetadata'
+import { type IMindset, type IMindsetIdentity, Mindset } from './IMindset'
+import {
+  type IMindsetFunctionMetadata,
+  type IMindsetFunctionParamMetadata,
+  type IMindsetMetadata,
+} from './metadata/IMindsetMetadata'
 import { MindsetMetadataStore } from './metadata/MindsetMetadataStore'
 
 @injectable()

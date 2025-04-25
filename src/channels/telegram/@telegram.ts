@@ -1,8 +1,8 @@
 import { container } from '@/injection'
 import { ControllerMetadataStore } from '@/controller'
 import { TelegramChannel } from './TelegramChannel'
-import { ITelegramChannelConfig, TelegramChannelConfig } from './TelegramChannelConfig'
-import { IConstructor } from '@/shared'
+import { type ITelegramChannelConfig, TelegramChannelConfig } from './TelegramChannelConfig'
+import { type IConstructor } from '@/shared'
 
 export function telegram(config: ITelegramChannelConfig) {
   return function (target: object, propertyKey: string | symbol) {

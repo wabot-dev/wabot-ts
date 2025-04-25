@@ -5,13 +5,13 @@ import {
   ChatBot,
   ChatBotAdapter,
   ChatRepository,
-  IChatBotAdapter,
-  IChatRepository,
+  type IChatBotAdapter,
+  type IChatRepository,
 } from '@/chatbot'
-import { IChatChannel } from '@/controller'
+import { type IChatChannel } from '@/controller'
 import { container } from '@/injection'
-import { IMindset } from '@/mindset'
-import { IConstructor } from '@/shared'
+import { type IMindset } from '@/mindset'
+import { type IConstructor } from '@/shared'
 import { prepareChatContainer } from './prepareChatContainer'
 
 export interface IrunChannelProps {

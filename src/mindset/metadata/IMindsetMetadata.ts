@@ -1,9 +1,9 @@
-import { IConstructor } from '@/shared'
-import { IMindset } from '../IMindset'
-import { IParamConfig } from './params/IParamConfig'
-import { IMindsetFunctionConfig } from './functions/IMindsetFunctionConfig'
-import { IMindsetModuleConfig } from './modules/IMindsetModuleConfig'
-import { IMindsetConfig } from './mindsets/IMindsetConfig'
+import { type IConstructor } from '@/shared'
+import { type IMindset } from '../IMindset'
+import { type IParamConfig } from './params/IParamConfig'
+import { type IMindsetFunctionConfig } from './functions/IMindsetFunctionConfig'
+import { type IMindsetModuleConfig } from './modules/IMindsetModuleConfig'
+import { type IMindsetConfig } from './mindsets/IMindsetConfig'
 
 export interface IMindsetFunctionParamMetadata {
   config: IParamConfig

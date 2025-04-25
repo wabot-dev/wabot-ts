@@ -3,8 +3,7 @@ import 'reflect-metadata'
 import { container } from '@/injection'
 import { MindsetMetadataStore } from '../MindsetMetadataStore'
 import { MINDSET_FUNCTION_DECORATION_FUNCTION } from './decoratorNames'
-import { IMindsetFunctionConfig } from './IMindsetFunctionConfig'
-
+import { type IMindsetFunctionConfig } from './IMindsetFunctionConfig'
 
 export function mindsetFunction(config: IMindsetFunctionConfig) {
   return function (target: object, propertyKey: string | symbol) {

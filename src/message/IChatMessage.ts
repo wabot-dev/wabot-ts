@@ -1,6 +1,6 @@
-import { IChatDocument } from './IChatDocument'
-import { IChatImage } from './IChatImage'
-import { IChatSender } from './IChatSender'
+import { type IChatDocument } from './IChatDocument'
+import { type IChatImage } from './IChatImage'
+import { type IChatSender } from './IChatSender'
 
 export interface IChatMessage {
   sender: IChatSender

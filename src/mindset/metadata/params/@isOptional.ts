@@ -4,7 +4,6 @@ import { MindsetMetadataStore } from '../MindsetMetadataStore'
 import { container } from '@/injection'
 import { PARAM_DECORATION_IS_OPTIONAL } from './decoratorNames'
 
-
 export function isOptional(): PropertyDecorator {
   return (target: any, propertyKey: string | symbol) => {
     const paramName = propertyKey.toString()
@@ -15,7 +14,7 @@ export function isOptional(): PropertyDecorator {
       paramType: paramType,
       paramName: paramName,
       constructor: target.constructor,
-      decorationConfig: {}
+      decorationConfig: {},
     })
   }
 }

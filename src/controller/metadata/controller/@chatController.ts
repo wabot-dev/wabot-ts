@@ -1,11 +1,10 @@
-import { container, injectable } from "@/injection";
-import { IchatControllerConfig } from "./IChatControllerConfig";
-import { IConstructor } from "@/shared";
-import { ControllerMetadataStore } from "../ControllerMetadataStore";
-
+import { container, injectable } from '@/injection'
+import { type IchatControllerConfig } from './IChatControllerConfig'
+import { type IConstructor } from '@/shared'
+import { ControllerMetadataStore } from '../ControllerMetadataStore'
 
 export function chatController(config?: IchatControllerConfig) {
-  return function(target: IConstructor<any>){
+  return function (target: IConstructor<any>) {
     const controllerMetaDataStore = container.resolve(ControllerMetadataStore)
     controllerMetaDataStore.saveChatControllerMetadata({
       controllerConstructor: target,
@@ -13,4 +12,3 @@ export function chatController(config?: IchatControllerConfig) {
     injectable()(target)
   }
 }
-
