@@ -1,5 +1,5 @@
 import { singleton } from '@/injection'
-import { Chat, type IChatConnection } from '../Chat'
+import { type Chat, type IChatConnection } from '../Chat'
 import { type IChatMemory } from './IChatMemory'
 
 export interface IChatRepository {

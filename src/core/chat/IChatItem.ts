@@ -1,4 +1,4 @@
-import { type IChatMessage } from '../../message/IChatMessage'
+import { type IChatMessage, type IReceivedChatMessage } from '../message/IReceivedMessage'
 import { type IChatFunctionCall } from './IChatFunctionCall'
 
 export type ISystemMessageItem = {
@@ -6,9 +6,9 @@ export type ISystemMessageItem = {
   content: IChatMessage
 }
 
-export type IUserMessageItem = {
-  type: 'USER_MESSAGE'
-  content: IChatMessage
+export type IReceivedMessageItem = {
+  type: 'RECEIVED_MESSAGE'
+  content: IReceivedChatMessage
 }
 
 export type ISystemFunctionCallItem = {
@@ -19,6 +19,6 @@ export type ISystemFunctionCallItem = {
 export type IChatItem = {
   id: string
   createdAt: Date
-} & (ISystemMessageItem | IUserMessageItem | ISystemFunctionCallItem)
+} & (ISystemMessageItem | IReceivedMessageItem | ISystemFunctionCallItem)
 
 export type IChatItemType = IChatItem['type']

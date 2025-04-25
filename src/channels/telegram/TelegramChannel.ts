@@ -1,11 +1,11 @@
-import { type IChatMessage } from '@/message'
-import { type IChatChannel } from '../../controller/channel/IChatChannel'
+import { type IChatMessage } from '@/core/message'
 
+import { ChatResolver, type IChatChannel } from '@/controller'
 import { Bot } from 'grammy'
-import { ChatResolver } from '../../controller/channel/ChatResolver'
-import { type IMessageContext, type IMessageOrigin } from '../../controller/channel/IMessageContext'
-import { TelegramChannelConfig } from './TelegramChannelConfig'
+
+import type { IChatConnection, IMessageContext, IUserConnection } from '@/core'
 import { injectable } from '@/injection'
+import { TelegramChannelConfig } from './TelegramChannelConfig'
 
 @injectable()
 export class TelegramChannel implements IChatChannel {
@@ -24,23 +24,26 @@ export class TelegramChannel implements IChatChannel {
         return
       }
 
-      const origin: IMessageOrigin = {
-        chatId: ctx.message.chat.id.toString(),
+      const chatConnection: IChatConnection = {
+        id: ctx.message.chat.id.toString(),
         chatType: ctx.message.chat.type === 'private' ? 'PRIVATE' : 'GROUP',
-        channelType: TelegramChannel,
+        channelName: TelegramChannel.name,
       }
 
-      const chat = await this.chatResolver.resolve(origin)
+      const chat = await this.chatResolver.resolve(chatConnection)
+
+      const userConnection: IUserConnection = {
+        id: ctx.from.id.toString(),
+        channelName: TelegramChannel.name,
+      }
 
       callback({
-        chatId: chat.getId(),
-        origin,
+        chat,
         message: {
+          chatConnection,
+          userConnection,
+          senderName: ctx.from.first_name,
           text: ctx.message.text,
-          sender: {
-            shortName: ctx.from.first_name,
-            senderId: ctx.from.id != null ? ctx.from.id.toString() : undefined,
-          },
         },
         reply: (replyMessage: IChatMessage) => {
           replyMessage.text && ctx.reply(replyMessage.text)

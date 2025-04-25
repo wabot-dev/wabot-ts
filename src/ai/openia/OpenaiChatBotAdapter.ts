@@ -65,13 +65,13 @@ export class OpenaiChatBotAdapter extends ChatBotAdapter {
       if (item.type === 'FUNCTION_CALL') {
         openIaInput.push({
           type: 'function_call',
-          call_id: item.content.foreignId,
+          call_id: item.content.id,
           name: item.content.name,
           arguments: JSON.stringify(item.content.arguments),
         })
         openIaInput.push({
           type: 'function_call_output',
-          call_id: item.content.foreignId,
+          call_id: item.content.id,
           output: item.content.result,
         })
       }

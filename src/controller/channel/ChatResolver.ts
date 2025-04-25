@@ -1,16 +1,15 @@
 import { Chat, type IChatConnection, ChatRepository } from '@/chatbot'
-import { type IMessageOrigin } from './IMessageContext'
 import { injectable } from '@/injection'
 
 @injectable()
 export class ChatResolver {
   constructor(private chatRepository: ChatRepository) {}
 
-  async resolve(origin: IMessageOrigin): Promise<Chat> {
-    if (origin.chatType === 'GROUP') {
-      return this.resolveGroupChat({ channelType: origin.channelType.name, chatId: origin.chatId })
+  async resolve(connection: IChatConnection): Promise<Chat> {
+    if (connection.chatType === 'GROUP') {
+      return this.resolveGroupChat(connection)
     }
-    return this.resolvePrivateChat({ channelType: origin.channelType.name, chatId: origin.chatId })
+    return this.resolvePrivateChat(connection)
   }
 
   private async resolveGroupChat(connection: IChatConnection): Promise<Chat> {

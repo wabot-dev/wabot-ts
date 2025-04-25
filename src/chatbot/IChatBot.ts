@@ -1,4 +1,4 @@
-import { type IChatMessage } from '@/message'
+import { type IChatMessage } from '@/core/message'
 
 export interface IChatBot {
   sendMessage(

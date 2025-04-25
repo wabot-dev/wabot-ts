@@ -1,13 +1,9 @@
-import {
-  ChatResolver,
-  type IChatChannel,
-  type IMessageContext,
-  type IMessageOrigin,
-} from '@/controller'
+import { ChatResolver, type IChatChannel } from '@/controller'
 import { injectable } from '@/injection'
-import { type IChatMessage } from '@/message'
+import { type IChatMessage } from '@/core/message'
 
 import * as readline from 'readline'
+import type { IChatConnection, IMessageContext, IUserConnection } from '@/core'
 
 @injectable()
 export class CmdChannel implements IChatChannel {
@@ -33,27 +29,31 @@ export class CmdChannel implements IChatChannel {
         return
       }
 
-      const origin: IMessageOrigin = {
-        chatId: 'cmd',
+      const chatConnection: IChatConnection = {
+        id: 'cmd',
         chatType: 'PRIVATE',
-        channelType: CmdChannel,
+        channelName: CmdChannel.name,
       }
 
-      const chat = await this.chatResolver.resolve(origin)
+      const chat = await this.chatResolver.resolve(chatConnection)
+
+      const userConnection: IUserConnection = {
+        id: 'cmd',
+        channelName: CmdChannel.name,
+      }
 
       if (!this.callBack) return
 
       this.callBack({
-        chatId: chat.getId(),
-        origin,
+        chat,
         message: {
+          chatConnection,
+          userConnection,
           text: trimmedInput,
-          sender: {
-            shortName: 'Cmd',
-          },
+          senderName: 'cmd',
         },
         reply: (message: IChatMessage) => {
-          console.log(`\n[${message.sender.shortName}]: ${message.text}\n`)
+          console.log(`\n[${message.senderName}]: ${message.text}\n`)
           this.rl.prompt()
         },
       })

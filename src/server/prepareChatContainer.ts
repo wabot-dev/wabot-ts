@@ -1,4 +1,4 @@
-import { Context, type IContext } from '@/context'
+import { Context, type IContext } from '@/core'
 import { type IConstructor } from '@/shared'
 
 import { ChatBot, ChatBotMetadataStore, ChatMemory, ChatRepository } from '@/chatbot'

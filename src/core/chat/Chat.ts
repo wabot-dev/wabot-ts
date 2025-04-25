@@ -1,8 +1,9 @@
 export type IChatType = 'PRIVATE' | 'GROUP'
 
 export interface IChatConnection {
-  channelType: string
-  chatId: string
+  chatType: IChatType
+  channelName: string
+  id: string
 }
 
 export interface IChatData {
@@ -11,6 +12,7 @@ export interface IChatData {
   type: IChatType
   connections: IChatConnection[]
 }
+
 
 export class Chat {
   private data: IChatData
@@ -29,7 +31,7 @@ export class Chat {
 
   hasConnection(connection: IChatConnection) {
     for (const con of this.data.connections) {
-      if (con.channelType === connection.channelType && con.chatId === connection.chatId) {
+      if (con.channelName === connection.channelName && con.id === connection.id) {
         return true
       }
     }
