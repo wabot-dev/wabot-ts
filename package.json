@@ -1,6 +1,6 @@
 {
   "name": "@wabot-dev/framework",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "Framework for IA Chat Bots",
   "type": "module",
   "main": "dist/src/index.js",
@@ -47,6 +47,7 @@
     "sqlite3-offline-next": "^5.0.3",
     "tslib": "^2.8.1",
     "tsyringe": "^4.9.1",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "@yucacodes/ts": "^0.0.4"
   }
 }
