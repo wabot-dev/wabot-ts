@@ -13,7 +13,6 @@ export interface IChatData {
   connections: IChatConnection[]
 }
 
-
 export class Chat {
   private data: IChatData
 

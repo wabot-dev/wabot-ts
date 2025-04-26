@@ -3,7 +3,6 @@ import type { IChatDocument } from './chat/IChatDocument'
 import type { IChatImage } from './chat/IChatImage'
 import type { IUserConnection } from './user/User'
 
-
 export interface IChatMessage {
   text?: string
   documents?: IChatDocument[]

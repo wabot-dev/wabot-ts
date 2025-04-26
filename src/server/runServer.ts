@@ -1,24 +1,31 @@
 import dotenv from 'dotenv'
 dotenv.config()
 
-import { OpenaiChatBotAdapter } from '@/ai'
-
 import { ControllerMetadataStore } from '@/controller'
-import { ChatRepository, RamChatRepository, type IChatRepository, type IMessageContext } from '@/core'
+import { type IMessageContext } from '@/core'
 import { container } from '@/injection'
 import { type IConstructor } from '@/shared'
 import { prepareChatContainer } from './prepareChatContainer'
-import { ChatBotAdapter, type IChatBotAdapter } from '@/chatbot'
+
+export interface IServerProvider<T, ST extends T> {
+  replace: IConstructor<T>
+  with: IConstructor<ST>
+  singleton?: true
+}
 
 export interface IServerConfig {
   controllers: IConstructor<any>[]
-  chatRepository?: IConstructor<IChatRepository>
-  chatBotAdapter?: IConstructor<IChatBotAdapter>
+  providers?: IServerProvider<unknown, unknown>[]
 }
 
 export function runServer(config: IServerConfig) {
-  container.registerSingleton(ChatRepository, config.chatRepository ?? RamChatRepository)
-  container.register(ChatBotAdapter, config.chatBotAdapter ?? OpenaiChatBotAdapter)
+  for (const provider of config.providers ?? []) {
+    if (provider.singleton) {
+      container.registerSingleton(provider.replace, provider.with)
+    } else {
+      container.register(provider.replace, provider.with)
+    }
+  }
 
   const metadataStore = container.resolve(ControllerMetadataStore)
   for (const controllerCtor of config.controllers) {

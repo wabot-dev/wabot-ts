@@ -1,4 +1,4 @@
-import { ChatResolver, type IChatChannel, type IReceivedMessage } from '@/controller'
+import { ChatResolver, UserResolver, type IChatChannel, type IReceivedMessage } from '@/controller'
 import { Bot } from 'grammy'
 
 import { type IChatConnection, type IUserConnection, type IChatMessage } from '@/core'
@@ -12,6 +12,7 @@ export class TelegramChannel implements IChatChannel {
   constructor(
     private config: TelegramChannelConfig,
     private chatResolver: ChatResolver,
+    private userResolver: UserResolver,
   ) {
     this.bot = new Bot(this.config.botToken)
   }
@@ -35,8 +36,11 @@ export class TelegramChannel implements IChatChannel {
         channelName: TelegramChannel.name,
       }
 
+      const user = await this.userResolver.resolve(userConnection)
+
       callback({
         chat,
+        user,
         message: {
           chatConnection,
           userConnection,

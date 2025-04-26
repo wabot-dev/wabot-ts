@@ -1,16 +1,24 @@
-import { chatBot, ChatBot, chatController, type IMessageContext, type IReceivedMessage, telegram } from '@'
+import { chatBot, ChatBot, chatController, cmd, type IReceivedMessage, telegram } from '@'
 
+import { EliaGuardMindset } from './EliaGuardMindset'
 import { EliaMindset } from './EliaMindset'
 
 @chatController()
 export class EliaController {
-  constructor(@chatBot(EliaMindset) private eliaBot: ChatBot) {}
+  constructor(
+    @chatBot(EliaMindset) private eliaBot: ChatBot,
+    @chatBot(EliaGuardMindset) private eliaGuardBot: ChatBot,
+  ) {}
 
   @telegram({
     botToken: process.env.TELEGRAM_ELIA_BOT_TOKEN!,
   })
+  @cmd()
   onMessage(context: IReceivedMessage) {
-    this.eliaBot.sendMessage(context.message, (response) => {
+    const isLogin = context.user != null
+
+    const chatBot = isLogin ? this.eliaBot : this.eliaGuardBot
+    chatBot.sendMessage(context.message, (response) => {
       context.reply(response)
     })
   }

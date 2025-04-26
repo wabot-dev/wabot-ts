@@ -1,4 +1,4 @@
-import { ChatResolver, type IChatChannel, type IReceivedMessage } from '@/controller'
+import { ChatResolver, UserResolver, type IChatChannel, type IReceivedMessage } from '@/controller'
 
 import { injectable } from '@/injection'
 import { v4 as uuidv4 } from 'uuid'
@@ -6,11 +6,11 @@ import { v4 as uuidv4 } from 'uuid'
 import { type IChatConnection, type IChatMessage, type IUserConnection } from '@/core'
 import * as readline from 'readline'
 
+const chatId = uuidv4()
+const userId = uuidv4()
+
 @injectable()
 export class CmdChannel implements IChatChannel {
-  chatId = uuidv4()
-  userId = uuidv4()
-
   private rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -18,7 +18,10 @@ export class CmdChannel implements IChatChannel {
 
   private callBack: ((message: IReceivedMessage) => void) | null = null
 
-  constructor(private chatResolver: ChatResolver) {}
+  constructor(
+    private chatResolver: ChatResolver,
+    private userResolver: UserResolver,
+  ) {}
 
   listen(callback: (message: IReceivedMessage) => void): void {
     this.callBack = callback
@@ -27,6 +30,10 @@ export class CmdChannel implements IChatChannel {
   connect(): void {
     this.rl.on('line', async (input: string) => {
       const trimmedInput = input.trim()
+      if (!trimmedInput) {
+        this.rl.prompt()
+        return
+      }
 
       if (trimmedInput.toLowerCase() === 'exit') {
         this.rl.close()
@@ -34,7 +41,7 @@ export class CmdChannel implements IChatChannel {
       }
 
       const chatConnection: IChatConnection = {
-        id: this.chatId,
+        id: chatId,
         chatType: 'PRIVATE',
         channelName: CmdChannel.name,
       }
@@ -42,14 +49,17 @@ export class CmdChannel implements IChatChannel {
       const chat = await this.chatResolver.resolve(chatConnection)
 
       const userConnection: IUserConnection = {
-        id: this.userId,
+        id: userId,
         channelName: CmdChannel.name,
       }
+
+      const user = await this.userResolver.resolve(userConnection)
 
       if (!this.callBack) return
 
       this.callBack({
         chat,
+        user,
         message: {
           chatConnection,
           userConnection,

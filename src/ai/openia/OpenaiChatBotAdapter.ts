@@ -2,8 +2,9 @@ import { injectable } from '@/injection'
 
 import { OpenAI } from 'openai'
 
-import { ChatBotAdapter, type IChatItem } from '@/chatbot'
+import { ChatBotAdapter } from '@/chatbot'
 import { MindsetOperator } from '@/mindset'
+import type { IChatItem } from '@/core'
 
 @injectable()
 export class OpenaiChatBotAdapter extends ChatBotAdapter {
@@ -26,7 +27,6 @@ export class OpenaiChatBotAdapter extends ChatBotAdapter {
       const parameters = { ...fn.parameters, additionalProperties: false, type: 'object' }
       return { ...fn, type: 'function', parameters, strict: true } as const
     })
-
     const response = await this.openai.responses.create({
       model: this.model,
       input: [{ role: 'system', content: systemPrompt }, ...this.mapChatItems(chatItems)],

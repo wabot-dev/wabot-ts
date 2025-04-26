@@ -3,7 +3,6 @@ import { User, type IUserConnection } from '../../User'
 import { type IUserRepository } from '../IUserRepository'
 import { singleton } from '@/injection'
 
-
 @singleton()
 export class RamUserRepository implements IUserRepository {
   private items: User[] = []
@@ -22,5 +21,9 @@ export class RamUserRepository implements IUserRepository {
 
   async findByConnection(query: IUserConnection): Promise<User | null> {
     return this.items.find((item) => item.hasConnection(query)) ?? null
+  }
+
+  async update(chat: User): Promise<void> {
+    // TODO
   }
 }

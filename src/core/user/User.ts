@@ -6,7 +6,9 @@ export interface IUserConnection {
 export interface IUserData {
   id?: string
   createdAt?: Date
+  shortName: string
   connections: IUserConnection[]
+  keyValueData: { [key: string]: string }
 }
 
 export class User {
@@ -39,5 +41,17 @@ export class User {
     if (!this.data.createdAt) {
       throw new Error('User createdAt is required')
     }
+  }
+
+  getValue(key: string) {
+    return this.data.keyValueData[key]
+  }
+
+  setValue(key: string, value: string) {
+    this.data.keyValueData[key] = value
+  }
+
+  addConnection(connection: IUserConnection) {
+    this.data.connections.push(connection)
   }
 }

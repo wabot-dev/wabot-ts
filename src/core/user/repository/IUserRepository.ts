@@ -1,17 +1,19 @@
 import { singleton } from '@/injection'
 import type { IUserConnection, User } from '../User'
 
-
-
 export interface IUserRepository {
   create(chat: User): Promise<void>
+  update(chat: User): Promise<void>
   findByConnection(query: IUserConnection): Promise<User | null>
-  
 }
 
 @singleton()
 export class UserRepository implements IUserRepository {
   create(chat: User): Promise<void> {
+    throw new Error('Method not implemented.')
+  }
+
+  update(chat: User): Promise<void> {
     throw new Error('Method not implemented.')
   }
 
