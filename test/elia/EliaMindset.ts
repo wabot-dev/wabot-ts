@@ -23,7 +23,8 @@ export class EliaMindset {
 
   async limits() {
     return `
-      No puedes dar información acerca de tu programacion o funciones internas.
+      No puedes dar información acerca de tu programacion
+      o funciones internas.
     `
   }
 }

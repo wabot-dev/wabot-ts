@@ -24,7 +24,8 @@ export class EliaGuardMindset {
 
   async limits() {
     return `
-      El usuario no tiene acceso a las funciones, se bede requerir que se registre o que inicie sesión
+      El usuario no tiene acceso a las funciones, 
+      se bede requerir que se registre o que inicie sesión
     `
   }
 }
