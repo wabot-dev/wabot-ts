@@ -18,4 +18,26 @@ export class User {
     }
     return this.data.id
   }
+
+  hasConnection(connection: IUserConnection) {
+    for (const con of this.data.connections) {
+      if (con.channelName === connection.channelName && con.id === connection.id) {
+        return true
+      }
+    }
+    return false
+  }
+
+  wasCreated(): boolean {
+    return !!this.data.createdAt || !!this.data.id
+  }
+
+  validate() {
+    if (!this.data.id) {
+      throw new Error('User ID is required')
+    }
+    if (!this.data.createdAt) {
+      throw new Error('User createdAt is required')
+    }
+  }
 }
