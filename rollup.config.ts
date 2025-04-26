@@ -27,6 +27,7 @@ const config: RollupOptions = {
     'openai',
     'grammy',
     'dotenv',
+    'sqlite'
   ],
   output: {
     dir: 'dist/src',
