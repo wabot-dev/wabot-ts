@@ -1,4 +1,4 @@
-import { chatBot, ChatBot, chatController, type IMessageContext, telegram } from '@'
+import { chatBot, ChatBot, chatController, type IMessageContext, type IReceivedMessage, telegram } from '@'
 
 import { EliaMindset } from './EliaMindset'
 
@@ -9,7 +9,7 @@ export class EliaController {
   @telegram({
     botToken: process.env.TELEGRAM_ELIA_BOT_TOKEN!,
   })
-  onMessage(context: IMessageContext) {
+  onMessage(context: IReceivedMessage) {
     this.eliaBot.sendMessage(context.message, (response) => {
       context.reply(response)
     })

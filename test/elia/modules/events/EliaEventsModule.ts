@@ -1,4 +1,4 @@
-import { mindsetFunction, mindsetModule, Context } from '@'
+import { mindsetFunction, mindsetModule, type MessageContext } from '@'
 import { EliaEventRepository } from '../../repositories/EliaEventRepository'
 import { EliaEvent } from '../../models/EliaEvent'
 import { EliaSaveEventRequest } from './requests'
@@ -10,7 +10,7 @@ import { EliaSaveEventRequest } from './requests'
 })
 export class EliaEventsModule {
   constructor(
-    private context: Context,
+    private context: MessageContext,
     private repository: EliaEventRepository,
   ) {}
 
@@ -18,10 +18,10 @@ export class EliaEventsModule {
     description: 'Guarda un evento en el calendario',
   })
   async saveEvent(req: EliaSaveEventRequest) {
-    const personId = this.context.user?.userId ?? 'anonimus'
+    const userId = this.context.user?.getId() ?? 'anonimus'
 
     const newEvent = new EliaEvent({
-      userId: personId,
+      userId,
       dateTime: req.dateTime,
       durationInMinutes: req.durationInMinutes,
       title: req.title,

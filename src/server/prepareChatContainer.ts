@@ -1,23 +1,25 @@
-import { Context, type IContext } from '@/core'
 import { type IConstructor } from '@/shared'
 
 import { ChatBot, ChatBotMetadataStore, ChatMemory, ChatRepository } from '@/chatbot'
 import { Container, type DependencyContainer } from '@/injection'
 import { type IMindset, Mindset } from '@/mindset'
+import { MessageContext, type IMessageContext } from '@/core'
 
 export async function prepareChatContainer(
   container: DependencyContainer,
-  context: IContext,
+  context: IMessageContext,
   mindsetCtor?: IConstructor<IMindset>,
 ): Promise<DependencyContainer> {
   const chatContainer = container.createChildContainer()
   chatContainer.register(Container, { useValue: chatContainer })
-  chatContainer.register(Context, { useValue: new Context(context.chat, context.user) })
+  chatContainer.register(MessageContext, {
+    useValue: new MessageContext(context.message, context.chat, context.user),
+  })
 
   const chatRepository = container.resolve(ChatRepository)
-  const chatMemory = await chatRepository.findMemory(context.chat.chatId)
+  const chatMemory = await chatRepository.findMemory(context.chat.getId())
   if (!chatMemory) {
-    throw new Error('Not found Chat Memory for Chat with Id=' + context.chat.chatId)
+    throw new Error('Not found Chat Memory for Chat with Id=' + context.chat.getId())
   }
   chatContainer.register(ChatMemory, { useValue: chatMemory })
 

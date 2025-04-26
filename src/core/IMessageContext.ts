@@ -1,20 +1,17 @@
-
 import type { Chat } from './chat'
-import { type IChatMessage, type IReceivedChatMessage } from './message'
-import type { IUser, User } from './user'
+import { type IChatMessage, type IConnectionChatMessage } from './message'
+import { User } from './user'
 
 export interface IMessageContext {
-  message: IReceivedChatMessage
+  message: IConnectionChatMessage
   chat: Chat
   user?: User
-  reply: (message: IChatMessage) => void
 }
 
 export class MessageContext implements IMessageContext {
   constructor(
-    public message: IReceivedChatMessage,
+    public message: IConnectionChatMessage,
     public chat: Chat,
-    public user: User | undefined,
-    public reply: (message: IChatMessage) => void,
+    public user: User | undefined
   ) {}
 }

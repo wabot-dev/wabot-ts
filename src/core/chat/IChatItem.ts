@@ -1,4 +1,4 @@
-import { type IChatMessage, type IReceivedChatMessage } from '../message/IReceivedMessage'
+import { type IChatMessage, type IConnectionChatMessage } from '../message/IReceivedMessage'
 import { type IChatFunctionCall } from './IChatFunctionCall'
 
 export type ISystemMessageItem = {
@@ -7,8 +7,8 @@ export type ISystemMessageItem = {
 }
 
 export type IReceivedMessageItem = {
-  type: 'RECEIVED_MESSAGE'
-  content: IReceivedChatMessage
+  type: 'CONNECTION_MESSAGE'
+  content: IConnectionChatMessage
 }
 
 export type ISystemFunctionCallItem = {

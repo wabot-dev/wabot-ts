@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid'
-import { type IChatMessage } from '@/core/message'
+import { type IChatMessage, type IConnectionChatMessage } from '@/core/message'
 import { ChatBotAdapter } from './ChatBotAdapter'
 import { type IChatBot } from './IChatBot'
 import { ChatMemory, type IChatItem } from '../core/chat'
@@ -14,11 +14,14 @@ export class ChatBot implements IChatBot {
     this.memory = memory
   }
 
-  public async sendMessage(message: IChatMessage, callback: (message: IChatMessage) => void) {
+  public async sendMessage(
+    message: IConnectionChatMessage,
+    callback: (message: IChatMessage) => void,
+  ) {
     const newChatItem: IChatItem = {
       id: uuidv4(),
       createdAt: new Date(),
-      type: 'USER_MESSAGE',
+      type: 'CONNECTION_MESSAGE',
       content: message,
     }
 

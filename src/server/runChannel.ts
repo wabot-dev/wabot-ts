@@ -33,7 +33,7 @@ export function runChannel(props: IrunChannelProps) {
   const channel = container.resolve(props.channel)
 
   channel.listen(async (context) => {
-    const channelContainer = await prepareChatContainer(container, { chat: context }, props.mindset)
+    const channelContainer = await prepareChatContainer(container, context, props.mindset)
     const chatBot = channelContainer.resolve(ChatBot)
     chatBot.sendMessage(context.message, (replyMessage) => {
       context.reply(replyMessage)

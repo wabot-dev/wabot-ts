@@ -1,9 +1,9 @@
 import { type IChatMessage } from '@/core/message'
 
-import { ChatResolver, type IChatChannel } from '@/controller'
+import { ChatResolver, type IChatChannel, type IReceivedMessage } from '@/controller'
 import { Bot } from 'grammy'
 
-import type { IChatConnection, IMessageContext, IUserConnection } from '@/core'
+import type { IChatConnection, IUserConnection } from '@/core'
 import { injectable } from '@/injection'
 import { TelegramChannelConfig } from './TelegramChannelConfig'
 
@@ -18,7 +18,7 @@ export class TelegramChannel implements IChatChannel {
     this.bot = new Bot(this.config.botToken)
   }
 
-  listen(callback: (message: IMessageContext) => void): void {
+  listen(callback: (message: IReceivedMessage) => void): void {
     this.bot.on('message', async (ctx) => {
       if (!ctx.message) {
         return

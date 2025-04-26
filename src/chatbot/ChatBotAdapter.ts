@@ -1,6 +1,7 @@
 import { MindsetOperator } from '@/mindset/MindsetOperator'
 import { v4 as uuidv4 } from 'uuid'
 import { type IChatItem } from '../core/chat/IChatItem'
+import type { IChatFunctionCall, ISystemFunctionCallItem } from '@/core'
 
 export interface IChatBotAdapter {
   generateNextChatItem(chatItems: IChatItem[]): Promise<IChatItem>
@@ -51,13 +52,13 @@ export class ChatBotAdapter implements IChatBotAdapter {
   }
 
   protected async buildBotMessageItem(text: string) {
-    const shortName = (await this.mindset.identity()).name
+    const senderName = (await this.mindset.identity()).name
     const newBotMessage: IChatItem = {
       id: uuidv4(),
       createdAt: new Date(),
       type: 'BOT_MESSAGE',
       content: {
-        sender: { shortName },
+        senderName,
         text,
       },
     }
@@ -65,7 +66,7 @@ export class ChatBotAdapter implements IChatBotAdapter {
   }
 
   protected async buildFunctionCallItem(
-    foreignId: string,
+    id: string,
     functionName: string,
     functionArguments: string,
   ) {
@@ -75,7 +76,7 @@ export class ChatBotAdapter implements IChatBotAdapter {
       createdAt: new Date(),
       type: 'FUNCTION_CALL',
       content: {
-        foreignId,
+        id,
         name: functionName,
         arguments: functionArguments,
         result: functionResult,

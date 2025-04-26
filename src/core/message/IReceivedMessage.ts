@@ -10,7 +10,7 @@ export interface IChatMessage {
   senderName: string
 }
 
-export interface IReceivedChatMessage extends IChatMessage {
+export interface IConnectionChatMessage extends IChatMessage {
   chatConnection: IChatConnection
   userConnection: IUserConnection
   userId?: string

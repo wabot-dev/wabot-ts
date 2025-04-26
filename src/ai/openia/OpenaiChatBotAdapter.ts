@@ -51,7 +51,7 @@ export class OpenaiChatBotAdapter extends ChatBotAdapter {
   private mapChatItems(chatItems: IChatItem[]): OpenAI.Responses.ResponseInput {
     const openIaInput: OpenAI.Responses.ResponseInput = []
     for (const item of chatItems) {
-      if (item.type === 'USER_MESSAGE') {
+      if (item.type === 'CONNECTION_MESSAGE') {
         if (!item.content.text) {
           throw new Error('System message content is empty')
         }

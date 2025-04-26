@@ -1,7 +1,10 @@
-import type { IMessageContext } from "@/core"
+import type { IChatMessage, IMessageContext } from '@/core'
 
+export interface IReceivedMessage extends IMessageContext {
+  reply: (message: IChatMessage) => void
+}
 
 export interface IChatChannel {
-  listen(callback: (message: IMessageContext) => void): void
+  listen(callback: (message: IReceivedMessage) => void): void
   connect(): void
 }

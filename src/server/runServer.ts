@@ -1,6 +1,7 @@
 import dotenv from 'dotenv'
 dotenv.config()
 
+import { OpenaiChatBotAdapter } from '@/ai'
 import {
   ChatBotAdapter,
   ChatRepository,
@@ -8,10 +9,10 @@ import {
   type IChatRepository,
   RamChatRepository,
 } from '@/chatbot'
-import { type IConstructor } from '@/shared'
+import { ControllerMetadataStore } from '@/controller'
+import type { IMessageContext } from '@/core'
 import { container } from '@/injection'
-import { ControllerMetadataStore, type IMessageContext } from '@/controller'
-import { OpenaiChatBotAdapter } from '@/ai'
+import { type IConstructor } from '@/shared'
 import { prepareChatContainer } from './prepareChatContainer'
 
 export interface IServerConfig {
@@ -39,7 +40,7 @@ export function runServer(config: IServerConfig) {
       }
       const channel = channelContainer.resolve(channelMetadata.channelConstructor)
       channel.listen(async (messageContext: IMessageContext) => {
-        const chatContainer = await prepareChatContainer(channelContainer, { chat: messageContext })
+        const chatContainer = await prepareChatContainer(channelContainer, messageContext)
         const chatController = chatContainer.resolve(channelMetadata.controllerConstructor)
         chatController[channelMetadata.functionName](messageContext)
       })
