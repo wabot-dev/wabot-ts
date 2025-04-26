@@ -28,6 +28,7 @@ const config: RollupOptions = {
     'grammy',
     'dotenv',
     'sqlite',
+    'sqlite3',
     'sqlite3-offline-next',
   ],
   output: {
