@@ -1,4 +1,5 @@
-import { Chat, type IChatConnection, ChatRepository } from '@/chatbot'
+
+import { Chat, ChatRepository, type IChatConnection } from '@/core'
 import { injectable } from '@/injection'
 
 @injectable()

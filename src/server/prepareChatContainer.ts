@@ -1,9 +1,9 @@
 import { type IConstructor } from '@/shared'
 
-import { ChatBot, ChatBotMetadataStore, ChatMemory, ChatRepository } from '@/chatbot'
 import { Container, type DependencyContainer } from '@/injection'
 import { type IMindset, Mindset } from '@/mindset'
-import { MessageContext, type IMessageContext } from '@/core'
+import { ChatMemory, ChatRepository, MessageContext, type IMessageContext } from '@/core'
+import { ChatBot, ChatBotMetadataStore } from '@/chatbot'
 
 export async function prepareChatContainer(
   container: DependencyContainer,

@@ -1,9 +1,8 @@
+import { ChatMemory, type IChatItem, type IChatMessage, type IConnectionChatMessage } from '@/core'
+import { injectable } from '@/injection'
 import { v4 as uuidv4 } from 'uuid'
-import { type IChatMessage, type IConnectionChatMessage } from '@/core/message'
 import { ChatBotAdapter } from './ChatBotAdapter'
 import { type IChatBot } from './IChatBot'
-import { ChatMemory, type IChatItem } from '../core/chat'
-import { injectable } from '@/injection'
 
 @injectable()
 export class ChatBot implements IChatBot {

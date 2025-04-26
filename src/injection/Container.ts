@@ -1,9 +1,7 @@
-import { type DependencyContainer, type InjectionToken } from 'tsyringe'
-import { type InterceptionOptions } from 'tsyringe/dist/typings/types'
-import {
-  type PostResolutionInterceptorCallback,
-  type PreResolutionInterceptorCallback,
-} from 'tsyringe/dist/typings/types/dependency-container'
+import type InjectionToken from 'tsyringe/dist/typings/providers/injection-token'
+import type DependencyContainer from 'tsyringe/dist/typings/types/dependency-container'
+import type InterceptionOptions from 'tsyringe/dist/typings/types/interceptor-options'
+import type { PostResolutionInterceptorCallback, PreResolutionInterceptorCallback } from 'tsyringe/dist/typings/types/dependency-container'
 
 export class Container implements DependencyContainer {
   register(token: unknown, provider: unknown, options?: unknown): DependencyContainer {

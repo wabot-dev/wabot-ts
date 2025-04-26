@@ -1,5 +1,3 @@
-export * from '../core/chat'
-export * from '../core/user'
 export * from './metadata'
 export * from './ChatBot'
 export * from './ChatBotAdapter'

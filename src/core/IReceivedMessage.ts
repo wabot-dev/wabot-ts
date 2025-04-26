@@ -1,7 +1,8 @@
-import type { IChatConnection } from '../chat'
-import type { IUserConnection } from '../user'
-import { type IChatDocument } from './IChatDocument'
-import { type IChatImage } from './IChatImage'
+import type { IChatConnection } from './chat/Chat'
+import type { IChatDocument } from './chat/IChatDocument'
+import type { IChatImage } from './chat/IChatImage'
+import type { IUserConnection } from './user/User'
+
 
 export interface IChatMessage {
   text?: string

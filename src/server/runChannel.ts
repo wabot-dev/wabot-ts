@@ -1,18 +1,13 @@
 import dotenv from 'dotenv'
 dotenv.config()
 
-import {
-  ChatBot,
-  ChatBotAdapter,
-  ChatRepository,
-  type IChatBotAdapter,
-  type IChatRepository,
-} from '@/chatbot'
 import { type IChatChannel } from '@/controller'
 import { container } from '@/injection'
 import { type IMindset } from '@/mindset'
 import { type IConstructor } from '@/shared'
 import { prepareChatContainer } from './prepareChatContainer'
+import { ChatRepository, type IChatRepository } from '@/core'
+import { ChatBot, ChatBotAdapter, type IChatBotAdapter } from '@/chatbot'
 
 export interface IrunChannelProps {
   channel: IConstructor<IChatChannel>

@@ -1,9 +1,7 @@
-import { type IChatMessage } from '@/core/message'
-
 import { ChatResolver, type IChatChannel, type IReceivedMessage } from '@/controller'
 import { Bot } from 'grammy'
 
-import type { IChatConnection, IUserConnection } from '@/core'
+import { type IChatConnection, type IUserConnection, type IChatMessage } from '@/core'
 import { injectable } from '@/injection'
 import { TelegramChannelConfig } from './TelegramChannelConfig'
 

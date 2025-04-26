@@ -1,9 +1,9 @@
 import { ChatResolver, type IChatChannel, type IReceivedMessage } from '@/controller'
-import { type IChatMessage } from '@/core/message'
+
 import { injectable } from '@/injection'
 import { v4 as uuidv4 } from 'uuid'
 
-import type { IChatConnection, IUserConnection } from '@/core'
+import { type IChatConnection, type IChatMessage, type IUserConnection } from '@/core'
 import * as readline from 'readline'
 
 @injectable()

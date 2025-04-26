@@ -1,5 +1,6 @@
-import type { Chat } from './chat'
-import { type IChatMessage, type IConnectionChatMessage } from './message'
+import type { Chat } from './chat/Chat'
+import type { IConnectionChatMessage } from './IReceivedMessage'
+
 import { User } from './user'
 
 export interface IMessageContext {
