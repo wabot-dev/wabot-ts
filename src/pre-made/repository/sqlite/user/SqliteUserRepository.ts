@@ -1,8 +1,7 @@
+import { User, type IUserConnection, type IUserRepository } from '@/core'
 import { SqliteCrudRepository } from '@/pre-made'
 import type { IReversibleMapper } from '@/shared'
 import path from 'path'
-import { User, type IUserConnection } from '../../User'
-import type { IUserRepository } from '../IUserRepository'
 
 const userSqliteMapper: IReversibleMapper<User, string> = {
   map(input) {

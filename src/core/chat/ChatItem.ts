@@ -1,4 +1,5 @@
-import { Persistent } from '@/pre-made'
+
+import { Persistent } from '@/shared'
 import { type IChatMessage, type IConnectionChatMessage } from '../IReceivedMessage'
 import { type IChatFunctionCall } from './IChatFunctionCall'
 

@@ -1,6 +1,5 @@
-import type { IReversibleMapper } from '@/shared'
+import type { IPersistent, IReversibleMapper, Persistent } from '@/shared'
 import type { ICrudRepository } from '../ICrudRepository'
-import { type IPersistent, Persistent } from '../Persistent'
 
 import { promises as fs } from 'fs'
 import path from 'path'
@@ -66,7 +65,10 @@ export class SqliteCrudRepository<P extends Persistent<IPersistent>> implements 
     item.validate()
 
     const db = await this.getDb()
-    await db.run(`UPDATE chat SET data=? WHERE id=?`, [this.mapper.map(item), item.getId()])
+    await db.run(`UPDATE ${this.table} SET data=? WHERE id=?`, [
+      this.mapper.map(item),
+      item.getId(),
+    ])
     db.close()
   }
 

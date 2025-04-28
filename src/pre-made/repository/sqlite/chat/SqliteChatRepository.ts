@@ -1,10 +1,8 @@
-import { Chat, type IChatConnection } from '../../Chat'
-import type { IChatMemory } from '../IChatMemory'
-import type { IChatRepository } from '../IChatRepository'
+import { Chat, type IChatConnection, type IChatMemory, type IChatRepository } from '@/core'
 
-import { SqliteCrudRepository } from '@/pre-made'
 import type { IReversibleMapper } from '@/shared'
 import path from 'path'
+import { SqliteCrudRepository } from '../SqliteCrudRepository'
 import { SqliteChatMemory } from './SqliteChatMemory'
 
 const chatSqliteMapper: IReversibleMapper<Chat, string> = {

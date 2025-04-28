@@ -1,4 +1,5 @@
-import { Persistent, type IPersistent } from '@/pre-made'
+import { Persistent, type IPersistent } from "@/shared"
+
 
 export type IChatType = 'PRIVATE' | 'GROUP'
 
