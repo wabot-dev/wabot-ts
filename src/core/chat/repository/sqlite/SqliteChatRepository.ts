@@ -2,49 +2,27 @@ import { Chat, type IChatConnection } from '../../Chat'
 import type { IChatMemory } from '../IChatMemory'
 import type { IChatRepository } from '../IChatRepository'
 
+import { SqliteCrudRepository } from '@/pre-made/repository/sqlite/SqliteCrudRepository'
+import type { IReversibleMapper } from '@/shared'
 import path from 'path'
-import { open } from 'sqlite'
-import sqlite3 from 'sqlite3-offline-next'
+import { SqliteChatMemory } from './SqliteChatMemory'
 
-export class SqliteChatRepository implements IChatRepository {
+const chatSqliteMapper: IReversibleMapper<Chat, string> = {
+  map(input) {
+    return JSON.stringify(input['data'])
+  },
+
+  rev(input) {
+    const data = JSON.parse(input)
+    data.createdAt = new Date(data.createdAt)
+    data.discardedAt = data.discardedAt && new Date(data.discardedAt)
+    return new Chat(data)
+  },
+}
+
+export class SqliteChatRepository extends SqliteCrudRepository<Chat> implements IChatRepository {
   constructor() {
-    this.createChatTable()
-  }
-
-  async create(chat: Chat): Promise<void> {
-    const db = await this.getDb()
-    await db.run('INSERT INTO chat VALUES (?, ?)', [chat['data'].id, JSON.stringify(chat['data'])])
-    db.close()
-  }
-
-  async find(id: string): Promise<Chat | null> {
-    const db = await this.getDb()
-    const result = await db.all('SELECT * FROM chat WHERE id=?', [id])
-    db.close()
-
-    if (result.length < 1) {
-      return null
-    }
-
-    const data = JSON.parse(result[0].data)
-    data.createdAt = new Date()
-    const chat = new Chat(data)
-    return chat
-  }
-
-  async findAll(): Promise<Chat[]> {
-    const db = await this.getDb()
-    const result = await db.all('SELECT * FROM chat')
-    db.close()
-
-    const chats = result.map((item) => {
-      const data = JSON.parse(item.data)
-      data.createdAt = new Date()
-      const chat = new Chat(data)
-      return chat
-    })
-
-    return chats
+    super('chat', SqliteChatRepository.getDbPath(), chatSqliteMapper)
   }
 
   async findByConnection(query: IChatConnection): Promise<Chat | null> {
@@ -52,25 +30,13 @@ export class SqliteChatRepository implements IChatRepository {
     return allChats.find((chat) => chat.hasConnection(query)) ?? null
   }
 
-  findMemory(chatId: string): Promise<IChatMemory | null> {
-    throw new Error('Method not implemented.')
+  async findMemory(chatId: string): Promise<IChatMemory | null> {
+    const chat = await this.find(chatId)
+    if (!chat) return null
+    return new SqliteChatMemory(chatId)
   }
 
-  private async createChatTable() {
-    const db = await this.getDb()
-    await db.exec('CREATE TABLE IF NOT EXISTS chat(id TEXT, data TEXT)')
-    db.close()
-  }
-
-  private async getDb() {
-    const db = await open({
-      filename: this.getDbPath(),
-      driver: sqlite3.Database,
-    })
-    return db
-  }
-
-  private getDbPath() {
+  static getDbPath() {
     return path.join(process.cwd(), '.sqlite', 'chat.db')
   }
 }

@@ -1,4 +1,4 @@
 export * from './repository'
 export * from './Chat'
 export * from './IChatFunctionCall'
-export * from './IChatItem'
+export * from './ChatItem'

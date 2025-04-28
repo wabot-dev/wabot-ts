@@ -1,15 +1,15 @@
+import { ChatItem } from '@/core'
 import { MindsetOperator } from '@/mindset'
 import { v4 as uuidv4 } from 'uuid'
-import { type IChatItem } from '@/core'
 
 export interface IChatBotAdapter {
-  generateNextChatItem(chatItems: IChatItem[]): Promise<IChatItem>
+  generateNextChatItem(chatItems: ChatItem[]): Promise<ChatItem>
 }
 
 export class ChatBotAdapter implements IChatBotAdapter {
   constructor(protected mindset: MindsetOperator) {}
 
-  public generateNextChatItem(chatItems: IChatItem[]): Promise<IChatItem> {
+  public generateNextChatItem(chatItems: ChatItem[]): Promise<ChatItem> {
     throw new Error('Not implemented')
   }
 
@@ -52,7 +52,7 @@ export class ChatBotAdapter implements IChatBotAdapter {
 
   protected async buildBotMessageItem(text: string) {
     const senderName = (await this.mindset.identity()).name
-    const newBotMessage: IChatItem = {
+    const newBotMessage = new ChatItem({
       id: uuidv4(),
       createdAt: new Date(),
       type: 'BOT_MESSAGE',
@@ -60,7 +60,7 @@ export class ChatBotAdapter implements IChatBotAdapter {
         senderName,
         text,
       },
-    }
+    })
     return newBotMessage
   }
 
@@ -70,7 +70,7 @@ export class ChatBotAdapter implements IChatBotAdapter {
     functionArguments: string,
   ) {
     const functionResult = await this.mindset.callFunction(functionName, functionArguments)
-    const newFunctionCall = {
+    const newFunctionCall = new ChatItem({
       id: uuidv4(),
       createdAt: new Date(),
       type: 'FUNCTION_CALL',
@@ -80,7 +80,7 @@ export class ChatBotAdapter implements IChatBotAdapter {
         arguments: functionArguments,
         result: functionResult,
       },
-    } as const
+    })
     return newFunctionCall
   }
 }

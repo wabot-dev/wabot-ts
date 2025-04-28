@@ -1,14 +1,35 @@
-import type { IChatItem } from '../../IChatItem'
+import path from 'path'
+import { ChatItem } from '../../ChatItem'
 import type { IChatMemory } from '../IChatMemory'
 
-export class SqliteChatMemory implements IChatMemory {
-  constructor(private chatId: string) {}
+import { SqliteCrudRepository } from '@/pre-made/repository/sqlite/SqliteCrudRepository'
+import type { IReversibleMapper } from '@/shared'
 
-  findLastItems(count: number): Promise<IChatItem[]> {
-    throw new Error('Method not implemented.')
+const chatItemSqliteMapper: IReversibleMapper<ChatItem, string> = {
+  map(input) {
+    return JSON.stringify(input['data'])
+  },
+
+  rev(input) {
+    const data = JSON.parse(input)
+    data.createdAt = new Date(data.createdAt)
+    data.discardedAt = data.discardedAt && new Date(data.discardedAt)
+    return new ChatItem(data)
+  },
+}
+
+export class SqliteChatMemory extends SqliteCrudRepository<ChatItem> implements IChatMemory {
+  constructor(private chatId: string) {
+    super('chat_item', SqliteChatMemory.getDbPath(chatId), chatItemSqliteMapper)
+    this.createTable()
   }
 
-  saveItem(item: IChatItem): Promise<void> {
-    throw new Error('Method not implemented.')
+  async findLastItems(count: number): Promise<ChatItem[]> {
+    const allItems = await this.findAll()
+    return allItems.slice(allItems.length - count, allItems.length)
+  }
+
+  static getDbPath(chatId: string) {
+    return path.join(process.cwd(), '.sqlite', 'chat-memory', chatId + '.db')
   }
 }

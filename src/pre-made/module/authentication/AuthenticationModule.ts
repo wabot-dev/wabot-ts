@@ -1,7 +1,7 @@
 import { MessageContext, User, UserRepository } from '@/core'
 import { mindsetFunction, mindsetModule } from '@/mindset'
-import { EmailService } from '../../services/EmailService'
-import { OtpService } from '../../services/OtpService'
+import { EmailService } from '../../service/EmailService'
+import { OtpService } from '../../service/OtpService'
 import { SendOneTimePasswordRequest, ValidateOneTimePasswordRequest } from './requests'
 
 @mindsetModule({

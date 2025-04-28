@@ -1,4 +1,4 @@
-import { ChatMemory, type IChatItem, type IChatMessage, type IConnectionChatMessage } from '@/core'
+import { ChatItem, ChatMemory, type IChatMessage, type IConnectionChatMessage } from '@/core'
 import { injectable } from '@/injection'
 import { v4 as uuidv4 } from 'uuid'
 import { ChatBotAdapter } from './ChatBotAdapter'
@@ -17,14 +17,14 @@ export class ChatBot implements IChatBot {
     message: IConnectionChatMessage,
     callback: (message: IChatMessage) => void,
   ) {
-    const newChatItem: IChatItem = {
+    const newChatItem = new ChatItem({
       id: uuidv4(),
       createdAt: new Date(),
       type: 'CONNECTION_MESSAGE',
       content: message,
-    }
+    })
 
-    await this.memory.saveItem(newChatItem)
+    await this.memory.create(newChatItem)
     this.processLoop(callback)
   }
 
@@ -35,15 +35,18 @@ export class ChatBot implements IChatBot {
     }
 
     const lastChatItem = prevChatItems[prevChatItems.length - 1]
-    if (lastChatItem.type === 'BOT_MESSAGE') {
+    const lastItemType = lastChatItem.getType()
+    if (lastItemType === 'BOT_MESSAGE') {
       return
     }
 
     const newChatItem = await this.adapter.generateNextChatItem(prevChatItems)
-    await this.memory.saveItem(newChatItem)
+    await this.memory.create(newChatItem)
 
-    if (newChatItem.type === 'BOT_MESSAGE') {
-      callback(newChatItem.content)
+    const newChatItemData = newChatItem.getData()
+
+    if (newChatItemData.type === 'BOT_MESSAGE') {
+      callback(newChatItemData.content)
       return
     }
 

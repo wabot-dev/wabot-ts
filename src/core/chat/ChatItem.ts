@@ -1,3 +1,4 @@
+import { Persistent } from '@/pre-made/repository/Persistent'
 import { type IChatMessage, type IConnectionChatMessage } from '../IReceivedMessage'
 import { type IChatFunctionCall } from './IChatFunctionCall'
 
@@ -16,9 +17,23 @@ export type ISystemFunctionCallItem = {
   content: IChatFunctionCall
 }
 
-export type IChatItem = {
+export type IChatItemData = {
   id: string
   createdAt: Date
 } & (ISystemMessageItem | IReceivedMessageItem | ISystemFunctionCallItem)
 
-export type IChatItemType = IChatItem['type']
+export type IChatItemType = IChatItemData['type']
+
+export class ChatItem extends Persistent<IChatItemData> {
+  getType() {
+    return this.data.type
+  }
+
+  getContent() {
+    return this.data.content
+  }
+
+  getData() {
+    return this.data
+  }
+}

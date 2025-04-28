@@ -3,8 +3,8 @@ import { injectable } from '@/injection'
 import { OpenAI } from 'openai'
 
 import { ChatBotAdapter } from '@/chatbot'
+import type { ChatItem } from '@/core'
 import { MindsetOperator } from '@/mindset'
-import type { IChatItem } from '@/core'
 
 @injectable()
 export class OpenaiChatBotAdapter extends ChatBotAdapter {
@@ -20,7 +20,7 @@ export class OpenaiChatBotAdapter extends ChatBotAdapter {
     this.model = model
   }
 
-  override async generateNextChatItem(chatItems: IChatItem[]): Promise<IChatItem> {
+  override async generateNextChatItem(chatItems: ChatItem[]): Promise<ChatItem> {
     const systemPrompt = await this.systemPrompt()
 
     const tools = (await this.mindset.allFunctionsDescriptors()).map((fn) => {
@@ -33,7 +33,7 @@ export class OpenaiChatBotAdapter extends ChatBotAdapter {
       tools,
     })
 
-    let newChatItem: IChatItem
+    let newChatItem: ChatItem
     if (response.output_text) {
       newChatItem = await this.buildBotMessageItem(response.output_text)
     } else if (response.output && response.output[0]?.type == 'function_call') {
@@ -48,31 +48,32 @@ export class OpenaiChatBotAdapter extends ChatBotAdapter {
     return newChatItem
   }
 
-  private mapChatItems(chatItems: IChatItem[]): OpenAI.Responses.ResponseInput {
+  private mapChatItems(chatItems: ChatItem[]): OpenAI.Responses.ResponseInput {
     const openIaInput: OpenAI.Responses.ResponseInput = []
     for (const item of chatItems) {
-      if (item.type === 'CONNECTION_MESSAGE') {
-        if (!item.content.text) {
+      const itemData = item.getData()
+      if (itemData.type === 'CONNECTION_MESSAGE') {
+        if (!itemData.content.text) {
           throw new Error('System message content is empty')
         }
-        openIaInput.push({ role: 'user', content: item.content.text })
-      } else if (item.type === 'BOT_MESSAGE') {
-        if (!item.content.text) {
+        openIaInput.push({ role: 'user', content: itemData.content.text })
+      } else if (itemData.type === 'BOT_MESSAGE') {
+        if (!itemData.content.text) {
           throw new Error('System message content is empty')
         }
-        openIaInput.push({ role: 'assistant', content: item.content.text })
+        openIaInput.push({ role: 'assistant', content: itemData.content.text })
       }
-      if (item.type === 'FUNCTION_CALL') {
+      if (itemData.type === 'FUNCTION_CALL') {
         openIaInput.push({
           type: 'function_call',
-          call_id: item.content.id,
-          name: item.content.name,
-          arguments: JSON.stringify(item.content.arguments),
+          call_id: itemData.content.id,
+          name: itemData.content.name,
+          arguments: JSON.stringify(itemData.content.arguments),
         })
         openIaInput.push({
           type: 'function_call_output',
-          call_id: item.content.id,
-          output: item.content.result,
+          call_id: itemData.content.id,
+          output: itemData.content.result,
         })
       }
     }

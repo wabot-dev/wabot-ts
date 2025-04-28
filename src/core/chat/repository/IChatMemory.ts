@@ -1,15 +1,15 @@
-import { type IChatItem } from '../IChatItem'
+import { ChatItem } from '../ChatItem'
 
 export interface IChatMemory {
-  findLastItems(count: number): Promise<IChatItem[]>
-  saveItem(item: IChatItem): Promise<void>
+  findLastItems(count: number): Promise<ChatItem[]>
+  create(item: ChatItem): Promise<void>
 }
 
 export class ChatMemory implements IChatMemory {
-  findLastItems(count: number): Promise<IChatItem[]> {
+  findLastItems(count: number): Promise<ChatItem[]> {
     throw new Error('Method not implemented.')
   }
-  saveItem(item: IChatItem): Promise<void> {
+  create(item: ChatItem): Promise<void> {
     throw new Error('Method not implemented.')
   }
 }

@@ -1,3 +1,5 @@
+import { Persistent, type IPersistent } from '@/pre-made/repository/Persistent'
+
 export type IChatType = 'PRIVATE' | 'GROUP'
 
 export interface IChatConnection {
@@ -6,18 +8,14 @@ export interface IChatConnection {
   id: string
 }
 
-export interface IChatData {
-  id?: string
-  createdAt?: Date
+export interface IChatData extends IPersistent {
   type: IChatType
   connections: IChatConnection[]
 }
 
-export class Chat {
-  private data: IChatData
-
+export class Chat extends Persistent<IChatData> {
   constructor(data: IChatData) {
-    this.data = data
+    super(data)
   }
 
   isPrivate() {
@@ -49,24 +47,8 @@ export class Chat {
     }
   }
 
-  getId(): string {
-    if (!this.data.id) {
-      throw new Error('Chat ID is required')
-    }
-    return this.data.id
-  }
-
-  wasCreated(): boolean {
-    return !!this.data.createdAt || !!this.data.id
-  }
-
-  validate() {
-    if (!this.data.id) {
-      throw new Error('Chat ID is required')
-    }
-    if (!this.data.createdAt) {
-      throw new Error('Chat createdAt is required')
-    }
+  override validate() {
+    super.validate()
     if (this.data.type === 'PRIVATE') {
       this.validatePrivateChat()
     } else if (this.data.type === 'GROUP') {
