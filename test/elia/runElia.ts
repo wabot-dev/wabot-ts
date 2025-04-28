@@ -25,12 +25,10 @@ runServer({
     {
       replace: ChatRepository,
       with: SqliteChatRepository,
-      singleton: true,
     },
     {
       replace: UserRepository,
-      with: RamUserRepository,
-      singleton: true,
+      with: SqliteChatRepository,
     },
   ],
 })

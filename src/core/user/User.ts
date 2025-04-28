@@ -1,24 +1,19 @@
+import { Persistent, type IPersistent } from '@/pre-made/repository/Persistent'
+
 export interface IUserConnection {
   channelName: string
   id: string
 }
 
-export interface IUserData {
-  id?: string
-  createdAt?: Date
+export interface IUserData extends IPersistent {
   shortName: string
   connections: IUserConnection[]
   keyValueData: { [key: string]: string }
 }
 
-export class User {
-  constructor(private data: IUserData) {}
-
-  getId() {
-    if (!this.data.id) {
-      throw new Error('User have not ID')
-    }
-    return this.data.id
+export class User extends Persistent<IUserData> {
+  constructor(data: IUserData) {
+    super(data)
   }
 
   hasConnection(connection: IUserConnection) {
@@ -28,19 +23,6 @@ export class User {
       }
     }
     return false
-  }
-
-  wasCreated(): boolean {
-    return !!this.data.createdAt || !!this.data.id
-  }
-
-  validate() {
-    if (!this.data.id) {
-      throw new Error('User ID is required')
-    }
-    if (!this.data.createdAt) {
-      throw new Error('User createdAt is required')
-    }
   }
 
   getValue(key: string) {
