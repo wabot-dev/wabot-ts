@@ -2,7 +2,7 @@ import path from 'path'
 import { ChatItem } from '../../ChatItem'
 import type { IChatMemory } from '../IChatMemory'
 
-import { SqliteCrudRepository } from '@/pre-made/repository/sqlite/SqliteCrudRepository'
+import { SqliteCrudRepository } from '@/pre-made'
 import type { IReversibleMapper } from '@/shared'
 
 const chatItemSqliteMapper: IReversibleMapper<ChatItem, string> = {

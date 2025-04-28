@@ -3,9 +3,9 @@ import {
   ChatRepository,
   EmailService,
   OpenaiChatBotAdapter,
-  RamUserRepository,
   runServer,
   SqliteChatRepository,
+  SqliteUserRepository,
   UserRepository,
 } from '@'
 import { EliaController } from './EliaController'
@@ -28,7 +28,7 @@ runServer({
     },
     {
       replace: UserRepository,
-      with: SqliteChatRepository,
+      with: SqliteUserRepository,
     },
   ],
 })

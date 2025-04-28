@@ -1,4 +1,4 @@
-import { Persistent, type IPersistent } from '@/pre-made/repository/Persistent'
+import { Persistent, type IPersistent } from '@/pre-made'
 
 export interface IUserConnection {
   channelName: string

@@ -2,7 +2,7 @@ import { Chat, type IChatConnection } from '../../Chat'
 import type { IChatMemory } from '../IChatMemory'
 import type { IChatRepository } from '../IChatRepository'
 
-import { SqliteCrudRepository } from '@/pre-made/repository/sqlite/SqliteCrudRepository'
+import { SqliteCrudRepository } from '@/pre-made'
 import type { IReversibleMapper } from '@/shared'
 import path from 'path'
 import { SqliteChatMemory } from './SqliteChatMemory'

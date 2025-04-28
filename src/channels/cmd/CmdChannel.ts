@@ -5,8 +5,8 @@ import { injectable } from '@/injection'
 import { type IChatConnection, type IChatMessage, type IUserConnection } from '@/core'
 import * as readline from 'readline'
 
-const chatId = '9c69f22a-03a0-44d5-be54-7f6e9f365a62'
-const userId = '9c69f22a-03a0-44d5-be54-7f6e9f365a62'
+const chatId = 'cmd'
+const userId = 'cmd'
 
 @injectable()
 export class CmdChannel implements IChatChannel {
@@ -28,6 +28,7 @@ export class CmdChannel implements IChatChannel {
 
   connect(): void {
     this.rl.on('line', async (input: string) => {
+      debugger
       const trimmedInput = input.trim()
       if (!trimmedInput) {
         this.rl.prompt()
