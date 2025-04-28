@@ -29,7 +29,6 @@ const config: RollupOptions = {
     'dotenv',
     'sqlite',
     'sqlite3',
-    'sqlite3-offline-next',
   ],
   output: {
     dir: 'dist/src',
