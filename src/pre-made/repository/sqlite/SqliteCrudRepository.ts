@@ -3,7 +3,7 @@ import type { ICrudRepository } from '../ICrudRepository'
 
 import { promises as fs } from 'fs'
 import path from 'path'
-import { Database, open } from 'sqlite'
+import { type Database, open } from 'sqlite'
 import sqlite3 from 'sqlite3'
 import { v4 as uuidv4 } from 'uuid'
 import type { ISqliteRecord } from './ISqliteRecord'
