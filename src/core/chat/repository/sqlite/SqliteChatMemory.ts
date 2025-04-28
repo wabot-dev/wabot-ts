@@ -21,7 +21,6 @@ const chatItemSqliteMapper: IReversibleMapper<ChatItem, string> = {
 export class SqliteChatMemory extends SqliteCrudRepository<ChatItem> implements IChatMemory {
   constructor(private chatId: string) {
     super('chat_item', SqliteChatMemory.getDbPath(chatId), chatItemSqliteMapper)
-    this.createTable()
   }
 
   async findLastItems(count: number): Promise<ChatItem[]> {

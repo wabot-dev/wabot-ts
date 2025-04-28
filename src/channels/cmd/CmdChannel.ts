@@ -1,13 +1,12 @@
 import { ChatResolver, UserResolver, type IChatChannel, type IReceivedMessage } from '@/controller'
 
 import { injectable } from '@/injection'
-import { v4 as uuidv4 } from 'uuid'
 
 import { type IChatConnection, type IChatMessage, type IUserConnection } from '@/core'
 import * as readline from 'readline'
 
-const chatId = uuidv4()
-const userId = uuidv4()
+const chatId = '9c69f22a-03a0-44d5-be54-7f6e9f365a62'
+const userId = '9c69f22a-03a0-44d5-be54-7f6e9f365a62'
 
 @injectable()
 export class CmdChannel implements IChatChannel {

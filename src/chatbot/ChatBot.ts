@@ -1,6 +1,5 @@
 import { ChatItem, ChatMemory, type IChatMessage, type IConnectionChatMessage } from '@/core'
 import { injectable } from '@/injection'
-import { v4 as uuidv4 } from 'uuid'
 import { ChatBotAdapter } from './ChatBotAdapter'
 import { type IChatBot } from './IChatBot'
 
@@ -18,8 +17,6 @@ export class ChatBot implements IChatBot {
     callback: (message: IChatMessage) => void,
   ) {
     const newChatItem = new ChatItem({
-      id: uuidv4(),
-      createdAt: new Date(),
       type: 'CONNECTION_MESSAGE',
       content: message,
     })
