@@ -1,8 +1,10 @@
 import { Chat, type IChatConnection, type IChatMemory, type IChatRepository } from '@/core'
-import type { Pool } from 'pg'
+import { Pool } from 'pg'
 import { PgCrudRepository } from '../PgCrudRepository'
 import { pgMapperFor } from '../PgPersistentMapper'
+import { singleton } from '@/injection'
 
+@singleton()
 export class PgChatRepository extends PgCrudRepository<Chat> implements IChatRepository {
   constructor(pool: Pool) {
     super(pool, 'chat', pgMapperFor(Chat))

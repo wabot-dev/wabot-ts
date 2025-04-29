@@ -28,7 +28,6 @@ export class CmdChannel implements IChatChannel {
 
   connect(): void {
     this.rl.on('line', async (input: string) => {
-      debugger
       const trimmedInput = input.trim()
       if (!trimmedInput) {
         this.rl.prompt()
