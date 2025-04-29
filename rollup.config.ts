@@ -29,6 +29,7 @@ const config: RollupOptions = {
     'dotenv',
     'sqlite',
     'sqlite3',
+    'pg',
   ],
   output: {
     dir: 'dist/src',

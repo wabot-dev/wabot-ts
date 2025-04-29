@@ -1,4 +1,3 @@
-
 export interface ICrudRepository<T> {
   find(id: string): Promise<T | null>
   findAll(id: string): Promise<T[]>

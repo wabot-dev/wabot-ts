@@ -1,5 +1,4 @@
-import { Persistent, type IPersistent } from "@/shared"
-
+import { Persistent, type IPersistent } from '@/shared'
 
 export interface IUserConnection {
   channelName: string
