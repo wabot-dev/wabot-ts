@@ -12,7 +12,7 @@ export class RamUserRepository implements IUserRepository {
       throw new Error('User already created')
     }
     chat['data'].id = uuidv4()
-    chat['data'].createdAt = new Date()
+    chat['data'].createdAt = new Date().getTime()
 
     chat.validate()
 

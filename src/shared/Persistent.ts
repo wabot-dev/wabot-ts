@@ -1,15 +1,11 @@
 export interface IPersistent {
   id?: string
-  createdAt?: Date | null
-  discardedAt?: Date | null
+  createdAt?: number | null
+  discardedAt?: number | null
 }
 
 export class Persistent<D extends IPersistent> {
-  private originalData: D
-
-  constructor(protected data: D) {
-    this.originalData = { ...data }
-  }
+  constructor(protected data: D) {}
 
   getId(): string {
     if (!this.data.id) {
@@ -22,7 +18,7 @@ export class Persistent<D extends IPersistent> {
     if (!this.data.createdAt) {
       throw new Error('createdAt is required')
     }
-    return this.data.createdAt
+    return new Date(this.data.createdAt)
   }
 
   update(newData: D) {
@@ -43,6 +39,6 @@ export class Persistent<D extends IPersistent> {
   }
 
   discard() {
-    this.data.discardedAt = new Date()
+    this.data.discardedAt = new Date().getTime()
   }
 }

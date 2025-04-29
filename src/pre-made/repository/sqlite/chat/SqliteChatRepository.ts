@@ -1,26 +1,13 @@
 import { Chat, type IChatConnection, type IChatMemory, type IChatRepository } from '@/core'
 
-import type { IReversibleMapper } from '@/shared'
 import path from 'path'
 import { SqliteCrudRepository } from '../SqliteCrudRepository'
+import { sqliteMapperFor } from '../SqlitePersistentMapper'
 import { SqliteChatMemory } from './SqliteChatMemory'
-
-const chatSqliteMapper: IReversibleMapper<Chat, string> = {
-  map(input) {
-    return JSON.stringify(input['data'])
-  },
-
-  rev(input) {
-    const data = JSON.parse(input)
-    data.createdAt = new Date(data.createdAt)
-    data.discardedAt = data.discardedAt && new Date(data.discardedAt)
-    return new Chat(data)
-  },
-}
 
 export class SqliteChatRepository extends SqliteCrudRepository<Chat> implements IChatRepository {
   constructor() {
-    super('chat', SqliteChatRepository.getDbPath(), chatSqliteMapper)
+    super('chat', SqliteChatRepository.getDbPath(), sqliteMapperFor(Chat))
   }
 
   async findByConnection(query: IChatConnection): Promise<Chat | null> {

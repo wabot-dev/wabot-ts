@@ -46,7 +46,7 @@ export class SqliteCrudRepository<P extends Persistent<IPersistent>> implements 
       throw new Error('Item already created')
     }
     item['data'].id = uuidv4()
-    item['data'].createdAt = new Date()
+    item['data'].createdAt = new Date().getTime()
     item.validate()
 
     const db = await this.getDb()

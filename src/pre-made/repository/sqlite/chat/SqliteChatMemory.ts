@@ -1,25 +1,12 @@
 import path from 'path'
 
 import { ChatItem, type IChatMemory } from '@/core'
-import type { IReversibleMapper } from '@/shared'
 import { SqliteCrudRepository } from '../SqliteCrudRepository'
-
-const chatItemSqliteMapper: IReversibleMapper<ChatItem, string> = {
-  map(input) {
-    return JSON.stringify(input['data'])
-  },
-
-  rev(input) {
-    const data = JSON.parse(input)
-    data.createdAt = new Date(data.createdAt)
-    data.discardedAt = data.discardedAt && new Date(data.discardedAt)
-    return new ChatItem(data)
-  },
-}
+import { sqliteMapperFor } from '../SqlitePersistentMapper'
 
 export class SqliteChatMemory extends SqliteCrudRepository<ChatItem> implements IChatMemory {
-  constructor(private chatId: string) {
-    super('chat_item', SqliteChatMemory.getDbPath(chatId), chatItemSqliteMapper)
+  constructor(chatId: string) {
+    super('chat_item', SqliteChatMemory.getDbPath(chatId), sqliteMapperFor(ChatItem))
   }
 
   async findLastItems(count: number): Promise<ChatItem[]> {

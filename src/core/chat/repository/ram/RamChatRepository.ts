@@ -20,7 +20,7 @@ export class RamChatRepository implements IChatRepository {
       throw new Error('Chat already created')
     }
     chat['data'].id = uuidv4()
-    chat['data'].createdAt = new Date()
+    chat['data'].createdAt = new Date().getTime()
 
     chat.validate()
 

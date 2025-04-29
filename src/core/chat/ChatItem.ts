@@ -20,7 +20,7 @@ export type ISystemFunctionCallItem = {
 
 export type IChatItemData = {
   id?: string
-  createdAt?: Date
+  createdAt?: number
 } & (ISystemMessageItem | IReceivedMessageItem | ISystemFunctionCallItem)
 
 export type IChatItemType = IChatItemData['type']
