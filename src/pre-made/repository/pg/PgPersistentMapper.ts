@@ -1,16 +1,17 @@
 import type { IConstructor, IPersistent, IReversibleMapper, Persistent } from '@/shared'
+import type { IPgRecord } from './IPgRecord'
 
 export class PgPersistentMapper<P extends Persistent<IPersistent>>
-  implements IReversibleMapper<P, string>
+  implements IReversibleMapper<P, IPgRecord>
 {
   constructor(private ctor: IConstructor<P>) {}
 
-  map(input: P): string {
-    return JSON.stringify(input['data'])
+  map(input: P): IPgRecord {
+    return { id: input.getId(), data: JSON.stringify(input['data']) }
   }
 
-  rev(input: string): P {
-    return new this.ctor(JSON.parse(input))
+  rev(input: IPgRecord): P {
+    return new this.ctor(input.data)
   }
 }
 

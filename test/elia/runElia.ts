@@ -1,15 +1,24 @@
 import {
   ChatBotAdapter,
   ChatRepository,
+  container,
   EmailService,
   OpenaiChatBotAdapter,
+  PgChatRepository,
   runServer,
-  SqliteChatRepository,
   SqliteUserRepository,
   UserRepository,
 } from '@'
+import { Pool } from 'pg'
 import { EliaController } from './EliaController'
 import { EliaEmailService } from './services'
+
+container.registerInstance(
+  Pool,
+  new Pool({
+    connectionString: process.env.DATABASE_URL,
+  }),
+)
 
 runServer({
   controllers: [EliaController],
@@ -24,7 +33,8 @@ runServer({
     },
     {
       replace: ChatRepository,
-      with: SqliteChatRepository,
+      // with: SqliteChatRepository,
+      with: PgChatRepository,
     },
     {
       replace: UserRepository,
