@@ -1,7 +1,9 @@
 import { User, type IUserConnection, type IUserRepository } from '@/core'
+import { singleton } from '@/injection'
 import { PgCrudRepository } from '@/repository'
-import type { Pool } from 'pg'
+import { Pool } from 'pg'
 
+@singleton()
 export class PgUserRepository extends PgCrudRepository<User> implements IUserRepository {
   constructor(pool: Pool) {
     super(pool, {

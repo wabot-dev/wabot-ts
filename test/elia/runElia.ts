@@ -5,8 +5,8 @@ import {
   EmailService,
   OpenaiChatBotAdapter,
   PgChatRepository,
+  PgUserRepository,
   runServer,
-  SqliteUserRepository,
   UserRepository,
 } from '@'
 import { Pool } from 'pg'
@@ -38,7 +38,8 @@ runServer({
     },
     {
       replace: UserRepository,
-      with: SqliteUserRepository,
+      // with: SqliteUserRepository,
+      with: PgUserRepository,
     },
   ],
 })
