@@ -1,6 +1,6 @@
 import type { Persistent } from '@/shared'
 import { Pool } from 'pg'
-import { generate as newId } from 'short-uuid'
+import * as shortUUID from 'short-uuid'
 import type { ICrudRepository } from '../ICrudRepository'
 import { type IPgRepositoryConfig } from './IPgRepositoryConfig'
 import { PgRepositoryBase } from './PgRepositoryBase'
@@ -41,7 +41,7 @@ export class PgCrudRepository<P extends Persistent>
       throw new Error('Item already created')
     }
 
-    item['data'].id = newId()
+    item['data'].id = shortUUID.default.generate()
     item['data'].createdAt = new Date().getTime()
     item.validate()
 

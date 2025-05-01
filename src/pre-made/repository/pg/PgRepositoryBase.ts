@@ -37,7 +37,7 @@ export class PgRepositoryBase<P extends Persistent> {
       '"id" TEXT PRIMARY KEY',
       '"created_at" TIMESTAMP',
       '"data" JSONB',
-      ...this.columnsList.slice(2).map((x) => `${x} ${this.addColumns[x].type}`),
+      ...this.columnsList.slice(3).map((x) => `${x} ${this.addColumns[x].type}`),
     ].join(', ')
 
     this.columns = this.columnsList.map((x) => `"${x}"`).join(', ')
@@ -50,7 +50,7 @@ export class PgRepositoryBase<P extends Persistent> {
       item.getId(),
       item.getCreatedAt(),
       JSON.stringify(item['data']),
-      ...this.columnsList.slice(2).map((x) => this.addColumns[x].value(item)),
+      ...this.columnsList.slice(3).map((x) => this.addColumns[x].value(item)),
     ]
   }
 
