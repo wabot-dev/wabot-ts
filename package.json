@@ -45,6 +45,7 @@
     "openai": "^4.93.0",
     "pg": "^8.15.6",
     "reflect-metadata": "^0.2.2",
+    "short-uuid": "^5.2.0",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7",
     "tslib": "^2.8.1",

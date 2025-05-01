@@ -2,25 +2,26 @@ import { Chat, type IChatConnection, type IChatMemory, type IChatRepository } fr
 import { singleton } from '@/injection'
 import { Pool } from 'pg'
 import { PgCrudRepository } from '../PgCrudRepository'
-import { pgMapperFor } from '../PgPersistentMapper'
 import { PgChatMemory } from './PgChatMemory'
 
 @singleton()
 export class PgChatRepository extends PgCrudRepository<Chat> implements IChatRepository {
   constructor(pool: Pool) {
-    super(pool, 'chat', pgMapperFor(Chat))
+    super(pool, {
+      table: 'chat',
+      schema: 'wabot',
+      constructor: Chat,
+    })
   }
 
   async findByConnection(query: IChatConnection): Promise<Chat | null> {
-    const conn = await this.connect()
     const sql = `
-      SELECT id, data 
-      FROM ${this.tableName} 
+      SELECT ${this.columns}
+      FROM ${this.table} 
       WHERE data->'connections' @> $1::jsonb
     `
-    const { rows } = await conn.query(sql, [JSON.stringify([query])])
-    if (!rows.length) return null
-    return this.mapper.rev(rows[0])
+    const items = await this.query(sql, [JSON.stringify([query])])
+    return items.at(0) ?? null
   }
 
   async findMemory(chatId: string): Promise<IChatMemory | null> {

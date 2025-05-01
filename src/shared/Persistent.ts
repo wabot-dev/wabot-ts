@@ -4,7 +4,7 @@ export interface IPersistent {
   discardedAt?: number | null
 }
 
-export class Persistent<D extends IPersistent> {
+export class Persistent<D extends IPersistent = IPersistent> {
   constructor(protected data: D) {}
 
   getId(): string {
