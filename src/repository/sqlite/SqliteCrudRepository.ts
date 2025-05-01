@@ -1,4 +1,4 @@
-import type { IPersistent, IReversibleMapper, Persistent } from '@/shared'
+import type { IReversibleMapper } from '@/core'
 import type { ICrudRepository } from '../ICrudRepository'
 
 import { promises as fs } from 'fs'
@@ -7,8 +7,9 @@ import { type Database, open } from 'sqlite'
 import sqlite3 from 'sqlite3'
 import { v4 as uuidv4 } from 'uuid'
 import type { ISqliteRecord } from './ISqliteRecord'
+import type { Persistent } from '@/core'
 
-export class SqliteCrudRepository<P extends Persistent<IPersistent>> implements ICrudRepository<P> {
+export class SqliteCrudRepository<P extends Persistent> implements ICrudRepository<P> {
   private tableCreated = false
 
   constructor(

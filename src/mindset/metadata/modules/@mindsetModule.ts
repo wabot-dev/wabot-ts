@@ -1,7 +1,7 @@
 import 'reflect-metadata'
 
 import { container, injectable } from '@/injection'
-import { type IConstructor } from '@/shared'
+import { type IConstructor } from '@/core'
 import { MindsetMetadataStore } from '../MindsetMetadataStore'
 import { MINDSET_MODULE_DECORATION_MODULE } from './decoratorNames'
 import { type IMindsetModuleConfig } from './IMindsetModuleConfig'

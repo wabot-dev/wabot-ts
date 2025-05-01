@@ -1,5 +1,5 @@
 import { singleton } from '@/injection'
-import type { IUserConnection, User } from '../User'
+import type { IUserConnection, User } from './User'
 
 export interface IUserRepository {
   create(chat: User): Promise<void>

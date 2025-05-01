@@ -1,4 +1,4 @@
-import { type IConstructor } from '@/shared'
+import { type IConstructor } from '@/core'
 
 import { Container, type DependencyContainer } from '@/injection'
 import { type IMindset, Mindset } from '@/mindset'

@@ -1,6 +1,6 @@
 import { ChatItem, type IChatMemory } from '@/core'
+import { PgCrudRepository } from '@/repository'
 import { Pool } from 'pg'
-import { PgCrudRepository } from '../PgCrudRepository'
 
 export class PgChatMemory extends PgCrudRepository<ChatItem> implements IChatMemory {
   constructor(

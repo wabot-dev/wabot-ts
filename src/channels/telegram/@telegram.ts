@@ -2,7 +2,7 @@ import { container } from '@/injection'
 import { ControllerMetadataStore } from '@/controller'
 import { TelegramChannel } from './TelegramChannel'
 import { type ITelegramChannelConfig, TelegramChannelConfig } from './TelegramChannelConfig'
-import { type IConstructor } from '@/shared'
+import type { IConstructor } from '@/core'
 
 export function telegram(config: ITelegramChannelConfig) {
   return function (target: object, propertyKey: string | symbol) {

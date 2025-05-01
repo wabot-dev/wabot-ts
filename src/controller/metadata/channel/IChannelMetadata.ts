@@ -1,4 +1,4 @@
-import { type IConstructor } from '@/shared'
+import { type IConstructor } from '@/core'
 import { type IChatChannel } from '../../channel/IChatChannel'
 
 export interface IChannelMetadata {

@@ -1,5 +1,4 @@
-import { ChatItem } from '../../ChatItem'
-import { type IChatMemory } from '../IChatMemory'
+import type { ChatItem, IChatMemory } from '@/core'
 
 export class RamChatMemory implements IChatMemory {
   private memory: ChatItem[] = []

@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from 'uuid'
-import { User, type IUserConnection } from '../../User'
-import { type IUserRepository } from '../IUserRepository'
+
 import { singleton } from '@/injection'
+import type { IUserConnection, IUserRepository, User } from '@/core'
 
 @singleton()
 export class RamUserRepository implements IUserRepository {

@@ -1,7 +1,7 @@
 import { ControllerMetadataStore } from '@/controller'
 import { container } from '@/injection'
 import { CmdChannel } from './CmdChannel'
-import { type IConstructor } from '@/shared'
+import type { IConstructor } from '@/core'
 
 export function cmd() {
   return function (target: object, propertyKey: string | symbol) {

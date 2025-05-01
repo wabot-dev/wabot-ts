@@ -1,5 +1,5 @@
-import { Persistent } from '@/shared'
-import { type IChatMessage, type IConnectionChatMessage } from '../IReceivedMessage'
+import { type IChatMessage, type IConnectionChatMessage } from '../IConnectionChatMessage'
+import { Persistent } from '../Persistent'
 import { type IChatFunctionCall } from './IChatFunctionCall'
 
 export type ISystemMessageItem = {

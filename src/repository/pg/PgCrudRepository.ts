@@ -1,9 +1,9 @@
-import type { Persistent } from '@/shared'
 import { Pool } from 'pg'
 import * as shortUUID from 'short-uuid'
 import type { ICrudRepository } from '../ICrudRepository'
 import { type IPgRepositoryConfig } from './IPgRepositoryConfig'
 import { PgRepositoryBase } from './PgRepositoryBase'
+import type { Persistent } from '@/core'
 
 export class PgCrudRepository<P extends Persistent>
   extends PgRepositoryBase<P>

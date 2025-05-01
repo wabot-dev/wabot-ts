@@ -1,6 +1,6 @@
 import { container, injectable } from '@/injection'
 import { type IchatControllerConfig } from './IChatControllerConfig'
-import { type IConstructor } from '@/shared'
+import { type IConstructor } from '@/core'
 import { ControllerMetadataStore } from '../ControllerMetadataStore'
 
 export function chatController(config?: IchatControllerConfig) {

@@ -1,9 +1,8 @@
 import { v4 as uuidv4 } from 'uuid'
-import { Chat, type IChatConnection } from '../../Chat'
-import { type IChatRepository } from '../IChatRepository'
-import { type IChatMemory } from '../IChatMemory'
+
 import { RamChatMemory } from './RamChatMemory'
 import { singleton } from '@/injection'
+import type { Chat, IChatConnection, IChatMemory, IChatRepository } from '@/core'
 
 interface IRamChatMemory {
   chatId: string

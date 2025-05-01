@@ -4,7 +4,7 @@ dotenv.config()
 import { ControllerMetadataStore } from '@/controller'
 import { type IMessageContext } from '@/core'
 import { container } from '@/injection'
-import { type IConstructor } from '@/shared'
+import { type IConstructor } from '@/core'
 import { prepareChatContainer } from './prepareChatContainer'
 
 export interface IServerProvider<T, ST extends T> {

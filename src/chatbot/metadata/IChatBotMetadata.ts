@@ -1,5 +1,5 @@
+import type { IConstructor } from '@/core'
 import { type IMindset } from '@/mindset'
-import { type IConstructor } from '@/shared'
 
 export interface IChatBotMetadata {
   constructor: IConstructor<any>

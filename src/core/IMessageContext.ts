@@ -1,5 +1,5 @@
 import type { Chat } from './chat/Chat'
-import type { IConnectionChatMessage } from './IReceivedMessage'
+import type { IConnectionChatMessage } from './IConnectionChatMessage'
 
 import { User } from './user'
 

@@ -1,8 +1,8 @@
 import { type IMindset } from '@/mindset'
-import { type IConstructor } from '@/shared'
 import { container, inject } from '@/injection'
 import { v4 as uuidv4 } from 'uuid'
 import { ChatBotMetadataStore } from './ChatBotMetadataStore'
+import type { IConstructor } from '@/core'
 
 export function chatBot(mindset: IConstructor<IMindset>) {
   return function (

@@ -1,4 +1,4 @@
-import type { IConstructor, Persistent } from '@/shared'
+import type { IConstructor, Persistent } from '@/core'
 
 export type IPgRepositoryConfig<P extends Persistent> = {
   schema?: string

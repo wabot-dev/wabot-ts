@@ -1,6 +1,6 @@
-import type { Persistent } from '@/shared'
 import type { Pool } from 'pg'
 import type { IPgRepositoryConfig } from './IPgRepositoryConfig'
+import type { Persistent } from '@/core'
 
 export class PgRepositoryBase<P extends Persistent> {
   private tableIsCreated = false

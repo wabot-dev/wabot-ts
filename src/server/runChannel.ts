@@ -4,7 +4,7 @@ dotenv.config()
 import { type IChatChannel } from '@/controller'
 import { container } from '@/injection'
 import { type IMindset } from '@/mindset'
-import { type IConstructor } from '@/shared'
+import { type IConstructor } from '@/core'
 import { prepareChatContainer } from './prepareChatContainer'
 import { ChatRepository, type IChatRepository } from '@/core'
 import { ChatBot, ChatBotAdapter, type IChatBotAdapter } from '@/chatbot'

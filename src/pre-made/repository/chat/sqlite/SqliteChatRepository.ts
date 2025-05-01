@@ -1,9 +1,9 @@
 import { Chat, type IChatConnection, type IChatMemory, type IChatRepository } from '@/core'
 
 import path from 'path'
-import { SqliteCrudRepository } from '../SqliteCrudRepository'
-import { sqliteMapperFor } from '../SqlitePersistentMapper'
+
 import { SqliteChatMemory } from './SqliteChatMemory'
+import { SqliteCrudRepository, sqliteMapperFor } from '@/repository'
 
 export class SqliteChatRepository extends SqliteCrudRepository<Chat> implements IChatRepository {
   constructor() {
