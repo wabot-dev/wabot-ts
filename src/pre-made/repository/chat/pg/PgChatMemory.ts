@@ -31,6 +31,6 @@ export class PgChatMemory extends PgCrudRepository<ChatItem> implements IChatMem
       LIMIT $2
     `
     const items = await this.query(sql, [this.chatId, count])
-    return items
+    return items.reverse()
   }
 }
