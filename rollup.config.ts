@@ -30,6 +30,7 @@ const config: RollupOptions = {
     'sqlite',
     'sqlite3',
     'pg',
+    'short-uuid'
   ],
   output: {
     dir: 'dist/src',
