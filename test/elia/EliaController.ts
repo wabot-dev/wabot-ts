@@ -2,7 +2,7 @@ import { chatBot, ChatBot, chatController, cmd, type IReceivedMessage, telegram 
 
 import { EliaGuardMindset } from './EliaGuardMindset'
 import { EliaMindset } from './EliaMindset'
-import { whatsapp } from '@/channels/whatsapp/@whatsapp'
+import { whatsapp } from '@/channels'
 
 @chatController()
 export class EliaController {

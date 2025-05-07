@@ -1,4 +1,4 @@
-import type { ChatResolver, IChatChannel, IReceivedMessage, UserResolver } from '@/controller'
+import { ChatResolver, type IChatChannel, type IReceivedMessage, UserResolver } from '@/controller'
 import type { IChatConnection, IChatMessage, IUserConnection } from '@/core'
 import { injectable } from '@/injection'
 import { Logger } from '@/logger'
@@ -8,13 +8,13 @@ import type {
   IWhatsAppMessage,
   IWhatsAppWebhookPayload,
 } from './IWhatsAppWebHookPayload'
-import type { WhatsappChannelConfig } from './WhatsappChannelConfig'
+import { WhatsappChannelConfig } from './WhatsAppChannelConfig'
 import {
   devWhatsappEmitEvent,
   devWhatsAppListentEvent,
   type IDevConnectionRequest,
   type IDevSendWhatsappRequest,
-} from './whatsappDevSocketContracts'
+} from './whatsAppDevSocketContracts'
 
 @injectable()
 export class WhatsAppChannel implements IChatChannel {
@@ -36,7 +36,7 @@ export class WhatsAppChannel implements IChatChannel {
   listen(callback: (message: IReceivedMessage) => void): void {
     this.devProxySocket.on(
       devWhatsAppListentEvent.DEV_WATSAPP_WEBHOOK,
-      async (payload: IWhatsAppWebhookPayload, socketCallback) => {
+      async (payload: IWhatsAppWebhookPayload) => {
         try {
           for (const entry of payload.entry) {
             for (const change of entry.changes) {
@@ -55,9 +55,8 @@ export class WhatsAppChannel implements IChatChannel {
               }
             }
           }
-          socketCallback('OK')
         } catch (err) {
-          socketCallback('ERROR')
+          this.logger.error(err)
         }
       },
     )
@@ -120,7 +119,7 @@ export class WhatsAppChannel implements IChatChannel {
 
   private connectDevProxySocket(token: string) {
     this.devProxySocket.connect()
-    this.devProxySocket.on('connected', async () => {
+    this.devProxySocket.on('connect', async () => {
       try {
         const req: IDevConnectionRequest = {
           token,
