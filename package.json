@@ -16,8 +16,7 @@
     "fmt": "prettier --write .",
     "fmt:check": "prettier --check .",
     "types:check": "tsc --noEmit",
-    "elia:cmd": "node --import @yucacodes/ts/src/custom-import.mjs  ./test/elia/runEliaCmd.ts",
-    "elia:telegram": "node --import @yucacodes/ts/src/custom-import.mjs  ./test/elia/runEliaTelegram.ts"
+    "elia:dev": "yts --import ./dotenv.config.mjs  ./test/elia/runElia.ts"
   },
   "devDependencies": {
     "@rollup/plugin-alias": "5.1.1",
@@ -35,10 +34,12 @@
     "typescript": "5.8.3"
   },
   "peerDependencies": {
+    "@types/debug": "^4.1.12",
     "@types/pg": "^8.11.14",
     "@yucacodes/ts": "^0.0.4",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "debug": "^4.4.0",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "grammy": "^1.36.0",
@@ -46,6 +47,8 @@
     "pg": "^8.15.6",
     "reflect-metadata": "^0.2.2",
     "short-uuid": "^5.2.0",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7",
     "tslib": "^2.8.1",

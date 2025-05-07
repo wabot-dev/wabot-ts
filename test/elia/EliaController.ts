@@ -2,6 +2,7 @@ import { chatBot, ChatBot, chatController, cmd, type IReceivedMessage, telegram 
 
 import { EliaGuardMindset } from './EliaGuardMindset'
 import { EliaMindset } from './EliaMindset'
+import { whatsapp } from '@/channels/whatsapp/@whatsapp'
 
 @chatController()
 export class EliaController {
@@ -14,6 +15,9 @@ export class EliaController {
     botToken: process.env.TELEGRAM_ELIA_BOT_TOKEN!,
   })
   @cmd()
+  @whatsapp({
+    number: '15550815054',
+  })
   onMessage(context: IReceivedMessage) {
     const isLogin = context.user != null
 
