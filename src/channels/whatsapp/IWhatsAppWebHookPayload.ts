@@ -17,12 +17,12 @@ interface IMessagesChange {
 
 interface IMessagesChangeValue {
   messaging_product: 'whatsapp'
-  metadata: IMetadata
+  metadata: IMessageMetadata
   contacts?: IWhatsAppContact[]
   messages?: IWhatsAppMessage[]
 }
 
-interface IMetadata {
+export interface IMessageMetadata {
   display_phone_number: string
   phone_number_id: string
 }
