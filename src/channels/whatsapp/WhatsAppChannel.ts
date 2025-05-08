@@ -1,12 +1,12 @@
 import { ChatResolver, type IChatChannel, type IReceivedMessage, UserResolver } from '@/controller'
 import type { IChatMessage } from '@/core'
-import type { WabotEnv } from '@/env'
+import { WabotEnv } from '@/env'
 import { injectable } from '@/injection'
 import { Logger } from '@/logger'
 import type { IWhatsAppConnection } from './IWhatsAppConnection'
 import { WhatsappChannelConfig } from './WhatsAppChannelConfig'
-import type { WhatsAppDevConnection } from './WhatsAppDevConnection'
-import type { WhatsAppProdConnection } from './WhatsAppProdConnection'
+import { WhatsAppDevConnection } from './WhatsAppDevConnection'
+import { WhatsAppProdConnection } from './WhatsAppProdConnection'
 
 @injectable()
 export class WhatsAppChannel implements IChatChannel {
@@ -26,21 +26,25 @@ export class WhatsAppChannel implements IChatChannel {
 
   listen(callback: (message: IReceivedMessage) => void): void {
     this.whatsAppConection.listenMessage(this.config.number, async (message) => {
-      const chat = await this.chatResolver.resolve(message.chatConnection)
-      const user = await this.userResolver.resolve(message.userConnection)
+      try {
+        const chat = await this.chatResolver.resolve(message.chatConnection)
+        const user = await this.userResolver.resolve(message.userConnection)
 
-      callback({
-        chat,
-        user,
-        message,
-        reply: (replyMessage: IChatMessage) => {
-          this.whatsAppConection.sendWhatsApp(
-            this.config.number,
-            message.userConnection.id,
-            replyMessage,
-          )
-        },
-      })
+        callback({
+          chat,
+          user,
+          message,
+          reply: (replyMessage: IChatMessage) => {
+            this.whatsAppConection.sendWhatsApp(
+              this.config.number,
+              message.userConnection.id,
+              replyMessage,
+            )
+          },
+        })
+      } catch (err) {
+        this.logger.error(err)
+      }
     })
   }
 
