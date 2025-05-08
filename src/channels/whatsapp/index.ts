@@ -1,5 +1,5 @@
 export * from './@whatsapp'
 export * from './IWhatsAppWebHookPayload'
-export * from './WhatsAppChannel'
+export * from './yWhatsAppChannel'
 export * from './WhatsAppChannelConfig'
 export * from './whatsAppDevSocketContracts'
