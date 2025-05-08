@@ -2,7 +2,7 @@ import { container } from '@/injection'
 import { WhatsappChannelConfig, type IWhatsappChannelConfig } from './WhatsAppChannelConfig'
 import { ControllerMetadataStore } from '@/controller'
 import type { IConstructor } from '@/core'
-import { WhatsAppChannel } from './yWhatsAppChannel'
+import { WhatsAppChannel } from './WhatsAppChannel'
 
 export function whatsapp(config: IWhatsappChannelConfig) {
   return function (target: object, propertyKey: string | symbol) {
