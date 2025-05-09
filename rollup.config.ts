@@ -31,6 +31,11 @@ const config: RollupOptions = {
     'sqlite3',
     'pg',
     'short-uuid',
+    'socket.io',
+    'body-parser',
+    'socket.io-client',
+    'body-parser',
+    'debug',
   ],
   output: {
     dir: 'dist/src',
