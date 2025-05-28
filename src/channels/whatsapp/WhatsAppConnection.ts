@@ -7,6 +7,7 @@ import type {
   IWhatsAppMessage,
   IWhatsAppWebhookPayload,
 } from './IWhatsAppWebHookPayload'
+import type { IWhatsAppTemplateMessage } from './IWhatsAppTemplateMessage'
 
 export abstract class WhatsAppConnection implements IWhatsAppConnection {
   private listeners: Map<string, IWhatsAppMessageListener> = new Map()
@@ -19,6 +20,12 @@ export abstract class WhatsAppConnection implements IWhatsAppConnection {
     chatMessage: IChatMessage,
   ): Promise<void>
   abstract connect(): void
+
+  abstract sendWhatsAppTemplate(
+    businessNumber: string,
+    to: string,
+    templateMessage: IWhatsAppTemplateMessage,
+  ): Promise<void>
 
   listenMessage(businessNumber: string, listener: IWhatsAppMessageListener): void {
     this.listeners.set(businessNumber, listener)
