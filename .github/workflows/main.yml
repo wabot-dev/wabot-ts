@@ -1,0 +1,27 @@
+name: main
+on:
+  push:
+    branches: ['main']
+jobs:
+  check-versions:
+    name: Check Versions
+    runs-on: ubuntu-latest
+    outputs:
+      publishedVersion: ${{ steps.versions.outputs.publishedVersion }}
+      pushedVersion: ${{ steps.versions.outputs.pushedVersion }}
+    steps:
+      - uses: actions/setup-node@v4
+        name: Setup Node.js
+      - uses: actions/checkout@v4.1.1
+        name: Checkout
+      - id: versions
+        name: Query versions
+        run: |
+          PUBLISHED_VERSION=$(npm view @wabot-dev/framework version)
+          PUSHED_VERSION=$(cat package.json | jq -r '.version')
+          
+          echo "PUBLISHED_VERSION=$PUBLISHED_VERSION"
+          echo "PUSHED_VERSION=$PUSHED_VERSION"
+          
+          echo "publishedVersion=$PUBLISHED_VERSION" >> "$GITHUB_OUTPUT"
+          echo "pushedVersion=$PUSHED_VERSION" >> "$GITHUB_OUTPUT"
