@@ -1,7 +1,7 @@
 import type { IChatMessage } from '@/core'
 import { singleton } from '@/injection'
 import { Logger } from '@/logger'
-import { io, Socket } from 'socket.io-client'
+import { io, type Socket } from 'socket.io-client'
 import type { IWhatsAppConnection } from './IWhatsAppConnection'
 import { WhatsAppConnection } from './WhatsAppConnection'
 import {
@@ -9,7 +9,9 @@ import {
   devWhatsAppListentEvent,
   type IDevConnectionRequest,
   type IDevSendWhatsappRequest,
+  type IDevSendWhatsappTemplateRequest,
 } from './whatsAppDevSocketContracts'
+import type { IWhatsAppTemplateMessage } from './IWhatsAppTemplateMessage'
 
 @singleton()
 export class WhatsAppDevConnection extends WhatsAppConnection implements IWhatsAppConnection {
@@ -32,6 +34,19 @@ export class WhatsAppDevConnection extends WhatsAppConnection implements IWhatsA
       message: chatMessage,
     }
     await this.devProxySocket.emitWithAck(devWhatsappEmitEvent.DEV_SEND_WHATSAPP, req)
+  }
+
+  async sendWhatsAppTemplate(
+    businessNumber: string,
+    to: string,
+    templateMessage: IWhatsAppTemplateMessage,
+  ): Promise<void> {
+    const req: IDevSendWhatsappTemplateRequest = {
+      from: businessNumber,
+      to,
+      message: templateMessage,
+    }
+    await this.devProxySocket.emitWithAck(devWhatsappEmitEvent.DEV_SEND_WHATSAPP_TEMPLATE, req)
   }
 
   connect(): void {
