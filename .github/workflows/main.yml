@@ -27,3 +27,28 @@ jobs:
           
           echo "publishedVersion=$PUBLISHED_VERSION" >> "$GITHUB_OUTPUT"
           echo "pushedVersion=$PUSHED_VERSION" >> "$GITHUB_OUTPUT"
+
+  publish-lib:
+    name: Publish Lib
+    environment: production
+    needs: check-versions
+    runs-on: ubuntu-latest
+    if: ${{ needs.check-versions.outputs.publishedVersion != needs.check-versions.outputs.pushedVersion }}
+    steps:
+      - uses: actions/checkout@v4.1.1
+        name: Checkout
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version-file: .nvmrc
+        name: Setup Node.js
+
+      - name: Run publish
+        run: |
+          VERSION_TO_PUBLISH=${{ needs.check-versions.outputs.pushedVersion }}
+          NPM_TOKEN=${{ secrets.NPM_TOKEN }}
+
+          npm ci
+          npm run build
+
+          npm set "//registry.npmjs.org/:_authToken=$NPM_TOKEN"
+          npm publish --access=public
