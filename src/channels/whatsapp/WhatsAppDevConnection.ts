@@ -10,7 +10,7 @@ import {
   type IDevConnectionRequest,
   type IDevSendWhatsappRequest,
   type IDevSendWhatsappTemplateRequest,
-} from './whatsAppDevSocketContracts'
+} from './WhatsAppDevSocketContracts'
 import type { IWhatsAppTemplateMessage } from './IWhatsAppTemplateMessage'
 
 @singleton()

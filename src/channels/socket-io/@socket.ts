@@ -1,9 +1,10 @@
+import { ControllerMetadataStore } from '@/controller'
+import type { IConstructor } from '@/core'
+import { container } from '@/injection'
+import { SocketChannel } from './SocketChannel'
+import { SocketChannelConfig } from './SocketChannelConfig'
 
-import { container, ControllerMetadataStore, type IConstructor } from "@/index"
-import { SocketChannel } from "./SocketChannel"
-import { SocketChannelConfig } from "./SocketChannelConfig"
-
-export function socket(config : SocketChannelConfig) {
+export function socket(config: SocketChannelConfig) {
   return function (target: object, propertyKey: string | symbol) {
     const store = container.resolve(ControllerMetadataStore)
     store.saveChannelMetadata({
