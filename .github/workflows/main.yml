@@ -56,4 +56,9 @@ jobs:
           npm run build
 
           npm set "//registry.npmjs.org/:_authToken=$NPM_TOKEN"
-          npm publish --access=public
+
+          if [[ "$VERSION_TO_PUBLISH" == *"beta"* ]]; then
+            npm publish --access=public --tag beta
+          else
+            npm publish --access=public
+          fi
