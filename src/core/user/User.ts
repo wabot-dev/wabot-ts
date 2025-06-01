@@ -1,11 +1,11 @@
-import { Persistent, type IPersistent } from '../Persistent'
+import { Persistent, type IPersistentData } from '../Persistent'
 
 export interface IUserConnection {
   channelName: string
   id: string
 }
 
-export interface IUserData extends IPersistent {
+export interface IUserData extends IPersistentData {
   shortName: string
   connections: IUserConnection[]
   keyValueData: { [key: string]: string }

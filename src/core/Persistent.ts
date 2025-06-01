@@ -1,10 +1,10 @@
-export interface IPersistent {
+export interface IPersistentData {
   id?: string
   createdAt?: number | null
   discardedAt?: number | null
 }
 
-export class Persistent<D extends IPersistent = IPersistent> {
+export class Persistent<D extends IPersistentData = IPersistentData> {
   constructor(protected data: D) {}
 
   getId(): string {

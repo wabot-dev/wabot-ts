@@ -1,32 +1,93 @@
-import { singleton } from 'tsyringe'
-import type { IWhatsAppConnection } from './IWhatsAppConnection'
-import type { WabotEnv } from '@/env'
-import type { WhatsAppDevConnection } from './WhatsAppDevConnection'
-import type { WhatsAppProdConnection } from './WhatsAppProdConnection'
-import type { IChatMessage } from '@/core'
+import { ChatItem, type ChatRepository, type IChatMessage } from '@/core'
 import type { IWhatsAppTemplateMessage } from './IWhatsAppTemplateMessage'
+import type { Logger } from '@/logger'
+import type { ChatResolver } from '@/controller'
 
-@singleton()
-export class WhatsAppSender {
-  private whatsAppConection: IWhatsAppConnection
+export interface ISendWhatsAppRequest {
+  from: string
+  to: string
+  message: IChatMessage
+}
 
+export interface ISendWhatsAppTemplateRequest {
+  from: string
+  to: string
+  templateMessage: IWhatsAppTemplateMessage
+  senderName: string
+}
+
+export interface IWhatsAppSenderOptions {
+  writeChatMemory?: boolean
+}
+
+export abstract class WhatsAppSender {
   constructor(
-    private wabotEnv: WabotEnv,
-    devConnection: WhatsAppDevConnection,
-    prodConnection: WhatsAppProdConnection,
-  ) {
-    this.whatsAppConection = this.wabotEnv.isProduction() ? prodConnection : devConnection
-  }
+    protected logger: Logger,
+    protected chatRepository: ChatRepository,
+    protected chatResolver: ChatResolver,
+  ) {}
 
-  async send(businessNumber: string, to: string, message: IChatMessage): Promise<void> {
-    this.whatsAppConection.sendWhatsApp(businessNumber, to, message)
-  }
+  abstract handleSendRequest(request: ISendWhatsAppRequest): Promise<boolean>
+  abstract handleSendTemplateRequest(request: ISendWhatsAppTemplateRequest): Promise<boolean>
+  abstract handleGetWhatsAppTemplate(templateName: string, languageCode: string): Promise<string>
 
-  async sendTemplate(
-    businessNumber: string,
-    to: string,
-    templateMessage: IWhatsAppTemplateMessage,
+  async sendWhatsApp(
+    request: ISendWhatsAppRequest,
+    options?: IWhatsAppSenderOptions,
   ): Promise<void> {
-    this.whatsAppConection.sendWhatsAppTemplate(businessNumber, to, templateMessage)
+    const success = await this.handleSendRequest(request)
+    if (!success) {
+      return
+    }
+    if (options?.writeChatMemory) {
+      await this.writePrivateChatMemory(request.message, request.to)
+    }
+  }
+
+  async sendWhatsAppTemplate(
+    request: ISendWhatsAppTemplateRequest,
+    options?: IWhatsAppSenderOptions,
+  ): Promise<void> {
+    const success = this.handleSendTemplateRequest(request)
+    if (!success) {
+      return
+    }
+    if (options?.writeChatMemory) {
+      const message = await this.resolveTemplateToChatMessage(request)
+      await this.writePrivateChatMemory(message, request.to)
+    }
+  }
+
+  protected async resolveTemplateToChatMessage(
+    request: ISendWhatsAppTemplateRequest,
+  ): Promise<IChatMessage> {
+    const text = await this.handleGetWhatsAppTemplate(
+      request.templateMessage.templateName,
+      request.templateMessage.languageCode,
+    )
+
+    return {
+      text,
+      senderName: request.senderName,
+    }
+  }
+
+  protected async writePrivateChatMemory(message: IChatMessage, to: string): Promise<void> {
+    const chatConnection = {
+      id: to,
+      chatType: 'PRIVATE',
+      channelName: 'WhatsAppChannel',
+    } as const
+
+    const chat = await this.chatResolver.resolve(chatConnection)
+
+    const chatMemory = await this.chatRepository.findMemory(chat.getId())!
+
+    const chatItem = new ChatItem({
+      type: 'BOT_MESSAGE',
+      content: message,
+    })
+
+    await chatMemory!.create(chatItem)
   }
 }

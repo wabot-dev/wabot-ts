@@ -1,34 +1,28 @@
-import type { IChatConnection, IChatMessage, IUserConnection } from '@/core'
-import { Logger } from '@/logger'
-import type { IWhatsAppConnection, IWhatsAppMessageListener } from './IWhatsAppConnection'
+import type { IChatConnection, IConnectionChatMessage, IUserConnection } from '@/core'
+import type { Logger } from '@/logger'
 import type {
   IMessageMetadata,
   IWhatsAppContact,
   IWhatsAppMessage,
   IWhatsAppWebhookPayload,
 } from './IWhatsAppWebHookPayload'
-import type { IWhatsAppTemplateMessage } from './IWhatsAppTemplateMessage'
 
-export abstract class WhatsAppConnection implements IWhatsAppConnection {
+export type IWhatsAppMessageListener = (message: IConnectionChatMessage) => Promise<void>
+
+export interface IListenWhatsAppMessageRequest {
+  to: string
+  listener: IWhatsAppMessageListener
+}
+
+export abstract class WhatsAppReceiver {
   private listeners: Map<string, IWhatsAppMessageListener> = new Map()
 
   constructor(protected logger: Logger) {}
 
-  abstract sendWhatsApp(
-    businessNumber: string,
-    to: string,
-    chatMessage: IChatMessage,
-  ): Promise<void>
-  abstract connect(): void
+  abstract connect(): Promise<void>
 
-  abstract sendWhatsAppTemplate(
-    businessNumber: string,
-    to: string,
-    templateMessage: IWhatsAppTemplateMessage,
-  ): Promise<void>
-
-  listenMessage(businessNumber: string, listener: IWhatsAppMessageListener): void {
-    this.listeners.set(businessNumber, listener)
+  listenMessage(request: IListenWhatsAppMessageRequest): void {
+    this.listeners.set(request.to, request.listener)
   }
 
   protected async handlePayload(payload: IWhatsAppWebhookPayload) {
