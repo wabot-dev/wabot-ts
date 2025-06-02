@@ -9,7 +9,10 @@ import {
 import type { ChatRepository } from '@/core'
 import type { ChatResolver } from '@/controller'
 import type { WhatsAppRepository } from './WhatsAppRepository'
+import { container, singleton } from '@/injection'
+import { WabotDevConnection } from '../wabot'
 
+@singleton()
 export class WhatsAppSenderByCloudApi extends WhatsAppSender {
   constructor(
     chatRepository: ChatRepository,
@@ -159,4 +162,10 @@ export class WhatsAppSenderByCloudApi extends WhatsAppSender {
       throw error
     }
   }
+}
+
+if (!WabotDevConnection.isTokenAvailable()) {
+  container.register(WhatsAppSender as any, {
+    useClass: WhatsAppSenderByCloudApi,
+  })
 }

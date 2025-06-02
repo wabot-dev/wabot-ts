@@ -10,9 +10,16 @@ export class WabotDevConnection {
   private devToken: string
   private logger = new Logger('wabot:dev-connection')
 
+  static isTokenAvailable(): boolean {
+    return !!process.env.WABOT_DEV_TOKEN
+  }
+
   constructor() {
+    if (!WabotDevConnection.isTokenAvailable()) {
+      throw new Error('WABOT_DEV_TOKEN is not set in environment variables')
+    }
+    this.devToken = process.env.WABOT_DEV_TOKEN!
     this.devProxy = process.env.WABOT_DEV_PROXY ?? 'https://proxy.wabot.dev'
-    this.devToken = process.env.WABOT_DEV_TOKEN ?? 'no-token'
   }
 
   async getSocket(): Promise<Socket> {

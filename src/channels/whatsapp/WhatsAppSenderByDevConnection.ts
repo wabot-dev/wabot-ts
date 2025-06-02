@@ -7,13 +7,13 @@ import {
 
 import {
   devEmitEvent,
+  WabotDevConnection,
   type IDevSendWhatsappRequest,
   type IDevSendWhatsappTemplateRequest,
-  type WabotDevConnection,
 } from '../wabot'
 import { Logger } from '@/logger'
 import type { ChatRepository } from '@/core'
-import { singleton } from '@/injection'
+import { container, singleton } from '@/injection'
 import type { ChatResolver } from '@/controller'
 import { WhatsAppRepository } from './WhatsAppRepository'
 
@@ -63,4 +63,10 @@ export class WhatsAppSenderByDevConnection extends WhatsAppSender {
     // TODO
     return ''
   }
+}
+
+if (WabotDevConnection.isTokenAvailable()) {
+  container.register(WhatsAppSender as any, {
+    useClass: WhatsAppSenderByDevConnection,
+  })
 }
