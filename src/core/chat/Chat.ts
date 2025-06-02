@@ -1,4 +1,4 @@
-import { Persistent, type IPersistent } from '../Persistent'
+import { Persistent, type IPersistentData } from '../Persistent'
 
 export type IChatType = 'PRIVATE' | 'GROUP'
 
@@ -8,7 +8,7 @@ export interface IChatConnection {
   id: string
 }
 
-export interface IChatData extends IPersistent {
+export interface IChatData extends IPersistentData {
   type: IChatType
   connections: IChatConnection[]
 }

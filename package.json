@@ -1,6 +1,6 @@
 {
   "name": "@wabot-dev/framework",
-  "version": "0.1.0-beta.2",
+  "version": "0.1.0-beta.3",
   "description": "Framework for IA Chat Bots",
   "type": "module",
   "main": "dist/src/index.js",
@@ -16,7 +16,7 @@
     "fmt": "prettier --write .",
     "fmt:check": "prettier --check .",
     "types:check": "tsc --noEmit",
-    "elia:dev": "yts --import ./dotenv.config.mjs  ./test/elia/runElia.ts"
+    "elia:dev": "yts --import ./env.mjs  ./test/elia/runElia.ts"
   },
   "devDependencies": {
     "@rollup/plugin-alias": "5.1.1",
@@ -51,8 +51,6 @@
     "short-uuid": "^5.2.0",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
-    "sqlite": "^5.1.1",
-    "sqlite3": "^5.1.7",
     "tslib": "^2.8.1",
     "tsyringe": "^4.9.1",
     "uuid": "^11.1.0"

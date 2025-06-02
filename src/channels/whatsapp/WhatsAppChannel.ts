@@ -1,54 +1,52 @@
 import { ChatResolver, type IChatChannel, type IReceivedMessage, UserResolver } from '@/controller'
 import type { IChatMessage } from '@/core'
-import { WabotEnv } from '@/env'
 import { injectable } from '@/injection'
+
 import { Logger } from '@/logger'
-import type { IWhatsAppConnection } from './IWhatsAppConnection'
 import { WhatsappChannelConfig } from './WhatsAppChannelConfig'
-import { WhatsAppDevConnection } from './WhatsAppDevConnection'
-import { WhatsAppProdConnection } from './WhatsAppProdConnection'
+import { WhatsAppReceiver } from './WhatsAppReceiver'
+import { WhatsAppSender } from './WhatsAppSender'
 
 @injectable()
 export class WhatsAppChannel implements IChatChannel {
   private logger = new Logger('wabot:whatsapp-channel')
-  private whatsAppConection: IWhatsAppConnection
 
   constructor(
     private config: WhatsappChannelConfig,
     private chatResolver: ChatResolver,
     private userResolver: UserResolver,
-    private wabotEnv: WabotEnv,
-    devConnection: WhatsAppDevConnection,
-    prodConnection: WhatsAppProdConnection,
-  ) {
-    this.whatsAppConection = this.wabotEnv.isProduction() ? prodConnection : devConnection
-  }
+    private sender: WhatsAppSender,
+    private receiver: WhatsAppReceiver,
+  ) {}
 
   listen(callback: (message: IReceivedMessage) => void): void {
-    this.whatsAppConection.listenMessage(this.config.number, async (message) => {
-      try {
-        const chat = await this.chatResolver.resolve(message.chatConnection)
-        const user = await this.userResolver.resolve(message.userConnection)
+    this.receiver.listenMessage({
+      to: this.config.number,
+      listener: async (message) => {
+        try {
+          const chat = await this.chatResolver.resolve(message.chatConnection)
+          const user = await this.userResolver.resolve(message.userConnection)
 
-        callback({
-          chat,
-          user,
-          message,
-          reply: (replyMessage: IChatMessage) => {
-            this.whatsAppConection.sendWhatsApp(
-              this.config.number,
-              message.userConnection.id,
-              replyMessage,
-            )
-          },
-        })
-      } catch (err) {
-        this.logger.error(err)
-      }
+          callback({
+            chat,
+            user,
+            message,
+            reply: (replyMessage: IChatMessage) => {
+              this.sender.sendWhatsApp({
+                from: this.config.number,
+                to: message.userConnection.id,
+                message: replyMessage,
+              })
+            },
+          })
+        } catch (err) {
+          this.logger.error(err)
+        }
+      },
     })
   }
 
   connect(): void {
-    this.whatsAppConection.connect()
+    this.receiver.connect()
   }
 }

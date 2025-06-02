@@ -1,8 +1,9 @@
 import { SocketChannelConfig } from './SocketChannelConfig'
-import { inject, injectable } from '@/injection'
-import { ChatResolver, SocketIoApp, UserResolver, type IChatChannel, type IReceivedMessage } from '@/controller'
+import { injectable } from '@/injection'
+import { ChatResolver, UserResolver, type IChatChannel, type IReceivedMessage } from '@/controller'
 import type { IChatConnection, IChatMessage, IUserConnection } from '@/core'
 import type { Server } from 'socket.io'
+import { SocketServerProvider } from './SocketServerProvider'
 
 export interface ISocketChannelReceivedMessage {
   chatId: string
@@ -14,13 +15,16 @@ export interface ISocketChannelReceivedMessage {
 @injectable()
 export class SocketChannel implements IChatChannel {
   private callBack: ((message: IReceivedMessage) => void) | null = null
+  private server: Server
 
   constructor(
     private config: SocketChannelConfig,
-    @inject(SocketIoApp) private server: Server,
+    private socketServerProvider: SocketServerProvider,
     private chatResolver: ChatResolver,
     private userResolver: UserResolver,
-  ) {}
+  ) {
+    this.server = this.socketServerProvider.getSocketServer()
+  }
 
   listen(callback: (message: IReceivedMessage) => void): void {
     this.callBack = callback
@@ -28,7 +32,7 @@ export class SocketChannel implements IChatChannel {
 
   connect(): void {
     this.server.on('connection', (socket) => {
-      socket.on( this.config.channel , async (message: ISocketChannelReceivedMessage) => {
+      socket.on(this.config.channel, async (message: ISocketChannelReceivedMessage) => {
         const trimmedInput = message.text.trim()
         if (!trimmedInput) {
           return
@@ -73,5 +77,7 @@ export class SocketChannel implements IChatChannel {
         })
       })
     })
+
+    this.socketServerProvider.listen()
   }
 }
