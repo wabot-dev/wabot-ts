@@ -1,3 +1,4 @@
+import { Logger } from '@/logger'
 import {
   WhatsAppSender,
   type IGetWhatsAppTemplateRequest,
@@ -5,7 +6,24 @@ import {
   type ISendWhatsAppTemplateRequest,
 } from './WhatsAppSender'
 
+import type { ChatRepository } from '@/core'
+import type { ChatResolver } from '@/controller'
+import type { WhatsAppRepository } from './WhatsAppRepository'
+
 export class WhatsAppSenderByCloudApi extends WhatsAppSender {
+  constructor(
+    chatRepository: ChatRepository,
+    chatResolver: ChatResolver,
+    whatsAppRepository: WhatsAppRepository,
+  ) {
+    super(
+      new Logger('wabot:whatsapp-sender-by-cloud-api'),
+      chatRepository,
+      chatResolver,
+      whatsAppRepository,
+    )
+  }
+
   async handleSendRequest(request: ISendWhatsAppRequest): Promise<void> {
     const whatsApp = await this.whatsAppRepository.findByBusinessNumber(request.from)
     if (!whatsApp) {

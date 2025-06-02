@@ -1,5 +1,6 @@
 import {
   WhatsAppSender,
+  type IGetWhatsAppTemplateRequest,
   type ISendWhatsAppRequest,
   type ISendWhatsAppTemplateRequest,
 } from './WhatsAppSender'
@@ -14,6 +15,7 @@ import { Logger } from '@/logger'
 import type { ChatRepository } from '@/core'
 import { singleton } from '@/injection'
 import type { ChatResolver } from '@/controller'
+import { WhatsAppRepository } from './WhatsAppRepository'
 
 @singleton()
 export class WhatsAppSenderByDevConnection extends WhatsAppSender {
@@ -21,11 +23,17 @@ export class WhatsAppSenderByDevConnection extends WhatsAppSender {
     private wabotDevConnection: WabotDevConnection,
     chatRepository: ChatRepository,
     chatResolver: ChatResolver,
+    whatsAppRepository: WhatsAppRepository,
   ) {
-    super(new Logger('wabot:whatsapp-sender-by-dev-connection'), chatRepository, chatResolver)
+    super(
+      new Logger('wabot:whatsapp-sender-by-dev-connection'),
+      chatRepository,
+      chatResolver,
+      whatsAppRepository,
+    )
   }
 
-  async handleSendRequest(request: ISendWhatsAppRequest): Promise<boolean> {
+  async handleSendRequest(request: ISendWhatsAppRequest): Promise<void> {
     const socket = await this.wabotDevConnection.getSocket()
     const req: IDevSendWhatsappRequest = {
       from: request.from,
@@ -34,13 +42,11 @@ export class WhatsAppSenderByDevConnection extends WhatsAppSender {
     }
     const ack = await socket.emitWithAck(devEmitEvent.DEV_SEND_WHATSAPP, req)
     if (ack != 'OK') {
-      this.logger.debug(ack)
-      return false
+      throw new Error(`Error sending WhatsApp template: ${ack}`)
     }
-    return true
   }
 
-  async handleSendTemplateRequest(request: ISendWhatsAppTemplateRequest): Promise<boolean> {
+  async handleSendTemplateRequest(request: ISendWhatsAppTemplateRequest): Promise<void> {
     const socket = await this.wabotDevConnection.getSocket()
     const req: IDevSendWhatsappTemplateRequest = {
       from: request.from,
@@ -49,13 +55,12 @@ export class WhatsAppSenderByDevConnection extends WhatsAppSender {
     }
     const ack = await socket.emitWithAck(devEmitEvent.DEV_SEND_WHATSAPP_TEMPLATE, req)
     if (ack != 'OK') {
-      this.logger.debug(ack)
-      return false
+      throw new Error(`Error sending WhatsApp template: ${ack}`)
     }
-    return true
   }
 
-  handleGetWhatsAppTemplate(templateName: string, languageCode: string): Promise<string> {
-    throw new Error('Method not implemented.')
+  async handleGetWhatsAppTemplate(request: IGetWhatsAppTemplateRequest): Promise<string> {
+    // TODO
+    return ''
   }
 }
