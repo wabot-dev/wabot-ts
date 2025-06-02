@@ -16,6 +16,7 @@ import { ChatRepository } from '@/core'
 import { container, singleton } from '@/injection'
 import { ChatResolver } from '@/controller'
 import { WhatsAppRepository } from './WhatsAppRepository'
+import { IWhatsAppTemplate } from './IWhatsAppTemplateResponse'
 
 @singleton()
 export class WhatsAppSenderByDevConnection extends WhatsAppSender {
@@ -59,9 +60,8 @@ export class WhatsAppSenderByDevConnection extends WhatsAppSender {
     }
   }
 
-  async handleGetWhatsAppTemplate(request: IGetWhatsAppTemplateRequest): Promise<string> {
-    // TODO
-    return ''
+  async handleGetWhatsAppTemplate(request: IGetWhatsAppTemplateRequest): Promise<IWhatsAppTemplate | null>{
+    throw new Error("Not implemented")
   }
 }
 
