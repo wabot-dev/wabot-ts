@@ -1,4 +1,4 @@
-import type { HttpServerProvider } from '../http'
+import { HttpServerProvider } from '../http'
 import express, { type Express } from 'express'
 import { singleton } from 'tsyringe'
 import bodyParser from 'body-parser'

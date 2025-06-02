@@ -5,17 +5,26 @@ export interface IWhatsAppBusinessNumber {
   number: string
 }
 
+export interface IWhatsAppBusinessAccount {
+  id: string
+}
+
 export interface IWhatsAppData extends IPersistentData {
   slug: string
   verifyToken: string
   appSecret: string
   accessToken: string
+  businessAccount: IWhatsAppBusinessAccount
   businessNumbers: IWhatsAppBusinessNumber[]
 }
 
 export class WhatsApp extends Persistent<IWhatsAppData> {
   getVerifyToken() {
     return this.data.verifyToken
+  }
+
+  getBusinessAccount(): IWhatsAppBusinessAccount {
+    return this.data.businessAccount
   }
 
   getAppSecret() {

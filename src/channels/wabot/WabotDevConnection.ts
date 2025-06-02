@@ -35,7 +35,7 @@ export class WabotDevConnection {
           const req: IDevConnectionRequest = {
             token: this.devToken,
           }
-
+          this.logger.debug('dev connection request')
           const ack = await devProxySocket.emitWithAck(devEmitEvent.DEV_CONNECTION, req)
           if (ack != 'OK') {
             return reject(new Error('Dev connection failed'))

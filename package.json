@@ -16,7 +16,7 @@
     "fmt": "prettier --write .",
     "fmt:check": "prettier --check .",
     "types:check": "tsc --noEmit",
-    "elia:dev": "yts --import ./dotenv.config.mjs  ./test/elia/runElia.ts"
+    "elia:dev": "yts --import ./env.mjs  ./test/elia/runElia.ts"
   },
   "devDependencies": {
     "@rollup/plugin-alias": "5.1.1",

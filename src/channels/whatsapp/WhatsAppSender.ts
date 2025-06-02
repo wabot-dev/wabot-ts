@@ -3,6 +3,7 @@ import type { IWhatsAppTemplateMessage } from './IWhatsAppTemplateMessage'
 import type { Logger } from '@/logger'
 import type { ChatResolver } from '@/controller'
 import type { WhatsAppRepository } from './WhatsAppRepository'
+import { IWhatsAppTemplate } from './IWhatsAppTemplateResponse'
 
 export interface ISendWhatsAppRequest {
   from: string
@@ -35,9 +36,11 @@ export abstract class WhatsAppSender {
     protected whatsAppRepository: WhatsAppRepository,
   ) {}
 
-  abstract handleSendRequest(request: ISendWhatsAppRequest): Promise<void>
-  abstract handleSendTemplateRequest(request: ISendWhatsAppTemplateRequest): Promise<void>
-  abstract handleGetWhatsAppTemplate(request: IGetWhatsAppTemplateRequest): Promise<string>
+  protected abstract handleSendRequest(request: ISendWhatsAppRequest): Promise<void>
+  protected abstract handleSendTemplateRequest(request: ISendWhatsAppTemplateRequest): Promise<void>
+  protected abstract handleGetWhatsAppTemplate(
+    request: IGetWhatsAppTemplateRequest,
+  ): Promise<IWhatsAppTemplate | null>
 
   async sendWhatsApp(
     request: ISendWhatsAppRequest,
@@ -57,27 +60,48 @@ export abstract class WhatsAppSender {
     request: ISendWhatsAppTemplateRequest,
     options?: IWhatsAppSenderOptions,
   ): Promise<void> {
-    const success = this.handleSendTemplateRequest(request)
-    if (!success) {
-      return
+    try {
+      await this.handleSendTemplateRequest(request)
+      if (options?.writeChatMemory) {
+        const message = await this.resolveTemplateToChatMessage(request)
+        await this.writePrivateChatMemory(message, request.to)
+      }
+    } catch (error) {
+      this.logger.error(`Error sending WhatsApp message: ${error}`)
     }
-    if (options?.writeChatMemory) {
-      const message = await this.resolveTemplateToChatMessage(request)
-      await this.writePrivateChatMemory(message, request.to)
+  }
+
+  async getWhatsAppTemplate(
+    request: IGetWhatsAppTemplateRequest,
+  ): Promise<IWhatsAppTemplate | null> {
+    try {
+      const template = await this.handleGetWhatsAppTemplate(request)
+      return template
+    } catch (error) {
+      this.logger.error(error)
+      throw new Error('Error getting WhatsApp template:', { cause: error })
     }
   }
 
   protected async resolveTemplateToChatMessage(
     request: ISendWhatsAppTemplateRequest,
   ): Promise<IChatMessage> {
-    const text = await this.handleGetWhatsAppTemplate({
+    const template = await this.handleGetWhatsAppTemplate({
       from: request.from,
       templateName: request.templateMessage.templateName,
       languageCode: request.templateMessage.languageCode,
     })
+    if (!template) {
+      throw new Error(
+        `WhatsAppTemplate with name ${request.templateMessage.templateName} and language ${request.templateMessage.languageCode} not found`,
+      )
+    }
 
     return {
-      text,
+      text: template.components
+        .filter((x) => x.text != null)
+        .map((x) => x.text)
+        .join('\n'),
       senderName: request.senderName,
     }
   }

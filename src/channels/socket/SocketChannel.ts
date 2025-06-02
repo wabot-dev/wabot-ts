@@ -3,7 +3,7 @@ import { injectable } from '@/injection'
 import { ChatResolver, UserResolver, type IChatChannel, type IReceivedMessage } from '@/controller'
 import type { IChatConnection, IChatMessage, IUserConnection } from '@/core'
 import type { Server } from 'socket.io'
-import type { SocketServerProvider } from './SocketServerProvider'
+import { SocketServerProvider } from './SocketServerProvider'
 
 export interface ISocketChannelReceivedMessage {
   chatId: string

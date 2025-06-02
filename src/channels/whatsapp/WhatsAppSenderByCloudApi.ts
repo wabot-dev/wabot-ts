@@ -6,11 +6,12 @@ import {
   type ISendWhatsAppTemplateRequest,
 } from './WhatsAppSender'
 
-import type { ChatRepository } from '@/core'
-import type { ChatResolver } from '@/controller'
-import type { WhatsAppRepository } from './WhatsAppRepository'
+import { ChatRepository } from '@/core'
+import { ChatResolver } from '@/controller'
+import { WhatsAppRepository } from './WhatsAppRepository'
 import { container, singleton } from '@/injection'
 import { WabotDevConnection } from '../wabot'
+import { IWhatsAppTemplate, IWhatsAppTemplateResponse } from './IWhatsAppTemplateResponse'
 
 @singleton()
 export class WhatsAppSenderByCloudApi extends WhatsAppSender {
@@ -106,24 +107,20 @@ export class WhatsAppSenderByCloudApi extends WhatsAppSender {
     }
   }
 
-  async handleGetWhatsAppTemplate(request: IGetWhatsAppTemplateRequest): Promise<string> {
+  async handleGetWhatsAppTemplate(
+    request: IGetWhatsAppTemplateRequest,
+  ): Promise<IWhatsAppTemplate | null> {
     const whatsApp = await this.whatsAppRepository.findByBusinessNumber(request.from)
     if (!whatsApp) {
       throw new Error(`not found WhatsApp with bussiness number '${request.from}'`)
     }
 
-    const businessNumber = whatsApp.getBussinessNumber(request.from)!
+    const businessAccount = whatsApp.getBusinessAccount()
 
     try {
-      // Get WhatsApp Business Account ID from environment variable
-      const whatsappBusinessId = process.env.WHATSAPP_BUSINESS_ACCOUNT_ID
-      if (!whatsappBusinessId) {
-        throw new Error('WHATSAPP_BUSINESS_ACCOUNT_ID environment variable is not set')
-      }
-
       // Make API call to WhatsApp Cloud API to get templates
       const response = await fetch(
-        `https://graph.facebook.com/v23.0/${businessNumber.id}/message_templates?name=${request.templateName}&language=${request.languageCode}`,
+        `https://graph.facebook.com/v23.0/${businessAccount.id}/message_templates?name=${request.templateName}&language=${request.languageCode}&limit=1`,
         {
           method: 'GET',
           headers: {
@@ -133,30 +130,14 @@ export class WhatsAppSenderByCloudApi extends WhatsAppSender {
         },
       )
 
+      const data = (await response.json()) as IWhatsAppTemplateResponse
+
       if (!response.ok) {
-        throw new Error(`WhatsApp API error: ${response.status} ${response.statusText}`)
+        throw new Error(JSON.stringify(data))
       }
 
-      const data = await response.json()
-
-      // Find the template with matching language
-      const template = data.data?.find(
-        (t: any) =>
-          t.name === request.templateName &&
-          t.language?.toLowerCase() === request.languageCode.toLowerCase(),
-      )
-
-      if (!template) {
-        throw new Error(
-          `Template ${request.templateName} not found for language ${request.languageCode}`,
-        )
-      }
-
-      // Return the template components joined together
-      return template.components
-        .filter((c: any) => c.type === 'BODY')
-        .map((c: any) => c.text)
-        .join('\n')
+      const template = data.data[0] ?? null
+      return template
     } catch (error) {
       console.error('Failed to get WhatsApp template:', error)
       throw error

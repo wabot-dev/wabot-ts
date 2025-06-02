@@ -1,5 +1,5 @@
 import { Logger } from '@/logger'
-import type { HttpServerProvider } from '../http'
+import { HttpServerProvider } from '../http'
 import { Server } from 'socket.io'
 import { singleton } from 'tsyringe'
 
@@ -39,6 +39,10 @@ export class SocketServerProvider {
       socket.on('disconnect', (reason) => {
         this.logger.trace(`socket:${socket.id} disconnect with reason: ${reason}`)
       })
+    })
+
+    httpServer.on('listening', () => {
+      this.logger.info(`socket server listening`)
     })
 
     return socketServer

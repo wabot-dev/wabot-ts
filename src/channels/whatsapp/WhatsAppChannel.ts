@@ -3,9 +3,9 @@ import type { IChatMessage } from '@/core'
 import { injectable } from '@/injection'
 
 import { Logger } from '@/logger'
-import type { WhatsappChannelConfig } from './WhatsAppChannelConfig'
-import type { WhatsAppReceiver } from './WhatsAppReceiver'
-import type { WhatsAppSender } from './WhatsAppSender'
+import { WhatsappChannelConfig } from './WhatsAppChannelConfig'
+import { WhatsAppReceiver } from './WhatsAppReceiver'
+import { WhatsAppSender } from './WhatsAppSender'
 
 @injectable()
 export class WhatsAppChannel implements IChatChannel {

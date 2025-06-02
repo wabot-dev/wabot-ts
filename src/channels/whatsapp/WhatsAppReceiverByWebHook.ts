@@ -1,9 +1,11 @@
 import { Logger } from '@/logger'
 import { WhatsAppReceiver } from './WhatsAppReceiver'
 import { singleton } from 'tsyringe'
-import type { ExpressProvider } from '../express'
+import { ExpressProvider } from '../express'
 import { type Express, type Request, type Response } from 'express'
-import type { WhatsAppRepository } from './WhatsAppRepository'
+import { WhatsAppRepository } from './WhatsAppRepository'
+import { WabotDevConnection } from '../wabot'
+import { container } from '@/injection'
 
 @singleton()
 export class WhatsAppReceiverByWebHook extends WhatsAppReceiver {
@@ -54,4 +56,10 @@ export class WhatsAppReceiverByWebHook extends WhatsAppReceiver {
 
     this.expressProvider.listen()
   }
+}
+
+if (!WabotDevConnection.isTokenAvailable()) {
+  container.register(WhatsAppReceiver as any, {
+    useClass: WhatsAppReceiverByWebHook,
+  })
 }

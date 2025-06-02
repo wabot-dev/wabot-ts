@@ -12,9 +12,9 @@ import {
   type IDevSendWhatsappTemplateRequest,
 } from '../wabot'
 import { Logger } from '@/logger'
-import type { ChatRepository } from '@/core'
+import { ChatRepository } from '@/core'
 import { container, singleton } from '@/injection'
-import type { ChatResolver } from '@/controller'
+import { ChatResolver } from '@/controller'
 import { WhatsAppRepository } from './WhatsAppRepository'
 
 @singleton()
