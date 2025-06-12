@@ -17,4 +17,10 @@ export class WabotEnv {
   isProduction() {
     return this.envType === 'production'
   }
+
+  requireString(varName: string): string {
+    const value = process.env[varName]
+    if (!value) throw new Error(`Env Variable ${varName} is required`)
+    return value
+  }
 }

@@ -3,11 +3,13 @@ import {
   ChatRepository,
   container,
   EmailService,
+  EnvWhatsAppRepository,
   OpenaiChatBotAdapter,
   PgChatRepository,
   PgUserRepository,
   runServer,
   UserRepository,
+  WhatsAppRepository,
 } from '@'
 import { Pool } from 'pg'
 import { EliaController } from './EliaController'
@@ -33,13 +35,15 @@ runServer({
     },
     {
       replace: ChatRepository,
-      // with: SqliteChatRepository,
       with: PgChatRepository,
     },
     {
       replace: UserRepository,
-      // with: SqliteUserRepository,
       with: PgUserRepository,
+    },
+    {
+      replace: WhatsAppRepository,
+      with: EnvWhatsAppRepository,
     },
   ],
 })
