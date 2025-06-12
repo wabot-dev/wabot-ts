@@ -1,37 +1,11 @@
-import { Pool } from 'pg'
+import { IWhatsAppRepository } from './IWhatsAppRepository'
 import { WhatsApp } from './WhatsApp'
-import { singleton } from '@/injection'
-import { PgCrudRepository } from '@/repository'
 
-@singleton()
-export class WhatsAppRepository extends PgCrudRepository<WhatsApp> {
-  constructor(pool: Pool) {
-    super(pool, {
-      table: 'whatsapp',
-      constructor: WhatsApp,
-      schema: 'wabot',
-    })
+export class WhatsAppRepository implements IWhatsAppRepository {
+  findBySlug(slug: string): Promise<WhatsApp | null> {
+    throw new Error('Method not implemented.')
   }
-
-  async findBySlug(slug: string): Promise<WhatsApp | null> {
-    const sql = `
-      SELECT ${this.columns}
-      FROM ${this.table}
-      WHERE data @> $1
-      LIMIT 1
-    `
-    const items = await this.query(sql, [JSON.stringify({ slug })])
-    return items.at(0) ?? null
-  }
-
-  async findByBusinessNumber(number: string): Promise<WhatsApp | null> {
-    const sql = `
-      SELECT ${this.columns}
-      FROM ${this.table}
-      WHERE data->'businessNumbers' @> $1
-      LIMIT 1
-    `
-    const items = await this.query(sql, [JSON.stringify([{ number }])])
-    return items.at(0) ?? null
+  findByBusinessNumber(number: string): Promise<WhatsApp | null> {
+    throw new Error('Method not implemented.')
   }
 }

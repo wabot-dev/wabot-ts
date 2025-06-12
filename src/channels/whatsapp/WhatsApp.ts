@@ -23,6 +23,10 @@ export class WhatsApp extends Persistent<IWhatsAppData> {
     return this.data.verifyToken
   }
 
+  getSlug() {
+    return this.data.slug
+  }
+
   getBusinessAccount(): IWhatsAppBusinessAccount {
     return this.data.businessAccount
   }
