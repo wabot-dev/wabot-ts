@@ -1,7 +1,8 @@
 export type IWhatsAppTemplateParameter =
   | {
       type: 'text'
-      text: string
+      text: string,
+      parameter_name?: string;
     }
   | {
       type: 'currency'

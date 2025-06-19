@@ -1,5 +1,5 @@
 import { ChatItem, type ChatRepository, type IChatMessage } from '@/core'
-import type { IWhatsAppTemplateMessage } from './IWhatsAppTemplateMessage'
+import type { IWhatsAppTemplateMessage, IWhatsAppTemplateParameter } from './IWhatsAppTemplateMessage'
 import type { Logger } from '@/logger'
 import type { ChatResolver } from '@/controller'
 import type { WhatsAppRepository } from './WhatsAppRepository'
@@ -96,12 +96,10 @@ export abstract class WhatsAppSender {
         `WhatsAppTemplate with name ${request.templateMessage.templateName} and language ${request.templateMessage.languageCode} not found`,
       )
     }
-
+    const components =  template.components.filter((x) => x.text != null).map((x) => x.text).join('\n');
+    
     return {
-      text: template.components
-        .filter((x) => x.text != null)
-        .map((x) => x.text)
-        .join('\n'),
+      text: this.replaceTemplateParameters(components, request.templateMessage.parameters),
       senderName: request.senderName,
     }
   }
@@ -123,5 +121,25 @@ export abstract class WhatsAppSender {
     })
 
     await chatMemory!.create(chatItem)
+  }
+
+  private replaceTemplateParameters(template: string, data: IWhatsAppTemplateParameter[]): string {
+    let result = template;
+
+    data.forEach(param => {
+      if (param.type === 'text' && param.parameter_name) {
+        const tag = `{{${param.parameter_name}}}`;
+        result = result.split(tag).join(param.text);
+      }
+    });
+
+    data.forEach((param, index) => {
+      if (param.type === 'text') {
+        const tag = `{{${index + 1}}}`;
+        result = result.split(tag).join(param.text);
+      }
+    });
+
+    return result;
   }
 }
