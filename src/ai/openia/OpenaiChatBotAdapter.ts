@@ -5,11 +5,13 @@ import { OpenAI } from 'openai'
 import { ChatBotAdapter } from '@/chatbot'
 import type { ChatItem } from '@/core'
 import { MindsetOperator } from '@/mindset'
+import { Logger } from '@/logger'
 
 @injectable()
 export class OpenaiChatBotAdapter extends ChatBotAdapter {
   private openai = new OpenAI()
   private model: string
+  private logger = new Logger('wabot:openai-chat-bot-adapter')
 
   constructor(mindset: MindsetOperator) {
     super(mindset)
@@ -27,11 +29,16 @@ export class OpenaiChatBotAdapter extends ChatBotAdapter {
       const parameters = { ...fn.parameters, additionalProperties: false, type: 'object' }
       return { ...fn, type: 'function', parameters, strict: true } as const
     })
-    const response = await this.openai.responses.create({
+
+    const request = {
       model: this.model,
-      input: [{ role: 'system', content: systemPrompt }, ...this.mapChatItems(chatItems)],
+      input: [{ role: 'system', content: systemPrompt } as const, ...this.mapChatItems(chatItems)],
       tools,
-    })
+    } as const
+
+    this.logger.debug(`Call Api with Request: ${JSON.stringify(request)}`)
+    
+    const response = await this.openai.responses.create(request as any)
 
     let newChatItem: ChatItem
     if (response.output_text) {
