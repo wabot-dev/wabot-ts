@@ -12,7 +12,7 @@ import {
   WhatsAppRepository,
 } from '@'
 import { Pool } from 'pg'
-import { EliaController } from './EliaController'
+import { EliaChatController } from './EliaChatController'
 import { EliaEmailService } from './services'
 
 container.registerInstance(
@@ -23,7 +23,7 @@ container.registerInstance(
 )
 
 runServer({
-  controllers: [EliaController],
+  controllers: [EliaChatController],
   providers: [
     {
       replace: ChatBotAdapter,
