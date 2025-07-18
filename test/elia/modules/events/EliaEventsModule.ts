@@ -26,7 +26,7 @@ export class EliaEventsModule {
 
     const newEvent = new EliaEvent({
       userId,
-      dateTime: req.dateTime,
+      dateTime: req.dateTime.getTime(),
       durationInMinutes: req.durationInMinutes,
       title: req.title,
     })

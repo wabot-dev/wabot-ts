@@ -4,7 +4,7 @@ export interface IValidationError {
 
 export interface IValidationResult {
   value: any
-  errors: IValidationError[]
+  error?: IValidationError
 }
 
 export type IValidator = (value: any, options: any) => IValidationResult

@@ -8,12 +8,11 @@ export function validateMax(value: any, options: IValidateMaxOptions): IValidati
   if (value > options.limit) {
     return {
       value,
-      errors: [{ description: `exceeds the established max limit` }],
+      error: { description: `exceeds the established max limit` },
     }
   }
 
   return {
     value,
-    errors: [],
   }
 }

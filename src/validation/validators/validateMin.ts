@@ -1,4 +1,4 @@
-import { IValidationResult } from "./contracts"
+import { IValidationResult } from './contracts'
 
 export interface IValidateMinOptions {
   limit: any
@@ -8,12 +8,11 @@ export function validateMin(value: any, options: IValidateMinOptions): IValidati
   if (value < options.limit) {
     return {
       value,
-      errors: [{ description: `exceeds the established min limit` }],
+      error: { description: `exceeds the established min limit` },
     }
   }
 
   return {
     value,
-    errors: [],
   }
 }

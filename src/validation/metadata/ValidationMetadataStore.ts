@@ -2,6 +2,7 @@ import { singleton } from '@/injection'
 import { IValidatorMetadata } from './IValidatorMetadata'
 import { IConstructor } from '@/core'
 import { _IS_OPTIONAL_DUMMY_VALIDATOR_ } from './@isOptional'
+import { IModelValidatorsInfo } from './IModelValidatorsInfo'
 
 @singleton()
 export class ValidationMetadataStore {
@@ -15,16 +16,17 @@ export class ValidationMetadataStore {
     modelValidators.set(validatorMetadata.propertyName, validatorMetadata)
   }
 
-  getModelValidatorsInfo(model: IConstructor<any>) {
-    const modelValidators: {
-      [prop: string]: { isOptional?: boolean; validators?: IValidatorMetadata[] } | undefined
-    } = {}
+  getModelValidatorsInfo(modelConstructor: IConstructor<any>) {
+    const modelValidators: IModelValidatorsInfo = {
+      modelConstructor: modelConstructor,
+      properties: {},
+    }
 
-    ;[...(this.validators.get(model)?.values() ?? [])].forEach((validatorMetadata) => {
-      let propertyInfo = modelValidators[validatorMetadata.propertyName]
+    ;[...(this.validators.get(modelConstructor)?.values() ?? [])].forEach((validatorMetadata) => {
+      let propertyInfo = modelValidators.properties[validatorMetadata.propertyName]
       if (!propertyInfo) {
         propertyInfo = {}
-        modelValidators[validatorMetadata.propertyName] = propertyInfo
+        modelValidators.properties[validatorMetadata.propertyName] = propertyInfo
       }
 
       let validators = propertyInfo.validators
