@@ -6,14 +6,19 @@ import { IModelValidatorsInfo } from './IModelValidatorsInfo'
 
 @singleton()
 export class ValidationMetadataStore {
-  private validators = new Map<Function, Map<string, IValidatorMetadata>>()
+  private validators = new Map<Function, Map<string, IValidatorMetadata[]>>()
 
   saveValidatorMetadata(validatorMetadata: IValidatorMetadata) {
     let modelValidators = this.validators.get(validatorMetadata.modelConstructor)
     if (!modelValidators) {
       this.validators.set(validatorMetadata.modelConstructor, (modelValidators = new Map()))
     }
-    modelValidators.set(validatorMetadata.propertyName, validatorMetadata)
+    let propertyValidators = modelValidators.get(validatorMetadata.propertyName)
+    if (!propertyValidators) {
+      propertyValidators = []
+      modelValidators.set(validatorMetadata.propertyName, propertyValidators)
+    }
+    propertyValidators.push(validatorMetadata)
   }
 
   getModelValidatorsInfo(modelConstructor: IConstructor<any>) {
@@ -22,25 +27,33 @@ export class ValidationMetadataStore {
       properties: {},
     }
 
-    ;[...(this.validators.get(modelConstructor)?.values() ?? [])].forEach((validatorMetadata) => {
-      let propertyInfo = modelValidators.properties[validatorMetadata.propertyName]
-      if (!propertyInfo) {
-        propertyInfo = {}
-        modelValidators.properties[validatorMetadata.propertyName] = propertyInfo
-      }
+    ;[...(this.validators.get(modelConstructor)?.values() ?? [])].forEach(
+      (propertyValidatorsMetadata) => {
+        const propertyName = propertyValidatorsMetadata.at(0)?.propertyName
+        if (!propertyName) {
+          return
+        }
+        let propertyInfo = modelValidators.properties[propertyName]
+        if (!propertyInfo) {
+          propertyInfo = {}
+          modelValidators.properties[propertyName] = propertyInfo
+        }
 
-      let validators = propertyInfo.validators
-      if (!validators) {
-        validators = []
-        propertyInfo.validators = validators
-      }
+        let validators = propertyInfo.validators
+        if (!validators) {
+          validators = []
+          propertyInfo.validators = validators
+        }
 
-      if (validatorMetadata.validator === _IS_OPTIONAL_DUMMY_VALIDATOR_) {
-        propertyInfo.isOptional = true
-      } else {
-        validators.push(validatorMetadata)
-      }
-    })
+        propertyValidatorsMetadata.forEach((propertyValidatorMetadata) => {
+          if (propertyValidatorMetadata.validator === _IS_OPTIONAL_DUMMY_VALIDATOR_) {
+            propertyInfo.isOptional = true
+          } else {
+            validators.push(propertyValidatorMetadata)
+          }
+        })
+      },
+    )
 
     return modelValidators
   }

@@ -5,7 +5,14 @@ export interface IValidateMinOptions {
 }
 
 export function validateMin(value: any, options: IValidateMinOptions): IValidationResult {
-  if (value < options.limit) {
+  if (value == null) {
+    return {
+      value,
+      error: { description: `null or undefined value can't be validated with min` },
+    }
+  }
+
+  if (Number(value) < Number(options.limit)) {
     return {
       value,
       error: { description: `exceeds the established min limit` },
