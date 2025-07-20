@@ -1,4 +1,4 @@
-import { isDate, isNotEmpty, isNumber, isString, max, min, param, validateModel } from '@'
+import { isDate, isNotEmpty, isNumber, isString, max, min, param } from '@'
 
 export class EliaSaveEventRequest {
   @param({
@@ -13,7 +13,7 @@ export class EliaSaveEventRequest {
   @isNumber()
   @min(10)
   @max(240)
-  durationInMinutes: number = 0
+  durationInMinutes: number = 20
 
   @param({
     description: 'Titulo del evento',
@@ -22,7 +22,3 @@ export class EliaSaveEventRequest {
   @isNotEmpty()
   title: string = ''
 }
-
-const result = validateModel({ title: 'My Event' }, EliaSaveEventRequest)
-debugger
-console.log(result)

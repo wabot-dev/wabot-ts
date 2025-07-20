@@ -18,7 +18,7 @@ export class ValidationMetadataStore {
       propertyValidators = []
       modelValidators.set(validatorMetadata.propertyName, propertyValidators)
     }
-    propertyValidators.push(validatorMetadata)
+    propertyValidators.unshift(validatorMetadata)
   }
 
   getModelValidatorsInfo(modelConstructor: IConstructor<any>) {

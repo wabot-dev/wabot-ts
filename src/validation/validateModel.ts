@@ -15,7 +15,6 @@ export function validateModel(
   value: any,
   modelConstructor: IConstructor<any>,
 ): IValidateModelResult {
-  debugger
   const metadataStore = container.resolve(ValidationMetadataStore)
   const info = metadataStore.getModelValidatorsInfo(modelConstructor)
 
