@@ -1,4 +1,5 @@
 export * from './@isBoolean'
+export * from './@isDate'
 export * from './@isNotEmpty'
 export * from './@isNumber'
 export * from './@isOptional'

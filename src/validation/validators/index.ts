@@ -1,5 +1,6 @@
 export * from './contracts'
 export * from './validateIsBoolean'
+export * from './validateIsDate'
 export * from './validateIsNotEmpty'
 export * from './validateIsNumber'
 export * from './validateIsString'
