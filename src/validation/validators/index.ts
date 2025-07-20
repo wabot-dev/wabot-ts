@@ -1,4 +1,7 @@
 export * from './contracts'
+export * from './validateIsBoolean'
 export * from './validateIsNotEmpty'
+export * from './validateIsNumber'
+export * from './validateIsString'
 export * from './validateMax'
 export * from './validateMin'
