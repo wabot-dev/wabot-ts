@@ -41,18 +41,20 @@ export function validateModel(
     const propertyInfo = info.properties[propertyName]!
     const propertyValidators = propertyInfo.validators ?? []
 
-    let temPropertyValue = value[propertyName]
-    if (temPropertyValue === undefined) {
-      temPropertyValue = validatedValue[propertyName]
+    validatedValue[propertyName] = value[propertyName] ?? validatedValue[propertyName]
+
+    if (validatedValue[propertyName] == null && propertyInfo.isOptional) {
+      validatedValue[propertyName] = null
+      continue
     }
-    let propertyHasError = false
+
     for (let propertyValidatorInfo of propertyValidators) {
       const propertyValidatorResult = propertyValidatorInfo.validator(
-        temPropertyValue,
+        validatedValue[propertyName],
         propertyValidatorInfo.validatorOptions,
       )
       if (propertyValidatorResult.error) {
-        propertyHasError = true
+        result.hasErrors = true
         let propertyErrors = result.propertiesErrors.find((x) => x.name === propertyName)
         if (!propertyErrors) {
           propertyErrors = { name: propertyName, errors: [] }
@@ -61,12 +63,7 @@ export function validateModel(
 
         propertyErrors.errors.push(propertyValidatorResult.error)
       }
-      temPropertyValue = propertyValidatorResult.value
-    }
-    if (propertyHasError) {
-      result.hasErrors = true
-    } else {
-      validatedValue[propertyName] = temPropertyValue
+      validatedValue[propertyName] = propertyValidatorResult.value
     }
   }
 
