@@ -1,9 +1,8 @@
 import { IValidationResult } from './contracts'
 
-export function validateIsNumber(value: any): IValidationResult {
+export function validateIsNumber(value: any): IValidationResult<number> {
   if (typeof value !== 'number') {
     return {
-      value,
       error: { description: `number value is required` },
     }
   }

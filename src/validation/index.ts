@@ -1,3 +1,3 @@
 export * from './metadata'
 export * from './validators'
-export * from './validateModel'
+export * from './validateModel2'

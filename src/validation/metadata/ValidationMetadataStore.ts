@@ -2,7 +2,7 @@ import { singleton } from '@/injection'
 import { IValidatorMetadata } from './IValidatorMetadata'
 import { IConstructor } from '@/core'
 import { _IS_OPTIONAL_DUMMY_VALIDATOR_ } from './@isOptional'
-import { IModelValidatorsInfo } from './IModelValidatorsInfo'
+import { IModelValidatorsInfo } from '../validators/contracts'
 
 @singleton()
 export class ValidationMetadataStore {
@@ -21,8 +21,8 @@ export class ValidationMetadataStore {
     propertyValidators.unshift(validatorMetadata)
   }
 
-  getModelValidatorsInfo(modelConstructor: IConstructor<any>) {
-    const modelValidators: IModelValidatorsInfo = {
+  getModelValidatorsInfo<V>(modelConstructor: IConstructor<V>): IModelValidatorsInfo<V> {
+    const modelValidators: IModelValidatorsInfo<V> = {
       modelConstructor: modelConstructor,
       properties: {},
     }

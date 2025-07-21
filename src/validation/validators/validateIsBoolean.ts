@@ -1,9 +1,8 @@
 import { IValidationResult } from './contracts'
 
-export function validateIsBoolean(value: any): IValidationResult {
+export function validateIsBoolean(value: any): IValidationResult<boolean> {
   if (typeof value !== 'boolean') {
     return {
-      value,
       error: { description: `boolean value is required` },
     }
   }

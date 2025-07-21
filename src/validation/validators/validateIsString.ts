@@ -1,9 +1,8 @@
 import { IValidationResult } from './contracts'
 
-export function validateIsString(value: any): IValidationResult {
+export function validateIsString(value: any): IValidationResult<string> {
   if (typeof value !== 'string') {
     return {
-      value,
       error: { description: `string value is required` },
     }
   }

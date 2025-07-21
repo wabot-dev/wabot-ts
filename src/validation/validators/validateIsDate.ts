@@ -1,6 +1,6 @@
 import { IValidationResult } from './contracts'
 
-export function validateIsDate(value: any): IValidationResult {
+export function validateIsDate(value: any): IValidationResult<Date> {
   const _value = new Date(value)
   const time = _value.getTime()
   if (
@@ -9,7 +9,6 @@ export function validateIsDate(value: any): IValidationResult {
     time < 0
   ) {
     return {
-      value,
       error: { description: `Date value is not valid` },
     }
   }

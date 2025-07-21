@@ -1,9 +1,8 @@
 import { IValidationResult } from './contracts'
 
-export function validateIsPresent(value: any): IValidationResult {
+export function validateIsPresent(value: any): IValidationResult<any> {
   if (value == null) {
     return {
-      value,
       error: { description: `not present` },
     }
   }
