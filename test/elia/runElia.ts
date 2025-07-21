@@ -15,6 +15,8 @@ import { Pool } from 'pg'
 import { EliaChatController } from './EliaChatController'
 import { EliaEmailService } from './services'
 
+import { EliaEventRestController } from './EliaEventRestController'
+
 container.registerInstance(
   Pool,
   new Pool({
@@ -23,7 +25,7 @@ container.registerInstance(
 )
 
 runServer({
-  controllers: [EliaChatController],
+  controllers: [EliaChatController, EliaEventRestController],
   providers: [
     {
       replace: ChatBotAdapter,

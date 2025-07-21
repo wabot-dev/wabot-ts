@@ -24,7 +24,3 @@ export class EliaSaveEventRequest {
   @isNotEmpty()
   title: string = ''
 }
-
-debugger
-const result = (EliaSaveEventRequest as any).__validate__({})
-console.log(result)

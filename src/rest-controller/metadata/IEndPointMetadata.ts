@@ -5,4 +5,5 @@ export interface IEndPointMetadata {
   path?: string
   controllerConstructor: IConstructor<any>
   functionName: string
+  paramsTypes: any[]
 }
