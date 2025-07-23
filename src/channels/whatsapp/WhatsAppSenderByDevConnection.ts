@@ -60,8 +60,10 @@ export class WhatsAppSenderByDevConnection extends WhatsAppSender {
     }
   }
 
-  async handleGetWhatsAppTemplate(request: IGetWhatsAppTemplateRequest): Promise<IWhatsAppTemplate | null>{
-    throw new Error("Not implemented")
+  async handleGetWhatsAppTemplate(
+    request: IGetWhatsAppTemplateRequest,
+  ): Promise<IWhatsAppTemplate | null> {
+    throw new Error('Not implemented')
   }
 }
 

@@ -20,16 +20,16 @@ jobs:
         name: Query versions
         run: |
           PUSHED_VERSION=$(cat package-lock.json | jq -r '.version')
-          
+
           if [[ "$PUSHED_VERSION" == *"beta"* ]]; then
             PUBLISHED_VERSION=$(npm view @wabot-dev/framework dist-tags.beta)
           else
             PUBLISHED_VERSION=$(npm view @wabot-dev/framework version)
           fi
-          
+
           echo "PUBLISHED_VERSION=$PUBLISHED_VERSION"
           echo "PUSHED_VERSION=$PUSHED_VERSION"
-          
+
           echo "publishedVersion=$PUBLISHED_VERSION" >> "$GITHUB_OUTPUT"
           echo "pushedVersion=$PUSHED_VERSION" >> "$GITHUB_OUTPUT"
 

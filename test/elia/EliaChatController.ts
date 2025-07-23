@@ -5,7 +5,7 @@ import { EliaMindset } from './EliaMindset'
 import { whatsapp } from '@/channels'
 
 @chatController()
-export class EliaController {
+export class EliaChatController {
   constructor(
     @chatBot(EliaMindset) private eliaBot: ChatBot,
     @chatBot(EliaGuardMindset) private eliaGuardBot: ChatBot,

@@ -1,17 +1,11 @@
-export interface IEliaEventData {
-  id?: string
-  createdAt?: Date
+import { IPersistentData, Persistent } from '@/core'
+
+export interface IEliaEventData extends IPersistentData {
   userId: string
   title: string
   description?: string
-  dateTime: Date
+  dateTime: number
   durationInMinutes: number
 }
 
-export class EliaEvent {
-  private data: IEliaEventData
-
-  constructor(data: IEliaEventData) {
-    this.data = data
-  }
-}
+export class EliaEvent extends Persistent<IEliaEventData> {}

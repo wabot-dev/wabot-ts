@@ -76,7 +76,7 @@ export class MindsetOperator implements IMindset {
           }),
           {},
         ),
-        required: fn.params.filter((param) => !param.config.optional).map((param) => param.name)
+        required: fn.params.filter((param) => !param.config.optional).map((param) => param.name),
       },
     } as const
   }

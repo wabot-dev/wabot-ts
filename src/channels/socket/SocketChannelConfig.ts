@@ -1,5 +1,4 @@
-
-import { injectable } from '@/injection';
+import { injectable } from '@/injection'
 import type { ISocketChannelConfig } from './ISocketChannelConfig'
 
 @injectable()

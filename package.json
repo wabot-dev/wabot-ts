@@ -1,6 +1,6 @@
 {
   "name": "@wabot-dev/framework",
-  "version": "0.1.0-beta.6",
+  "version": "0.1.0-beta.8",
   "description": "Framework for IA Chat Bots",
   "type": "module",
   "main": "dist/src/index.js",
@@ -39,8 +39,6 @@
     "@types/pg": "^8.11.14",
     "@yucacodes/ts": "^0.0.4",
     "body-parser": "^2.2.0",
-    "class-transformer": "^0.5.1",
-    "class-validator": "^0.14.1",
     "debug": "^4.4.0",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
