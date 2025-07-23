@@ -1,9 +1,7 @@
 import { container } from '@/injection'
 import { ValidationMetadataStore } from './ValidationMetadataStore'
+import { _IS_OPTIONAL_DUMMY_VALIDATOR_ } from '../validators/validateIsOptional'
 
-export const _IS_OPTIONAL_DUMMY_VALIDATOR_ = (value: any) => {
-  return { value, errors: [] }
-}
 
 export function isOptional() {
   return function (target: object, propertyKey: string | symbol) {

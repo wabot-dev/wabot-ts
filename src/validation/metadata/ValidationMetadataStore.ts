@@ -1,8 +1,8 @@
 import { singleton } from '@/injection'
 import { IValidatorMetadata } from './IValidatorMetadata'
 import { IConstructor } from '@/core'
-import { _IS_OPTIONAL_DUMMY_VALIDATOR_ } from './@isOptional'
 import { IModelValidatorsInfo } from '../validators/contracts'
+import { _IS_OPTIONAL_DUMMY_VALIDATOR_ } from '../validators/validateIsOptional'
 
 @singleton()
 export class ValidationMetadataStore {
