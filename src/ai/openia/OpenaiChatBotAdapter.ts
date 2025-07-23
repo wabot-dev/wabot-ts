@@ -37,7 +37,7 @@ export class OpenaiChatBotAdapter extends ChatBotAdapter {
     } as const
 
     this.logger.debug(`Call Api with Request: ${JSON.stringify(request)}`)
-    
+
     const response = await this.openai.responses.create(request as any)
 
     let newChatItem: ChatItem

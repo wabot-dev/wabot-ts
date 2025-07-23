@@ -1,6 +1,6 @@
-import { injectable } from '@/injection';
+import { injectable } from '@/injection'
 
-import { OpenAI } from 'openai';
+import { OpenAI } from 'openai'
 
 import { ChatBotAdapter } from '@/chatbot'
 import type { ChatItem } from '@/core'
@@ -8,28 +8,28 @@ import { MindsetOperator } from '@/mindset'
 
 @injectable()
 export class DeepSeekChatBotAdapter extends ChatBotAdapter {
-  private deepSeek: OpenAI;
-  private model: string;
+  private deepSeek: OpenAI
+  private model: string
 
   constructor(mindset: MindsetOperator) {
-      super(mindset);
-      const model = process.env.DEEPSEEK_CHAT_MODEL;
-      const apiKey = process.env.DEEPSEEK_API_KEY;
-      const baseURL = process.env.DEEPSEEK_BASE_URL;
-      this.validateEnvVariables([model, apiKey, baseURL]);
-      this.model = model || 'deepseek-chat';
-      this.deepSeek = new OpenAI({
-        apiKey: apiKey,
-        baseURL: baseURL
-      });
+    super(mindset)
+    const model = process.env.DEEPSEEK_CHAT_MODEL
+    const apiKey = process.env.DEEPSEEK_API_KEY
+    const baseURL = process.env.DEEPSEEK_BASE_URL
+    this.validateEnvVariables([model, apiKey, baseURL])
+    this.model = model || 'deepseek-chat'
+    this.deepSeek = new OpenAI({
+      apiKey: apiKey,
+      baseURL: baseURL,
+    })
   }
 
   validateEnvVariables(envVariables: (string | undefined)[]): void {
     envVariables.forEach((envVariable) => {
       if (!envVariable) {
-        throw new Error('Missing environment variable');
+        throw new Error('Missing environment variable')
       }
-    });
+    })
   }
 
   override async generateNextChatItem(chatItems: ChatItem[]): Promise<ChatItem> {
@@ -37,22 +37,24 @@ export class DeepSeekChatBotAdapter extends ChatBotAdapter {
 
     const tools = (await this.mindset.allFunctionsDescriptors()).map((fn) => {
       const parameters = { ...fn.parameters, additionalProperties: false, type: 'object' }
-      return { 
-        type: 'function', function: {name: fn.name, description: fn.description, parameters, strict: true}
-       } as const
+      return {
+        type: 'function',
+        function: { name: fn.name, description: fn.description, parameters, strict: true },
+      } as const
     })
-    
+
     const response = await this.deepSeek.chat.completions.create({
       model: this.model,
       messages: [{ role: 'system', content: systemPrompt }, ...this.mapChatItems(chatItems)],
       tools: tools,
-      tool_choice: 'auto'
+      tool_choice: 'auto',
     })
 
     let newChatItem: ChatItem
-    
-    const { tool_calls: responseFunctionCall, content: responseText } = response.choices?.[0]?.message ?? {};
-    
+
+    const { tool_calls: responseFunctionCall, content: responseText } =
+      response.choices?.[0]?.message ?? {}
+
     if (responseText) {
       newChatItem = await this.buildBotMessageItem(responseText)
     } else if (responseFunctionCall && responseFunctionCall[0]?.type == 'function') {
@@ -91,19 +93,18 @@ export class DeepSeekChatBotAdapter extends ChatBotAdapter {
               type: 'function',
               function: {
                 name: itemData.content.name,
-                arguments: JSON.stringify(itemData.content.arguments)
-              }
-            }
-          ]
+                arguments: JSON.stringify(itemData.content.arguments),
+              },
+            },
+          ],
         })
         deepSeekInput.push({
           role: 'tool',
           tool_call_id: itemData.content.id,
-          content: itemData.content.result
+          content: itemData.content.result,
         })
       }
     }
     return deepSeekInput
   }
-   
 }

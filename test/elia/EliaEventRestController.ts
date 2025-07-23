@@ -1,4 +1,12 @@
-import { container, get, isNotEmpty, isString, restController, runRestControllers, validable } from '@'
+import {
+  container,
+  get,
+  isNotEmpty,
+  isString,
+  restController,
+  runRestControllers,
+  validable,
+} from '@'
 import { EliaEventRepository } from './repositories'
 
 @validable()
@@ -7,7 +15,6 @@ export class GetAllEventsRequest {
   @isNotEmpty()
   message: string = ''
 }
-
 
 @restController({ path: '/elia/event' })
 export class EliaEventRestController {
