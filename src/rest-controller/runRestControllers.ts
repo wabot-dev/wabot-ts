@@ -23,7 +23,6 @@ export function runRestControllers(
   controllers.forEach((controller) => {
     const endPoints = metadataStore.getControllerEndPointsInfo(controller)
     endPoints.forEach((endPoint) => {
-      debugger
       const method = endPoint.method
       const route = path.join(endPoint.controller.path, endPoint.path ?? '')
       logger.info(`config ${endPoint.method.toUpperCase()} ${route}`)
