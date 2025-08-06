@@ -27,6 +27,14 @@ export class PgCrudRepository<P extends Persistent>
     return items.at(0) ?? null
   }
 
+  async findOrThrow(id: string): Promise<P> {
+    const item = await this.find(id)
+    if (!item) {
+      throw new Error(`Not found ${this.config.constructor.name} with id = '${id}'`)
+    }
+    return item
+  }
+
   async findAll(): Promise<P[]> {
     const sql = `
       SELECT ${this.columns}
