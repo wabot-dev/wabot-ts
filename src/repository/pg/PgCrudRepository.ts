@@ -4,6 +4,7 @@ import type { ICrudRepository } from '../ICrudRepository'
 import { type IPgRepositoryConfig } from './IPgRepositoryConfig'
 import { PgRepositoryBase } from './PgRepositoryBase'
 import type { Persistent } from '@/core'
+import { CustomError } from '@/error'
 
 export class PgCrudRepository<P extends Persistent>
   extends PgRepositoryBase<P>
@@ -30,7 +31,10 @@ export class PgCrudRepository<P extends Persistent>
   async findOrThrow(id: string): Promise<P> {
     const item = await this.find(id)
     if (!item) {
-      throw new Error(`Not found ${this.config.constructor.name} with id = '${id}'`)
+      throw new CustomError({
+        message: `Not found ${this.config.constructor.name} with id = '${id}'}`,
+        httpCode: 404,
+      })
     }
     return item
   }

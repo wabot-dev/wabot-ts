@@ -1,11 +1,11 @@
+import { ExpressProvider } from '@/channels'
 import { IConstructor } from '@/core'
 import { DependencyContainer } from '@/injection'
-import { RestControllerMetadataStore } from './metadata'
-import { ExpressProvider } from '@/channels'
-import path from 'path'
 import { Logger } from '@/logger'
-import { Request } from 'express'
 import { validate } from '@/validation'
+import { Request } from 'express'
+import path from 'path'
+import { RestControllerMetadataStore } from './metadata'
 
 function buildRequest(req: Request): any {
   return Object.assign({}, req.body, req.query, req.params)
@@ -56,7 +56,19 @@ export function runRestControllers(
           )
           res.status(200).json(response)
         } catch (err) {
-          res.sendStatus(500)
+          if (err instanceof Error) {
+            const keys = Object.keys(err).filter((key) => !['message', 'stack'].includes(key))
+            const info = keys.reduce(
+              (acc, key) => {
+                acc[key] = (err as any)[key]
+                return acc
+              },
+              {} as { [key: string]: any },
+            )
+            res.status(500).json({ error: { message: err.message, stack: err.stack, ...info } })
+          } else {
+            res.status(500).json({ error: { message: 'Unknown error' } })
+          }
         }
         requestContainer.dispose()
       })
