@@ -1,15 +1,6 @@
-import {
-  container,
-  get,
-  isNotEmpty,
-  isString,
-  restController,
-  runRestControllers,
-  validable,
-} from '@'
+import { container, get, isNotEmpty, isString, restController, runRestControllers } from '@'
 import { EliaEventRepository } from './repositories'
 
-@validable()
 export class GetAllEventsRequest {
   @isString()
   @isNotEmpty()

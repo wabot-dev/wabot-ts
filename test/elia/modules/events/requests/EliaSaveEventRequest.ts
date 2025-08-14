@@ -1,7 +1,5 @@
 import { isDate, isNotEmpty, isNumber, isString, max, min, param } from '@'
-import { validable } from '@'
 
-@validable()
 export class EliaSaveEventRequest {
   @param({
     description: 'Fecha y hora de inicio del evento',
