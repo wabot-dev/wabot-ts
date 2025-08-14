@@ -5,6 +5,7 @@ import { ExpressProvider } from '@/channels'
 import path from 'path'
 import { Logger } from '@/logger'
 import { Request } from 'express'
+import { validate } from '@/validation'
 
 function buildRequest(req: Request): any {
   return Object.assign({}, req.body, req.query, req.params)
@@ -38,9 +39,8 @@ export function runRestControllers(
             throw new Error(`Cant determine de parameter ${paramIndex} value`)
           }
           defaultArgFound = true
-          if (typeof paramType === 'function' && typeof paramType.__validate__ === 'function') {
-            const { value, error } = paramType.__validate__(buildRequest(req))
-            debugger
+          if (typeof paramType === 'function') {
+            const { value, error } = validate(buildRequest(req), paramType)
             if (error) {
               res.status(400).json({ error })
               return

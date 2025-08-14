@@ -4,7 +4,7 @@ import { ValidationMetadataStore } from './metadata/ValidationMetadataStore'
 import { IModelValidationResult } from './validators/contracts'
 import { validateModel } from './validators/validateModel'
 
-export function validateModel2<V>(
+export function validate<V>(
   value: any,
   modelConstructor: IConstructor<V>,
 ): IModelValidationResult<V> {
