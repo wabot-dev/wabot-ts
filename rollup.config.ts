@@ -36,6 +36,7 @@ const config: RollupOptions = {
     'socket.io-client',
     'body-parser',
     'debug',
+    'html-to-text'
   ],
   output: {
     dir: 'dist/src',
