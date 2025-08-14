@@ -56,6 +56,7 @@ export abstract class WhatsAppSender {
       }
     } catch (error) {
       this.logger.error(`Error sending WhatsApp message: ${error}`)
+      throw new Error(`Error sending WhatsApp message: ${error}`, { cause: error })
     }
   }
 
@@ -71,6 +72,7 @@ export abstract class WhatsAppSender {
       }
     } catch (error) {
       this.logger.error(`Error sending WhatsApp message: ${error}`)
+      throw new Error(`Error sending WhatsApp message: ${error}`, { cause: error })
     }
   }
 
