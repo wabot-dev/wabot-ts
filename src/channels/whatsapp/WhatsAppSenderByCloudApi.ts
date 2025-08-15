@@ -6,12 +6,11 @@ import {
   type ISendWhatsAppTemplateRequest,
 } from './WhatsAppSender'
 
-import { ChatRepository } from '@/core'
 import { ChatResolver } from '@/controller'
-import { WhatsAppRepository } from './WhatsAppRepository'
-import { container, singleton } from '@/injection'
-import { WabotDevConnection } from '../wabot'
+import { ChatRepository } from '@/core'
+import { singleton } from '@/injection'
 import { IWhatsAppTemplate, IWhatsAppTemplateResponse } from './IWhatsAppTemplateResponse'
+import { WhatsAppRepository } from './WhatsAppRepository'
 
 @singleton()
 export class WhatsAppSenderByCloudApi extends WhatsAppSender {
@@ -143,10 +142,4 @@ export class WhatsAppSenderByCloudApi extends WhatsAppSender {
       throw error
     }
   }
-}
-
-if (!WabotDevConnection.isTokenAvailable()) {
-  container.register(WhatsAppSender as any, {
-    useClass: WhatsAppSenderByCloudApi,
-  })
 }

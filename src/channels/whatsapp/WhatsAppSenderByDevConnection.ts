@@ -5,18 +5,18 @@ import {
   type ISendWhatsAppTemplateRequest,
 } from './WhatsAppSender'
 
+import { ChatResolver } from '@/controller'
+import { ChatRepository } from '@/core'
+import { singleton } from '@/injection'
+import { Logger } from '@/logger'
 import {
   devEmitEvent,
   WabotDevConnection,
   type IDevSendWhatsappRequest,
   type IDevSendWhatsappTemplateRequest,
 } from '../wabot'
-import { Logger } from '@/logger'
-import { ChatRepository } from '@/core'
-import { container, singleton } from '@/injection'
-import { ChatResolver } from '@/controller'
-import { WhatsAppRepository } from './WhatsAppRepository'
 import { IWhatsAppTemplate } from './IWhatsAppTemplateResponse'
+import { WhatsAppRepository } from './WhatsAppRepository'
 
 @singleton()
 export class WhatsAppSenderByDevConnection extends WhatsAppSender {
@@ -65,10 +65,4 @@ export class WhatsAppSenderByDevConnection extends WhatsAppSender {
   ): Promise<IWhatsAppTemplate | null> {
     throw new Error('Not implemented')
   }
-}
-
-if (WabotDevConnection.isTokenAvailable()) {
-  container.register(WhatsAppSender as any, {
-    useClass: WhatsAppSenderByDevConnection,
-  })
 }

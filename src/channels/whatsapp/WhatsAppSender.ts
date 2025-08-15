@@ -31,7 +31,7 @@ export interface IWhatsAppSenderOptions {
   writeChatMemory?: boolean
 }
 
-export abstract class WhatsAppSender {
+export class WhatsAppSender {
   constructor(
     protected logger: Logger,
     protected chatRepository: ChatRepository,
@@ -39,11 +39,19 @@ export abstract class WhatsAppSender {
     protected whatsAppRepository: WhatsAppRepository,
   ) {}
 
-  protected abstract handleSendRequest(request: ISendWhatsAppRequest): Promise<void>
-  protected abstract handleSendTemplateRequest(request: ISendWhatsAppTemplateRequest): Promise<void>
-  protected abstract handleGetWhatsAppTemplate(
+  protected handleSendRequest(request: ISendWhatsAppRequest): Promise<void> {
+    throw new Error('Not implemented')
+  }
+
+  protected handleSendTemplateRequest(request: ISendWhatsAppTemplateRequest): Promise<void> {
+    throw new Error('Not implemented')
+  }
+
+  protected handleGetWhatsAppTemplate(
     request: IGetWhatsAppTemplateRequest,
-  ): Promise<IWhatsAppTemplate | null>
+  ): Promise<IWhatsAppTemplate | null> {
+    throw new Error('Not implemented')
+  }
 
   async sendWhatsApp(
     request: ISendWhatsAppRequest,
