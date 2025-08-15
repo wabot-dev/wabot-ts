@@ -129,7 +129,7 @@ export class WhatsAppSender {
 
     const chat = await this.chatResolver.resolve(chatConnection)
 
-    const chatMemory = await this.chatRepository.findMemory(chat.getId())!
+    const chatMemory = await this.chatRepository.findMemory(chat.id)!
 
     const chatItem = new ChatItem({
       type: 'BOT_MESSAGE',

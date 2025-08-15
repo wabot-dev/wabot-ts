@@ -1,15 +1,16 @@
-import { Persistent, type IPersistentData } from '@/core'
+import { Entity, type IEntityData } from '@/core'
+import { IStorableData } from '@/core/Storable'
 
-export interface IWhatsAppBusinessNumber {
+export interface IWhatsAppBusinessNumber extends IStorableData {
   id: string
   number: string
 }
 
-export interface IWhatsAppBusinessAccount {
+export interface IWhatsAppBusinessAccount extends IStorableData {
   id: string
 }
 
-export interface IWhatsAppData extends IPersistentData {
+export interface IWhatsAppData extends IEntityData {
   slug: string
   verifyToken: string
   appSecret: string
@@ -18,7 +19,7 @@ export interface IWhatsAppData extends IPersistentData {
   businessNumbers: IWhatsAppBusinessNumber[]
 }
 
-export class WhatsApp extends Persistent<IWhatsAppData> {
+export class WhatsApp extends Entity<IWhatsAppData> {
   getVerifyToken() {
     return this.data.verifyToken
   }

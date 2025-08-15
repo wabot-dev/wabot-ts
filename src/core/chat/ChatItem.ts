@@ -1,5 +1,5 @@
 import { type IChatMessage, type IConnectionChatMessage } from '../IConnectionChatMessage'
-import { Persistent } from '../Persistent'
+import { Entity, IEntityData } from '../Entity'
 import { type IChatFunctionCall } from './IChatFunctionCall'
 
 export type ISystemMessageItem = {
@@ -17,14 +17,12 @@ export type ISystemFunctionCallItem = {
   content: IChatFunctionCall
 }
 
-export type IChatItemData = {
-  id?: string
-  createdAt?: number
-} & (ISystemMessageItem | IReceivedMessageItem | ISystemFunctionCallItem)
+export type IChatItemData = IEntityData &
+  (ISystemMessageItem | IReceivedMessageItem | ISystemFunctionCallItem)
 
 export type IChatItemType = IChatItemData['type']
 
-export class ChatItem extends Persistent<IChatItemData> {
+export class ChatItem extends Entity<IChatItemData> {
   getType() {
     return this.data.type
   }

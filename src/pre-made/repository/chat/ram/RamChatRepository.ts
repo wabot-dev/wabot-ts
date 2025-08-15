@@ -26,7 +26,7 @@ export class RamChatRepository implements IChatRepository {
     this.items.push(chat)
     const memory: IRamChatMemory = {
       memory: new RamChatMemory(),
-      chatId: chat.getId(),
+      chatId: chat.id,
     }
     this.memories.push(memory)
   }

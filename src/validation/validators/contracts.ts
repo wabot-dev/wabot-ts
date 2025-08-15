@@ -4,8 +4,7 @@ export interface IValidationError {
   description: string
 }
 
-export interface IModelValidationError {
-  model: IValidationError[]
+export interface IModelValidationError extends IValidationError {
   properties: { name: string; errors: IValidationError[] }[]
 }
 

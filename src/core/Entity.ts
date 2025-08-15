@@ -1,28 +1,28 @@
-export interface IPersistentData {
+import { IStorableData, Storable } from './Storable'
+
+export interface IEntityData extends IStorableData {
   id?: string
   createdAt?: number | null
   discardedAt?: number | null
 }
 
-export class Persistent<D extends IPersistentData = IPersistentData> {
-  constructor(protected data: D) {}
-
-  getId(): string {
+export class Entity<D extends IEntityData> extends Storable<D> {
+  get id() {
     if (!this.data.id) {
       throw new Error('id is required')
     }
     return this.data.id
   }
 
-  getCreatedAt(): Date {
+  get createdAt(): Date {
     if (!this.data.createdAt) {
       throw new Error('createdAt is required')
     }
     return new Date(this.data.createdAt)
   }
 
-  update(newData: D) {
-    this.data = newData
+  update(newData: Omit<D, 'id' | 'createdAt' | 'discardedAt'>) {
+    this.data = { ...this.data, newData, updatedAt: new Date().getTime() }
   }
 
   wasCreated(): boolean {
@@ -42,3 +42,7 @@ export class Persistent<D extends IPersistentData = IPersistentData> {
     this.data.discardedAt = new Date().getTime()
   }
 }
+
+// Backward compatibility
+export interface IPersistentData extends IEntityData {}
+export class PersistentData<D extends IPersistentData> extends Entity<D> {}

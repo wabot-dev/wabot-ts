@@ -1,6 +1,6 @@
-import { IPersistentData, Persistent } from '@/core'
+import { IEntityData, Entity } from '@/core'
 
-export interface IEliaEventData extends IPersistentData {
+export interface IEliaEventData extends IEntityData {
   userId: string
   title: string
   description?: string
@@ -8,4 +8,4 @@ export interface IEliaEventData extends IPersistentData {
   durationInMinutes: number
 }
 
-export class EliaEvent extends Persistent<IEliaEventData> {}
+export class EliaEvent extends Entity<IEliaEventData> {}

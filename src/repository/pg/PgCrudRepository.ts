@@ -3,10 +3,10 @@ import * as shortUUID from 'short-uuid'
 import type { ICrudRepository } from '../ICrudRepository'
 import { type IPgRepositoryConfig } from './IPgRepositoryConfig'
 import { PgRepositoryBase } from './PgRepositoryBase'
-import type { Persistent } from '@/core'
+import type { Entity, IEntityData } from '@/core'
 import { CustomError } from '@/error'
 
-export class PgCrudRepository<P extends Persistent>
+export class PgCrudRepository<P extends Entity<IEntityData>>
   extends PgRepositoryBase<P>
   implements ICrudRepository<P>
 {
@@ -73,11 +73,11 @@ export class PgCrudRepository<P extends Persistent>
          SET ${this.updates}
       WHERE id = $${this.columnsList.length + 1}
     `
-    await this.exec(sql, [...this.values(item), item.getId()])
+    await this.exec(sql, [...this.values(item), item.id])
   }
 
   async discard(item: P): Promise<void> {
-    const _item = await this.find(item.getId())
+    const _item = await this.find(item.id)
     if (!_item) {
       throw new Error('Not found')
     }

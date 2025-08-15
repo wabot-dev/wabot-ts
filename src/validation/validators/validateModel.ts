@@ -8,11 +8,7 @@ export function validateModel<V>(
 
   if (typeof value !== 'object') {
     result.error = {
-      model: [
-        {
-          description: `the value should be an object`,
-        },
-      ],
+      description: 'the value should be an object',
       properties: [],
     }
     return result
@@ -40,7 +36,7 @@ export function validateModel<V>(
       if (propertyValidatorResult.error) {
         let resultError = result.error
         if (!resultError) {
-          resultError = { model: [], properties: [] }
+          resultError = { description: `Error on properties`, properties: [] }
           result.error = resultError
         }
 

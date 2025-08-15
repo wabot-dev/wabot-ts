@@ -1,8 +1,8 @@
 import type { Pool } from 'pg'
 import type { IPgRepositoryConfig } from './IPgRepositoryConfig'
-import type { Persistent } from '@/core'
+import type { Entity, IEntityData } from '@/core'
 
-export class PgRepositoryBase<P extends Persistent> {
+export class PgRepositoryBase<P extends Entity<IEntityData>> {
   private tableIsCreated = false
   public schema: string
   public table: string
@@ -47,8 +47,8 @@ export class PgRepositoryBase<P extends Persistent> {
 
   values(item: P) {
     return [
-      item.getId(),
-      item.getCreatedAt(),
+      item.id,
+      item.createdAt,
       JSON.stringify(item['data']),
       ...this.columnsList.slice(3).map((x) => this.addColumns[x].value(item)),
     ]

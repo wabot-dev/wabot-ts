@@ -1,6 +1,6 @@
-import type { IConstructor, Persistent } from '@/core'
+import type { IConstructor, Entity, IEntityData } from '@/core'
 
-export type IPgRepositoryConfig<P extends Persistent> = {
+export type IPgRepositoryConfig<P extends Entity<IEntityData>> = {
   schema?: string
   table: string
   constructor: IConstructor<P>

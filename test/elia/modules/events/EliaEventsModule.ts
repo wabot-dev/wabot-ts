@@ -22,7 +22,7 @@ export class EliaEventsModule {
       throw new Error('Esta función requiere iniciar sesión')
     }
 
-    const userId = this.context.user.getId()
+    const userId = this.context.user.id
 
     const newEvent = new EliaEvent({
       userId,

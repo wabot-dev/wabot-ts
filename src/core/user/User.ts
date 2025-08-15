@@ -1,17 +1,18 @@
-import { Persistent, type IPersistentData } from '../Persistent'
+import { Entity, type IEntityData } from '../Entity'
+import { IStorableData } from '../Storable'
 
-export interface IUserConnection {
+export interface IUserConnection extends IStorableData{
   channelName: string
   id: string
 }
 
-export interface IUserData extends IPersistentData {
+export interface IUserData extends IEntityData {
   shortName: string
   connections: IUserConnection[]
   keyValueData: { [key: string]: string }
 }
 
-export class User extends Persistent<IUserData> {
+export class User extends Entity<IUserData> {
   constructor(data: IUserData) {
     super(data)
   }

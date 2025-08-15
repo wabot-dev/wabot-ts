@@ -1,19 +1,20 @@
-import { Persistent, type IPersistentData } from '../Persistent'
+import { Entity, type IEntityData } from '../Entity'
+import { IStorableData } from '../Storable'
 
 export type IChatType = 'PRIVATE' | 'GROUP'
 
-export interface IChatConnection {
+export interface IChatConnection extends IStorableData {
   chatType: IChatType
   channelName: string
   id: string
 }
 
-export interface IChatData extends IPersistentData {
+export interface IChatData extends IEntityData {
   type: IChatType
   connections: IChatConnection[]
 }
 
-export class Chat extends Persistent<IChatData> {
+export class Chat extends Entity<IChatData> {
   constructor(data: IChatData) {
     super(data)
   }

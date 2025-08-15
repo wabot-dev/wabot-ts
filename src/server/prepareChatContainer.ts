@@ -17,9 +17,9 @@ export async function prepareChatContainer(
   })
 
   const chatRepository = container.resolve(ChatRepository)
-  const chatMemory = await chatRepository.findMemory(context.chat.getId())
+  const chatMemory = await chatRepository.findMemory(context.chat.id)
   if (!chatMemory) {
-    throw new Error('Not found Chat Memory for Chat with Id=' + context.chat.getId())
+    throw new Error('Not found Chat Memory for Chat with Id=' + context.chat.id)
   }
   chatContainer.register(ChatMemory, { useValue: chatMemory })
 

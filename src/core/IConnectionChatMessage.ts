@@ -1,9 +1,10 @@
 import type { IChatConnection } from './chat/Chat'
 import type { IChatDocument } from './chat/IChatDocument'
 import type { IChatImage } from './chat/IChatImage'
+import { IStorableData } from './Storable'
 import type { IUserConnection } from './user/User'
 
-export interface IChatMessage {
+export interface IChatMessage extends IStorableData {
   text?: string
   documents?: IChatDocument[]
   images?: IChatImage[]
