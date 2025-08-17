@@ -1,21 +1,18 @@
 import { ExpressProvider } from '@/channels'
 import { IConstructor } from '@/core'
-import { DependencyContainer } from '@/injection'
 import { Logger } from '@/logger'
 import { validate } from '@/validation'
 import { Request } from 'express'
 import path from 'path'
 import { RestControllerMetadataStore } from './metadata'
 import { CustomError } from '@/error'
+import { container } from '@/injection'
 
 function buildRequest(req: Request): any {
   return Object.assign({}, req.body, req.query, req.params)
 }
 
-export function runRestControllers(
-  controllers: IConstructor<any>[],
-  container: DependencyContainer,
-) {
+export function runRestControllers(controllers: IConstructor<any>[]) {
   const logger = new Logger('wabot:rest')
   const metadataStore = container.resolve(RestControllerMetadataStore)
   const expressProvider = container.resolve(ExpressProvider)
