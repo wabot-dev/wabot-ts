@@ -1,14 +1,14 @@
-import { IModelValidationResult, IModelValidatorsInfo, IValidationError } from './contracts'
+import { IModelValidationResult, IModelValidatorsInfo } from './contracts'
 
 export function validateModel<V>(
   value: any,
   info: IModelValidatorsInfo<V>,
 ): IModelValidationResult<V> {
   if (typeof value !== 'object' || value === null) {
-    return { error: { description: 'Invalid object', properties: [] } }
+    return { error: { description: 'Invalid object', properties: {} } }
   }
 
-  let propertiesErrors: { name: string; errors: IValidationError[] }[] = []
+  let propertiesErrors: { [key: string]: string[] } = {}
   let resultValue = new info.modelConstructor() as any
 
   for (const propertyName in info.properties) {
@@ -27,19 +27,21 @@ export function validateModel<V>(
         resultValue[propertyName],
         propertyValidatorInfo.validatorOptions,
       )
-      resultValue[propertyName] = propertyValidatorResult.value
+
       if (propertyValidatorResult.error) {
-        let propertyErrors = propertiesErrors.find((x) => x.name === propertyName)
+        let propertyErrors = propertiesErrors[propertyName]
         if (!propertyErrors) {
-          propertyErrors = { name: propertyName, errors: [] }
-          propertiesErrors.push(propertyErrors)
+          propertyErrors = []
+          propertiesErrors[propertyName] = propertyErrors
         }
-        propertyErrors.errors.push(propertyValidatorResult.error)
+        propertyErrors.push(propertyValidatorResult.error.description)
+      } else {
+        resultValue[propertyName] = propertyValidatorResult.value
       }
     }
   }
 
-  if (propertiesErrors.length > 0) {
+  if (Object.keys(propertiesErrors).length > 0) {
     return { error: { description: 'Invalid properties', properties: propertiesErrors } }
   }
 

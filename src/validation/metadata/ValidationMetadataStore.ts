@@ -1,8 +1,20 @@
 import { singleton } from '@/injection'
 import { IValidatorMetadata } from './IValidatorMetadata'
 import { IConstructor } from '@/core'
-import { IModelValidatorsInfo } from '../validators/contracts'
+import { IModelValidatorsInfo, IPropertyValidatorInfo } from '../validators/contracts'
 import { _IS_OPTIONAL_DUMMY_VALIDATOR_ } from '../validators/validateIsOptional'
+
+function getClassHierarchy(cls: Function): Function[] {
+  const classes: Function[] = []
+  let proto = Object.getPrototypeOf(cls.prototype)
+
+  while (proto && proto.constructor !== Object) {
+    classes.push(proto.constructor)
+    proto = Object.getPrototypeOf(proto)
+  }
+
+  return classes
+}
 
 @singleton()
 export class ValidationMetadataStore {
@@ -22,10 +34,24 @@ export class ValidationMetadataStore {
   }
 
   getModelValidatorsInfo<V>(modelConstructor: IConstructor<V>): IModelValidatorsInfo<V> {
+    const constructors = getClassHierarchy(modelConstructor)
+    constructors.unshift(modelConstructor)
+
     const modelValidators: IModelValidatorsInfo<V> = {
       modelConstructor: modelConstructor,
-      properties: {},
+      properties: Object.assign(
+        {},
+        ...constructors.map((x) => this.getConstructorPropertiesValidatorsInfo(x as any)),
+      ),
     }
+
+    return modelValidators
+  }
+
+  private getConstructorPropertiesValidatorsInfo(modelConstructor: IConstructor<any>) {
+    const properties: {
+      [prop: string]: { isOptional?: boolean; validators?: IPropertyValidatorInfo[] } | undefined
+    } = {}
 
     ;[...(this.validators.get(modelConstructor)?.values() ?? [])].forEach(
       (propertyValidatorsMetadata) => {
@@ -33,10 +59,10 @@ export class ValidationMetadataStore {
         if (!propertyName) {
           return
         }
-        let propertyInfo = modelValidators.properties[propertyName]
+        let propertyInfo = properties[propertyName]
         if (!propertyInfo) {
           propertyInfo = {}
-          modelValidators.properties[propertyName] = propertyInfo
+          properties[propertyName] = propertyInfo
         }
 
         let validators = propertyInfo.validators
@@ -55,6 +81,6 @@ export class ValidationMetadataStore {
       },
     )
 
-    return modelValidators
+    return properties
   }
 }

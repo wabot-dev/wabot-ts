@@ -10,6 +10,8 @@ import {
   runServer,
   UserRepository,
   WhatsAppRepository,
+  WhatsAppSender,
+  WhatsAppSenderByDevConnection,
 } from '@'
 import { Pool } from 'pg'
 import { EliaChatController } from './EliaChatController'
@@ -47,5 +49,9 @@ runServer({
       replace: WhatsAppRepository,
       with: EnvWhatsAppRepository,
     },
+    {
+      replace: WhatsAppSender,
+      with: WhatsAppSenderByDevConnection
+    }
   ],
 })

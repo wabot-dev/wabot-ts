@@ -7,16 +7,18 @@ export class GetAllEventsRequest {
   message: string = ''
 }
 
+export class GetAllEventsRequestChild extends GetAllEventsRequest {}
+
 @restController({ path: '/elia/event' })
 export class EliaEventRestController {
   constructor(private eliaEventRepository: EliaEventRepository) {}
 
   @get()
-  async allEvents(req: GetAllEventsRequest) {
+  async allEvents(req: GetAllEventsRequestChild) {
     debugger
     const allEvents = await this.eliaEventRepository.findAll()
     return allEvents
   }
 }
 
-runRestControllers([EliaEventRestController], container)
+runRestControllers([EliaEventRestController])

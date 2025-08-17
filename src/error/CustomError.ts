@@ -18,5 +18,6 @@ export class CustomError extends Error {
     this.humanMessage = data.humanMessage
     this.code = data.code
     this.httpCode = data.httpCode
+    this.info = data.info
   }
 }
