@@ -8,15 +8,19 @@ export interface IModelValidationError extends IValidationError {
   properties: { name: string; errors: IValidationError[] }[]
 }
 
-export interface IValidationResult<V> {
-  value?: V
-  error?: IValidationError
-}
+export type IValidationResult<V> =
+  | { value: V; error?: undefined }
+  | {
+      value?: undefined
+      error: IValidationError
+    }
 
-export interface IModelValidationResult<V> {
-  value?: V
-  error?: IModelValidationError
-}
+export type IModelValidationResult<V> =
+  | { value: V; error?: undefined }
+  | {
+      value?: undefined
+      error: IModelValidationError
+    }
 
 export type IValidator = (value: any, options: any) => IValidationResult<any>
 

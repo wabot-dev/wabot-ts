@@ -1,59 +1,47 @@
-import { IModelValidationResult, IModelValidatorsInfo } from './contracts'
+import { IModelValidationResult, IModelValidatorsInfo, IValidationError } from './contracts'
 
 export function validateModel<V>(
   value: any,
   info: IModelValidatorsInfo<V>,
 ): IModelValidationResult<V> {
-  const result: IModelValidationResult<V> = {}
-
-  if (typeof value !== 'object') {
-    result.error = {
-      description: 'the value should be an object',
-      properties: [],
-    }
-    return result
+  if (typeof value !== 'object' || value === null) {
+    return { error: { description: 'Invalid object', properties: [] } }
   }
 
-  const validatedValue = new info.modelConstructor() as any
+  let propertiesErrors: { name: string; errors: IValidationError[] }[] = []
+  let resultValue = new info.modelConstructor() as any
 
   for (const propertyName in info.properties) {
     const propertyInfo = info.properties[propertyName]!
     const propertyValidators = propertyInfo.validators ?? []
 
-    validatedValue[propertyName] = value[propertyName] ?? validatedValue[propertyName]
+    resultValue[propertyName] = value[propertyName] ?? resultValue[propertyName]
 
-    if (validatedValue[propertyName] == null && propertyInfo.isOptional) {
-      validatedValue[propertyName] = null
+    if (resultValue[propertyName] == null && propertyInfo.isOptional) {
+      resultValue[propertyName] = null
       continue
     }
 
     for (let propertyValidatorInfo of propertyValidators) {
       const propertyValidatorResult = propertyValidatorInfo.validator(
-        validatedValue[propertyName],
+        resultValue[propertyName],
         propertyValidatorInfo.validatorOptions,
       )
-      validatedValue[propertyName] = propertyValidatorResult.value
+      resultValue[propertyName] = propertyValidatorResult.value
       if (propertyValidatorResult.error) {
-        let resultError = result.error
-        if (!resultError) {
-          resultError = { description: `Error on properties`, properties: [] }
-          result.error = resultError
-        }
-
-        let propertyErrors = resultError.properties.find((x) => x.name === propertyName)
+        let propertyErrors = propertiesErrors.find((x) => x.name === propertyName)
         if (!propertyErrors) {
           propertyErrors = { name: propertyName, errors: [] }
-          resultError.properties.push(propertyErrors)
+          propertiesErrors.push(propertyErrors)
         }
-
         propertyErrors.errors.push(propertyValidatorResult.error)
       }
     }
   }
 
-  if (!result.error) {
-    result.value = validatedValue
+  if (propertiesErrors.length > 0) {
+    return { error: { description: 'Invalid properties', properties: propertiesErrors } }
   }
 
-  return result
+  return { value: resultValue }
 }
