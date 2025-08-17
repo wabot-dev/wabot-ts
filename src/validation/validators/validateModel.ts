@@ -18,7 +18,7 @@ export function validateModel<V>(
     resultValue[propertyName] = value[propertyName] ?? resultValue[propertyName]
 
     if (resultValue[propertyName] == null && propertyInfo.isOptional) {
-      resultValue[propertyName] = null
+      resultValue[propertyName] = undefined
       continue
     }
 
@@ -28,6 +28,8 @@ export function validateModel<V>(
         propertyValidatorInfo.validatorOptions,
       )
 
+      resultValue[propertyName] = propertyValidatorResult.value
+
       if (propertyValidatorResult.error) {
         let propertyErrors = propertiesErrors[propertyName]
         if (!propertyErrors) {
@@ -35,8 +37,6 @@ export function validateModel<V>(
           propertiesErrors[propertyName] = propertyErrors
         }
         propertyErrors.push(propertyValidatorResult.error.description)
-      } else {
-        resultValue[propertyName] = propertyValidatorResult.value
       }
     }
   }
