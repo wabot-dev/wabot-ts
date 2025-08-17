@@ -65,4 +65,4 @@ export interface IPersistentData extends IEntityData {}
 /**
  * @deprecated Should use Entity
  */
-export class PersistentData<D extends IPersistentData> extends Entity<D> {}
+export class Persistent<D extends IPersistentData> extends Entity<D> {}
