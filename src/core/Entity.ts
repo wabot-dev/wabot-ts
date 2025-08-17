@@ -14,11 +14,25 @@ export class Entity<D extends IEntityData> extends Storable<D> {
     return this.data.id
   }
 
+  /**
+   * @deprecated use id
+   */
+  getId() {
+    return this.id
+  }
+
   get createdAt(): Date {
     if (!this.data.createdAt) {
       throw new Error('createdAt is required')
     }
     return new Date(this.data.createdAt)
+  }
+
+  /**
+   * @deprecated use createdAt
+   */
+  getCreatedAt() {
+    return this.createdAt
   }
 
   update(newData: Omit<D, 'id' | 'createdAt' | 'discardedAt'>) {
@@ -43,6 +57,12 @@ export class Entity<D extends IEntityData> extends Storable<D> {
   }
 }
 
-// Backward compatibility
+/**
+ * @deprecated Should use IEntityData
+ */
 export interface IPersistentData extends IEntityData {}
+
+/**
+ * @deprecated Should use Entity
+ */
 export class PersistentData<D extends IPersistentData> extends Entity<D> {}

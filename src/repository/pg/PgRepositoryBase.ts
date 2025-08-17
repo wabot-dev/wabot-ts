@@ -4,13 +4,13 @@ import type { Entity, IEntityData } from '@/core'
 
 export class PgRepositoryBase<P extends Entity<IEntityData>> {
   private tableIsCreated = false
-  public schema: string
-  public table: string
-  public columnsList: string[]
-  public columnsAndTypes: string
-  public columns: string
-  public vars: string
-  public updates: string
+  protected schema: string
+  protected table: string
+  protected columnsList: string[]
+  protected columnsAndTypes: string
+  protected columns: string
+  protected vars: string
+  protected updates: string
 
   public addColumns: {
     [columns: string]: {
@@ -45,7 +45,7 @@ export class PgRepositoryBase<P extends Entity<IEntityData>> {
     this.updates = this.columnsList.map((x, i) => `"${x}" = $${i + 1}`).join(', ')
   }
 
-  values(item: P) {
+  protected values(item: P) {
     return [
       item.id,
       item.createdAt,
