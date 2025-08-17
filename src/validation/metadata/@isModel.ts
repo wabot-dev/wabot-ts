@@ -11,7 +11,7 @@ export function isModel(model: IConstructor<any>) {
       modelConstructor: target.constructor as any,
       propertyName,
       validator: validateModel,
-      validatorOptions: store.getModelValidatorsInfo(model)
+      validatorOptions: store.getModelValidatorsInfo(model),
     })
   }
 }

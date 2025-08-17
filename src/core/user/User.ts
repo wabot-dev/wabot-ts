@@ -1,7 +1,7 @@
 import { Entity, type IEntityData } from '../Entity'
 import { IStorableData } from '../Storable'
 
-export interface IUserConnection extends IStorableData{
+export interface IUserConnection extends IStorableData {
   channelName: string
   id: string
 }

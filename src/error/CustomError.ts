@@ -4,12 +4,14 @@ export interface ICustomErrorData {
   code?: string
   httpCode?: number
   cause?: Error
+  info?: any
 }
 
 export class CustomError extends Error {
   humanMessage?: string
   code?: string
   httpCode?: number
+  info?: any
 
   constructor(data: ICustomErrorData) {
     super(data.message, { cause: data.cause })

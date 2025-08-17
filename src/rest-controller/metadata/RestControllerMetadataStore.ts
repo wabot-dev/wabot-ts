@@ -2,10 +2,12 @@ import { singleton } from 'tsyringe'
 import { IEndPointMetadata } from './IEndPointMetadata'
 import { IRestControllerMetadata } from './IRestControllerMetadata'
 import { IConstructor } from '@/core'
+import { IMiddlewareMetadata } from './IMiddlewareMetadata'
 
 @singleton()
 export class RestControllerMetadataStore {
   private endPoints = new Map<Function, Map<string, IEndPointMetadata>>()
+  private middlewares = new Map<Function, Map<string, IMiddlewareMetadata[]>>()
   private restControllers = new Map<Function, IRestControllerMetadata>()
 
   saveControllerMetadata(controllerMetadata: IRestControllerMetadata) {
@@ -18,6 +20,21 @@ export class RestControllerMetadataStore {
       this.endPoints.set(endPointMetadata.controllerConstructor, (controllerEndPoints = new Map()))
     }
     controllerEndPoints.set(endPointMetadata.functionName, endPointMetadata)
+  }
+
+  saveMiddlewareMetadata(middlewareMetadata: IMiddlewareMetadata) {
+    let controllerMiddlewares = this.middlewares.get(middlewareMetadata.controllerConstructor)
+    if (!controllerMiddlewares) {
+      this.middlewares.set(
+        middlewareMetadata.controllerConstructor,
+        (controllerMiddlewares = new Map()),
+      )
+    }
+    let methodMiddlewares = controllerMiddlewares.get(middlewareMetadata.functionName)
+    if (!methodMiddlewares) {
+      controllerMiddlewares.set(middlewareMetadata.functionName, (methodMiddlewares = []))
+    }
+    methodMiddlewares.unshift(middlewareMetadata)
   }
 
   getControllerEndPointsInfo(controllerConstructor: IConstructor<any>) {
@@ -35,6 +52,8 @@ export class RestControllerMetadataStore {
 
     return [...endPoints.values()].map((endPoint) => ({
       ...endPoint,
+      middlewares:
+        this.middlewares.get(endPoint.controllerConstructor)?.get(endPoint.functionName) ?? [],
       controller: this.restControllers.get(endPoint.controllerConstructor)!,
     }))
   }
