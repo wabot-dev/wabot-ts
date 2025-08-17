@@ -37,6 +37,7 @@ const config: RollupOptions = {
     'body-parser',
     'debug',
     'html-to-text',
+    '@anthropic-ai/sdk',
   ],
   output: {
     dir: 'dist/src',
