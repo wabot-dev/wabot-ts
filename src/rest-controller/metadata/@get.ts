@@ -2,7 +2,7 @@ import { container } from '@/injection'
 import { IGetConfig } from './IGetConfig'
 import { RestControllerMetadataStore } from './RestControllerMetadataStore'
 
-export function get(config?: IGetConfig) {
+export function get(config?: string | IGetConfig) {
   return function (target: object, propertyKey: string | symbol) {
     const functionName = propertyKey.toString()
     const paramsTypes = Reflect.getMetadata('design:paramtypes', target, functionName)
