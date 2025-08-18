@@ -22,15 +22,16 @@ export class Env {
     return this.envType === 'testing'
   }
 
-  requireString(varName: string): string {
-    const value = process.env[varName]
+  requireString(varName: string, options?: { default?: string }): string {
+    const value = process.env[varName] ?? options?.default
     if (!value) throw new Error(`Env Variable ${varName} is required`)
     return value
   }
 
-  requireNumber(varName: string): number {
-    const strValue = process.env[varName]
-    if (!strValue) throw new Error(`Env Variable ${varName} is required`)
+  requireNumber(varName: string, options?: { default?: number }): number {
+    const strValue = this.requireString(varName, {
+      default: options?.default != null ? String(options.default) : undefined,
+    })
     const value = Number(strValue)
     if (isNaN(value)) throw new Error(`Env Variable ${varName} should have number format`)
     return value
