@@ -11,7 +11,7 @@ export function get(config?: IGetConfig) {
       controllerConstructor: target.constructor as any,
       functionName,
       method: 'get',
-      path: config?.path,
+      path: typeof config === 'string' ? config : config?.path,
       paramsTypes,
     })
   }
