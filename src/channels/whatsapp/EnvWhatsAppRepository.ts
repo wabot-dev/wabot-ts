@@ -1,11 +1,11 @@
 import { singleton } from '@/injection'
 import { IWhatsAppRepository } from './IWhatsAppRepository'
 import { WhatsApp } from './WhatsApp'
-import { WabotEnv } from '@/env'
+import { Env } from '@/env'
 
 @singleton()
 export class EnvWhatsAppRepository implements IWhatsAppRepository {
-  constructor(private env: WabotEnv) {}
+  constructor(private env: Env) {}
 
   async findBySlug(slug: string): Promise<WhatsApp | null> {
     const whatsApp = this.getFromEnvVars()
