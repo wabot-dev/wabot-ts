@@ -1,4 +1,4 @@
-import { IChatAdapter, IChatAdapterNextItemReq } from '@/chatbot/IChatAdapter'
+import { IChatAdapter, IChatAdapterNextItemReq, IChatTool } from '@/chatbot/IChatAdapter'
 import { IChatFunctionCall, IChatItemRawData, IChatMessage, IConnectionChatMessage } from '@/core'
 import { Logger } from '@/logger'
 import { OpenAI } from 'openai'
@@ -8,40 +8,19 @@ export class OpenaiChatAdapter implements IChatAdapter {
   private logger = new Logger('wabot:openai-chat-adapter')
 
   async nextItem(req: IChatAdapterNextItemReq): Promise<IChatItemRawData> {
-    const tools = req.tools.map((fn) => {
-      const parameters = { ...fn.parameters, additionalProperties: false, type: 'object' }
-      return { ...fn, type: 'function', parameters, strict: true } as const
-    })
-
     const openIaInput: OpenAI.Responses.ResponseInput = []
-
     openIaInput.push({ role: 'system', content: req.systemPrompt })
     openIaInput.push(...this.mapChatItems(req.prevItems))
 
-    const request = {
+    const tools = this.mapTools(req.tools)
+
+    const response = await this.openai.responses.create({
       model: req.model,
       input: openIaInput,
       tools,
-    } as const
+    })
 
-    const response = await this.openai.responses.create(request)
-
-    let newItem: IChatItemRawData
-    if (response.output_text) {
-      newItem = { type: 'BOT_MESSAGE', content: { text: response.output_text } }
-    } else if (response.output && response.output[0]?.type == 'function_call') {
-      newItem = {
-        type: 'FUNCTION_CALL',
-        content: {
-          id: response.output[0].call_id,
-          name: response.output[0].name,
-          arguments: response.output[0].arguments,
-        },
-      }
-    } else {
-      throw new Error('Not supported OpenIA Response')
-    }
-    return newItem
+    return this.mapResponse(response)
   }
 
   private mapChatItems(chatItems: IChatItemRawData[]): OpenAI.Responses.ResponseInput {
@@ -90,5 +69,31 @@ export class OpenaiChatAdapter implements IChatAdapter {
         output: item.result ?? 'Not result',
       },
     ] as const
+  }
+
+  private mapTools(tools: IChatTool[]) {
+    return tools.map((fn) => {
+      const parameters = { ...fn.parameters, additionalProperties: false, type: 'object' }
+      return { ...fn, type: 'function', parameters, strict: true } as const
+    })
+  }
+
+  private mapResponse(response: OpenAI.Responses.Response): IChatItemRawData {
+    let newItem: IChatItemRawData
+    if (response.output_text) {
+      newItem = { type: 'BOT_MESSAGE', content: { text: response.output_text } }
+    } else if (response.output && response.output[0]?.type == 'function_call') {
+      newItem = {
+        type: 'FUNCTION_CALL',
+        content: {
+          id: response.output[0].call_id,
+          name: response.output[0].name,
+          arguments: response.output[0].arguments,
+        },
+      }
+    } else {
+      throw new Error('Not supported OpenIA Response')
+    }
+    return newItem
   }
 }
