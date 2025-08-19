@@ -1,4 +1,4 @@
-import { IChatAdapter, IChatAdapterNextItemReq, IChatTool } from '@/chatbot/IChatAdapter'
+import { IChatAdapter, IChatAdapterNextItemReq, IChatTool } from '@/chatbot'
 import { IChatFunctionCall, IChatItemRawData, IChatMessage, IConnectionChatMessage } from '@/core'
 import { Logger } from '@/logger'
 import { OpenAI } from 'openai'
@@ -12,7 +12,7 @@ export class OpenaiChatAdapter implements IChatAdapter {
     openIaInput.push({ role: 'system', content: req.systemPrompt })
     openIaInput.push(...this.mapChatItems(req.prevItems))
 
-    const tools = this.mapTools(req.tools)
+    const tools = req.tools.map((x) => this.mapTool(x))
 
     const response = await this.openai.responses.create({
       model: req.model,
@@ -71,11 +71,24 @@ export class OpenaiChatAdapter implements IChatAdapter {
     ] as const
   }
 
-  private mapTools(tools: IChatTool[]) {
-    return tools.map((fn) => {
-      const parameters = { ...fn.parameters, additionalProperties: false, type: 'object' }
-      return { ...fn, type: 'function', parameters, strict: true } as const
-    })
+  private mapTool(tool: IChatTool) {
+    return {
+      type: 'function',
+      name: tool.name,
+      description: tool.description,
+      parameters: {
+        type: 'object',
+        properties: tool.parameters.reduce(
+          (prev, param) => ({
+            ...prev,
+            [param.name]: { type: param.type, description: param.description },
+          }),
+          {},
+        ),
+        required: tool.parameters.map((param) => param.name),
+      },
+      strict: true,
+    } as const
   }
 
   private mapResponse(response: OpenAI.Responses.Response): IChatItemRawData {

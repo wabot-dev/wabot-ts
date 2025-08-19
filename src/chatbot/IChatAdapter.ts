@@ -1,6 +1,7 @@
 import { IChatItemRawData } from '@/core'
 
 export interface IChatToolParameter {
+  type: string
   name: string
   description: string
 }
