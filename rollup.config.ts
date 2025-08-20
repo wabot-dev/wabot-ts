@@ -38,6 +38,7 @@ const config: RollupOptions = {
     'debug',
     'html-to-text',
     '@anthropic-ai/sdk',
+    'jsonwebtoken',
   ],
   output: {
     dir: 'dist/src',
