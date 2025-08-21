@@ -28,6 +28,17 @@ export class PgCrudRepository<P extends Entity<IEntityData>>
     return items.at(0) ?? null
   }
 
+  async findByIds(ids: string[]): Promise<P[]> {
+    const sql = `
+      SELECT ${this.columns}
+      FROM ${this.table}
+      WHERE id IN (${ids.map((_, i) => '$' + (i + 1)).join(',')})
+      LIMIT 1
+    `
+    const items = await this.query(sql, ids)
+    return items
+  }
+
   async findOrThrow(id: string): Promise<P> {
     const item = await this.find(id)
     if (!item) {
