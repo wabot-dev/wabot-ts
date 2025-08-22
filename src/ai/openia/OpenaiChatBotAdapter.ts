@@ -80,7 +80,7 @@ export class OpenaiChatBotAdapter extends ChatBotAdapter {
         openIaInput.push({
           type: 'function_call_output',
           call_id: itemData.content.id,
-          output: itemData.content.result,
+          output: itemData.content.result ?? 'Not result',
         })
       }
     }

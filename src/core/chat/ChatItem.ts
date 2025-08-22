@@ -17,9 +17,8 @@ export type ISystemFunctionCallItem = {
   content: IChatFunctionCall
 }
 
-export type IChatItemData = IEntityData &
-  (ISystemMessageItem | IReceivedMessageItem | ISystemFunctionCallItem)
-
+export type IChatItemRawData = ISystemMessageItem | IReceivedMessageItem | ISystemFunctionCallItem
+export type IChatItemData = IEntityData & IChatItemRawData
 export type IChatItemType = IChatItemData['type']
 
 export class ChatItem extends Entity<IChatItemData> {

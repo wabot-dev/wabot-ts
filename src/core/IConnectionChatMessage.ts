@@ -8,7 +8,7 @@ export interface IChatMessage extends IStorableData {
   text?: string
   documents?: IChatDocument[]
   images?: IChatImage[]
-  senderName: string
+  senderName?: string
 }
 
 export interface IConnectionChatMessage extends IChatMessage {

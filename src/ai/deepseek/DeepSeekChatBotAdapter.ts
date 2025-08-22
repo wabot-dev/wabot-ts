@@ -101,7 +101,7 @@ export class DeepSeekChatBotAdapter extends ChatBotAdapter {
         deepSeekInput.push({
           role: 'tool',
           tool_call_id: itemData.content.id,
-          content: itemData.content.result,
+          content: itemData.content.result ?? 'No result',
         })
       }
     }
