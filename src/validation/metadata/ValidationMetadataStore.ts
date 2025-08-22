@@ -3,6 +3,7 @@ import { IValidatorMetadata } from './IValidatorMetadata'
 import { IConstructor } from '@/core'
 import { IModelValidatorsInfo, IPropertyValidatorInfo } from '../validators/contracts'
 import { _IS_OPTIONAL_DUMMY_VALIDATOR_ } from '../validators/validateIsOptional'
+import { IValidateArrayOptionsWithItemsValidators, validateArray } from '../validators'
 
 function getClassHierarchy(cls: Function): Function[] {
   const classes: Function[] = []
@@ -31,6 +32,43 @@ export class ValidationMetadataStore {
       modelValidators.set(validatorMetadata.propertyName, propertyValidators)
     }
     propertyValidators.unshift(validatorMetadata)
+
+    const arrayValidatorMetadata = propertyValidators.find((x) => x.validator === validateArray)
+    if (!arrayValidatorMetadata) {
+      return
+    }
+
+    if (!arrayValidatorMetadata.validatorOptions) {
+      arrayValidatorMetadata.validatorOptions = {}
+    }
+
+    const arrayValidatorOptions =
+      arrayValidatorMetadata.validatorOptions as IValidateArrayOptionsWithItemsValidators
+    if (!arrayValidatorOptions.itemsValidator) {
+      arrayValidatorOptions.itemsValidator = []
+    }
+
+    const removeValidatorsMetadata = []
+    for (const validatorMetadata of propertyValidators) {
+      if (
+        validatorMetadata.validator === validateArray ||
+        validatorMetadata.validator === _IS_OPTIONAL_DUMMY_VALIDATOR_
+      ) {
+        continue
+      }
+
+      arrayValidatorOptions.itemsValidator.push({
+        options: validatorMetadata.validatorOptions,
+        validator: validatorMetadata.validator,
+      })
+
+      removeValidatorsMetadata.push(validatorMetadata)
+    }
+
+    for (const toRemove of removeValidatorsMetadata) {
+      const indexToRemove = propertyValidators.indexOf(toRemove)
+      propertyValidators.splice(indexToRemove, 1)
+    }
   }
 
   getModelValidatorsInfo<V>(modelConstructor: IConstructor<V>): IModelValidatorsInfo<V> {
