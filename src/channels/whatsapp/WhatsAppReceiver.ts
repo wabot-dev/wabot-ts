@@ -73,11 +73,11 @@ export abstract class WhatsAppReceiver {
       channelName,
     }
 
-    await listener({
-      chatConnection,
-      userConnection,
-      senderName: contact.profile.name,
-      text: message.text.body,
-    })
+    // await listener({
+    //   chatConnection,
+    //   userConnection,
+    //   senderName: contact.profile.name,
+    //   text: message.text.body,
+    // })
   }
 }

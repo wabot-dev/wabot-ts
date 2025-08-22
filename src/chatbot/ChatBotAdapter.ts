@@ -50,15 +50,16 @@ export class ChatBotAdapter implements IChatBotAdapter {
   }
 
   protected async buildBotMessageItem(text: string) {
-    const senderName = (await this.mindset.identity()).name
-    const newBotMessage = new ChatItem({
-      type: 'BOT_MESSAGE',
-      content: {
-        senderName,
-        text,
-      },
-    })
-    return newBotMessage
+    // const senderName = (await this.mindset.identity()).name
+    // const newBotMessage = new ChatItem({
+    //   type: 'BOT_MESSAGE',
+    //   content: {
+    //     senderName,
+    //     text,
+    //   },
+    // })
+    // return newBotMessage
+    return 0 as any
   }
 
   protected async buildFunctionCallItem(
@@ -66,16 +67,17 @@ export class ChatBotAdapter implements IChatBotAdapter {
     functionName: string,
     functionArguments: string,
   ) {
-    const functionResult = await this.mindset.callFunction(functionName, functionArguments)
-    const newFunctionCall = new ChatItem({
-      type: 'FUNCTION_CALL',
-      content: {
-        id,
-        name: functionName,
-        arguments: functionArguments,
-        result: functionResult,
-      },
-    })
-    return newFunctionCall
+    // const functionResult = await this.mindset.callFunction(functionName, functionArguments)
+    // const newFunctionCall = new ChatItem({
+    //   type: 'FUNCTION_CALL',
+    //   content: {
+    //     id,
+    //     name: functionName,
+    //     arguments: functionArguments,
+    //     result: functionResult,
+    //   },
+    // })
+    // return newFunctionCall
+    return 0 as any
   }
 }

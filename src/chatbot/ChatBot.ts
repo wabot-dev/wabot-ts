@@ -16,37 +16,37 @@ export class ChatBot implements IChatBot {
     message: IConnectionChatMessage,
     callback: (message: IChatMessage) => void,
   ) {
-    const newChatItem = new ChatItem({
-      type: 'CONNECTION_MESSAGE',
-      content: message,
-    })
+    // const newChatItem = new ChatItem({
+    //   type: 'CONNECTION_MESSAGE',
+    //   content: message,
+    // })
 
-    await this.memory.create(newChatItem)
-    this.processLoop(callback)
+    // await this.memory.create(newChatItem)
+    // this.processLoop(callback)
   }
 
   protected async processLoop(callback: (message: IChatMessage) => void) {
-    const prevChatItems = await this.memory.findLastItems(10)
-    if (prevChatItems.length === 0) {
-      return
-    }
+    // const prevChatItems = await this.memory.findLastItems(10)
+    // if (prevChatItems.length === 0) {
+    //   return
+    // }
 
-    const lastChatItem = prevChatItems[prevChatItems.length - 1]
-    const lastItemType = lastChatItem.getType()
-    if (lastItemType === 'BOT_MESSAGE') {
-      return
-    }
+    // const lastChatItem = prevChatItems[prevChatItems.length - 1]
+    // const lastItemType = lastChatItem.getType()
+    // if (lastItemType === 'BOT_MESSAGE') {
+    //   return
+    // }
 
-    const newChatItem = await this.adapter.generateNextChatItem(prevChatItems)
-    await this.memory.create(newChatItem)
+    // const newChatItem = await this.adapter.generateNextChatItem(prevChatItems)
+    // await this.memory.create(newChatItem)
 
-    const newChatItemData = newChatItem.getData()
+    // const newChatItemData = newChatItem.getData()
 
-    if (newChatItemData.type === 'BOT_MESSAGE') {
-      callback(newChatItemData.content)
-      return
-    }
+    // if (newChatItemData.type === 'BOT_MESSAGE') {
+    //   callback(newChatItemData.content)
+    //   return
+    // }
 
-    this.processLoop(callback)
+    // this.processLoop(callback)
   }
 }

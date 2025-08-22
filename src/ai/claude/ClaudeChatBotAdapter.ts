@@ -78,46 +78,47 @@ export class ClaudeChatBotAdapter extends ChatBotAdapter {
   }
 
   private mapChatItems(chatItems: ChatItem[]): Anthropic.Messages.MessageParam[] {
-    const messages: Anthropic.Messages.MessageParam[] = []
+    // const messages: Anthropic.Messages.MessageParam[] = []
     
-    for (const item of chatItems) {
-      const itemData = item.getData()
+    // for (const item of chatItems) {
+    //   const itemData = item.getData()
       
-      if (itemData.type === 'CONNECTION_MESSAGE') {
-        if (!itemData.content.text) {
-          throw new Error('User message content is empty')
-        }
-        messages.push({ role: 'user', content: itemData.content.text })
-      } else if (itemData.type === 'BOT_MESSAGE') {
-        if (!itemData.content.text) {
-          throw new Error('Assistant message content is empty')
-        }
-        messages.push({ role: 'assistant', content: itemData.content.text })
-      } else if (itemData.type === 'FUNCTION_CALL') {
-        messages.push({
-          role: 'assistant',
-          content: [
-            {
-              type: 'tool_use',
-              id: itemData.content.id,
-              name: itemData.content.name,
-              input: JSON.parse(itemData.content.arguments || '{}')
-            }
-          ]
-        })
-        messages.push({
-          role: 'user',
-          content: [
-            {
-              type: 'tool_result',
-              tool_use_id: itemData.content.id,
-              content: itemData.content.result || 'No result'
-            }
-          ]
-        })
-      }
-    }
+    //   if (itemData.type === 'CONNECTION_MESSAGE') {
+    //     if (!itemData.content.text) {
+    //       throw new Error('User message content is empty')
+    //     }
+    //     messages.push({ role: 'user', content: itemData.content.text })
+    //   } else if (itemData.type === 'BOT_MESSAGE') {
+    //     if (!itemData.content.text) {
+    //       throw new Error('Assistant message content is empty')
+    //     }
+    //     messages.push({ role: 'assistant', content: itemData.content.text })
+    //   } else if (itemData.type === 'FUNCTION_CALL') {
+    //     messages.push({
+    //       role: 'assistant',
+    //       content: [
+    //         {
+    //           type: 'tool_use',
+    //           id: itemData.content.id,
+    //           name: itemData.content.name,
+    //           input: JSON.parse(itemData.content.arguments || '{}')
+    //         }
+    //       ]
+    //     })
+    //     messages.push({
+    //       role: 'user',
+    //       content: [
+    //         {
+    //           type: 'tool_result',
+    //           tool_use_id: itemData.content.id,
+    //           content: itemData.content.result || 'No result'
+    //         }
+    //       ]
+    //     })
+    //   }
+    // }
     
-    return messages
+    // return messages
+    return []
   }
 }

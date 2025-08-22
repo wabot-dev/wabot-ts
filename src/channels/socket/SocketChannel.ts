@@ -69,7 +69,7 @@ export class SocketChannel implements IChatChannel {
             chatConnection,
             userConnection,
             text: trimmedInput,
-            senderName: message.senderName,
+            // senderName: message.senderName,
           },
           reply: (message: IChatMessage) => {
             socket.emit(this.config.channel, message)

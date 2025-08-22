@@ -1,5 +1,11 @@
-import { IChatAdapter, IChatAdapterNextItemReq, IChatTool } from '@/chatbot'
-import { IChatFunctionCall, IChatItemRawData, IChatMessage, IConnectionChatMessage } from '@/core'
+import {
+  IChatAdapter,
+  IChatAdapterNextItemReq,
+  IChatFunctionCall,
+  IChatItem,
+  IChatMessage,
+  IChatTool,
+} from '@/core'
 import { Logger } from '@/logger'
 import { OpenAI } from 'openai'
 
@@ -7,7 +13,7 @@ export class OpenaiChatAdapter implements IChatAdapter {
   private openai = new OpenAI()
   private logger = new Logger('wabot:openai-chat-adapter')
 
-  async nextItem(req: IChatAdapterNextItemReq): Promise<IChatItemRawData> {
+  async nextItem(req: IChatAdapterNextItemReq): Promise<IChatItem> {
     const openIaInput: OpenAI.Responses.ResponseInput = []
     openIaInput.push({ role: 'system', content: req.systemPrompt })
     openIaInput.push(...this.mapChatItems(req.prevItems))
@@ -23,25 +29,25 @@ export class OpenaiChatAdapter implements IChatAdapter {
     return this.mapResponse(response)
   }
 
-  private mapChatItems(chatItems: IChatItemRawData[]): OpenAI.Responses.ResponseInput {
+  private mapChatItems(chatItems: IChatItem[]): OpenAI.Responses.ResponseInput {
     const openIaInput: OpenAI.Responses.ResponseInput = []
-    for (const { type, content } of chatItems) {
-      switch (type) {
-        case 'CONNECTION_MESSAGE':
-          openIaInput.push(this.mapConectionMessage(content))
+    for (const chatItem of chatItems) {
+      switch (chatItem.type) {
+        case 'connectionMessage':
+          openIaInput.push(this.mapConectionMessage(chatItem.connectionMessage))
           break
-        case 'BOT_MESSAGE':
-          openIaInput.push(this.mapBotMessage(content))
+        case 'botMessage':
+          openIaInput.push(this.mapBotMessage(chatItem.botMessage))
           break
-        case 'FUNCTION_CALL':
-          openIaInput.push(...this.mapFunctionCall(content))
+        case 'functionCall':
+          openIaInput.push(...this.mapFunctionCall(chatItem.functionCall))
           break
       }
     }
     return openIaInput
   }
 
-  private mapConectionMessage(item: IConnectionChatMessage) {
+  private mapConectionMessage(item: IChatMessage) {
     if (!item.text) {
       throw new Error('System message content is empty')
     }
@@ -91,14 +97,14 @@ export class OpenaiChatAdapter implements IChatAdapter {
     } as const
   }
 
-  private mapResponse(response: OpenAI.Responses.Response): IChatItemRawData {
-    let newItem: IChatItemRawData
+  private mapResponse(response: OpenAI.Responses.Response): IChatItem {
+    let newItem: IChatItem
     if (response.output_text) {
-      newItem = { type: 'BOT_MESSAGE', content: { text: response.output_text } }
+      newItem = { type: 'botMessage', botMessage: { text: response.output_text } }
     } else if (response.output && response.output[0]?.type == 'function_call') {
       newItem = {
-        type: 'FUNCTION_CALL',
-        content: {
+        type: 'functionCall',
+        functionCall: {
           id: response.output[0].call_id,
           name: response.output[0].name,
           arguments: response.output[0].arguments,

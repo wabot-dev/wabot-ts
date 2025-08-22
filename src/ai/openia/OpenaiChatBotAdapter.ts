@@ -56,34 +56,35 @@ export class OpenaiChatBotAdapter extends ChatBotAdapter {
   }
 
   private mapChatItems(chatItems: ChatItem[]): OpenAI.Responses.ResponseInput {
-    const openIaInput: OpenAI.Responses.ResponseInput = []
-    for (const item of chatItems) {
-      const itemData = item.getData()
-      if (itemData.type === 'CONNECTION_MESSAGE') {
-        if (!itemData.content.text) {
-          throw new Error('System message content is empty')
-        }
-        openIaInput.push({ role: 'user', content: itemData.content.text })
-      } else if (itemData.type === 'BOT_MESSAGE') {
-        if (!itemData.content.text) {
-          throw new Error('System message content is empty')
-        }
-        openIaInput.push({ role: 'assistant', content: itemData.content.text })
-      }
-      if (itemData.type === 'FUNCTION_CALL') {
-        openIaInput.push({
-          type: 'function_call',
-          call_id: itemData.content.id,
-          name: itemData.content.name,
-          arguments: JSON.stringify(itemData.content.arguments),
-        })
-        openIaInput.push({
-          type: 'function_call_output',
-          call_id: itemData.content.id,
-          output: itemData.content.result ?? 'Not result',
-        })
-      }
-    }
-    return openIaInput
+    // const openIaInput: OpenAI.Responses.ResponseInput = []
+    // for (const item of chatItems) {
+    //   const itemData = item.getData()
+    //   if (itemData.type === 'CONNECTION_MESSAGE') {
+    //     if (!itemData.content.text) {
+    //       throw new Error('System message content is empty')
+    //     }
+    //     openIaInput.push({ role: 'user', content: itemData.content.text })
+    //   } else if (itemData.type === 'BOT_MESSAGE') {
+    //     if (!itemData.content.text) {
+    //       throw new Error('System message content is empty')
+    //     }
+    //     openIaInput.push({ role: 'assistant', content: itemData.content.text })
+    //   }
+    //   if (itemData.type === 'FUNCTION_CALL') {
+    //     openIaInput.push({
+    //       type: 'function_call',
+    //       call_id: itemData.content.id,
+    //       name: itemData.content.name,
+    //       arguments: JSON.stringify(itemData.content.arguments),
+    //     })
+    //     openIaInput.push({
+    //       type: 'function_call_output',
+    //       call_id: itemData.content.id,
+    //       output: itemData.content.result ?? 'Not result',
+    //     })
+    //   }
+    // }
+    // return openIaInput
+    return []
   }
 }

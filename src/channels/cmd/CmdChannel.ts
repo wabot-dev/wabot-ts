@@ -63,10 +63,10 @@ export class CmdChannel implements IChatChannel {
           chatConnection,
           userConnection,
           text: trimmedInput,
-          senderName: 'cmd',
+          // senderName: 'cmd',
         },
         reply: (message: IChatMessage) => {
-          console.log(`\n[${message.senderName}]: ${message.text}\n`)
+          // console.log(`\n[${message.senderName}]: ${message.text}\n`)
           this.rl.prompt()
         },
       })

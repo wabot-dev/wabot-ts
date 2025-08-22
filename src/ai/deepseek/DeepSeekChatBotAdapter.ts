@@ -70,41 +70,42 @@ export class DeepSeekChatBotAdapter extends ChatBotAdapter {
   }
 
   private mapChatItems(chatItems: ChatItem[]): OpenAI.Chat.ChatCompletionMessageParam[] {
-    const deepSeekInput: OpenAI.Chat.ChatCompletionMessageParam[] = []
-    for (const item of chatItems) {
-      const itemData = item.getData()
-      if (itemData.type === 'CONNECTION_MESSAGE') {
-        if (!itemData.content.text) {
-          throw new Error('System message content is empty')
-        }
-        deepSeekInput.push({ role: 'user', content: itemData.content.text })
-      } else if (itemData.type === 'BOT_MESSAGE') {
-        if (!itemData.content.text) {
-          throw new Error('System message content is empty')
-        }
-        deepSeekInput.push({ role: 'assistant', content: itemData.content.text })
-      }
-      if (itemData.type === 'FUNCTION_CALL') {
-        deepSeekInput.push({
-          role: 'assistant',
-          tool_calls: [
-            {
-              id: itemData.content.id,
-              type: 'function',
-              function: {
-                name: itemData.content.name,
-                arguments: JSON.stringify(itemData.content.arguments),
-              },
-            },
-          ],
-        })
-        deepSeekInput.push({
-          role: 'tool',
-          tool_call_id: itemData.content.id,
-          content: itemData.content.result ?? 'No result',
-        })
-      }
-    }
-    return deepSeekInput
+    // const deepSeekInput: OpenAI.Chat.ChatCompletionMessageParam[] = []
+    // for (const item of chatItems) {
+    //   const itemData = item.getData()
+    //   if (itemData.type === 'CONNECTION_MESSAGE') {
+    //     if (!itemData.content.text) {
+    //       throw new Error('System message content is empty')
+    //     }
+    //     deepSeekInput.push({ role: 'user', content: itemData.content.text })
+    //   } else if (itemData.type === 'BOT_MESSAGE') {
+    //     if (!itemData.content.text) {
+    //       throw new Error('System message content is empty')
+    //     }
+    //     deepSeekInput.push({ role: 'assistant', content: itemData.content.text })
+    //   }
+    //   if (itemData.type === 'FUNCTION_CALL') {
+    //     deepSeekInput.push({
+    //       role: 'assistant',
+    //       tool_calls: [
+    //         {
+    //           id: itemData.content.id,
+    //           type: 'function',
+    //           function: {
+    //             name: itemData.content.name,
+    //             arguments: JSON.stringify(itemData.content.arguments),
+    //           },
+    //         },
+    //       ],
+    //     })
+    //     deepSeekInput.push({
+    //       role: 'tool',
+    //       tool_call_id: itemData.content.id,
+    //       content: itemData.content.result ?? 'No result',
+    //     })
+    //   }
+    // }
+    // return deepSeekInput
+    return []
   }
 }

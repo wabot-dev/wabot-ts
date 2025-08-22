@@ -44,7 +44,7 @@ export class TelegramChannel implements IChatChannel {
         message: {
           chatConnection,
           userConnection,
-          senderName: ctx.from.first_name,
+          // senderName: ctx.from.first_name,
           text: ctx.message.text,
         },
         reply: (replyMessage: IChatMessage) => {

@@ -7,7 +7,7 @@ import {
   type IMindsetMetadata,
 } from './metadata/IMindsetMetadata'
 import { MindsetMetadataStore } from './metadata/MindsetMetadataStore'
-import { IChatTool, IChatToolParameter } from '@/chatbot'
+import { IChatTool, IChatToolParameter } from '@/core'
 
 @injectable()
 export class MindsetOperator implements IMindset {

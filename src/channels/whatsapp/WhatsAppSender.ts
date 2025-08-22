@@ -116,7 +116,7 @@ export class WhatsAppSender {
 
     return {
       text: this.replaceTemplateParameters(components, request.templateMessage.parameters),
-      senderName: request.senderName,
+      // senderName: request.senderName,
     }
   }
 
@@ -131,12 +131,12 @@ export class WhatsAppSender {
 
     const chatMemory = await this.chatRepository.findMemory(chat.id)!
 
-    const chatItem = new ChatItem({
-      type: 'BOT_MESSAGE',
-      content: message,
-    })
+    // const chatItem = new ChatItem({
+    //   type: 'BOT_MESSAGE',
+    //   content: message,
+    // })
 
-    await chatMemory!.create(chatItem)
+    // await chatMemory!.create(chatItem)
   }
 
   private replaceTemplateParameters(template: string, data: IWhatsAppTemplateParameter[]): string {
