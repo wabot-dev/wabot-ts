@@ -28,7 +28,7 @@ export type IFunctionCallItem = {
 
 export type IChatItem = IBotMessageItem | IConnectionMessageItem | IFunctionCallItem
 
-export type IChatItemType = IChatItem['type'] & (typeof chatItemTypeOptions)[number]
+export type IChatItemType = (typeof chatItemTypeOptions)[number]
 
 export interface IChatToolParameter {
   type: string
