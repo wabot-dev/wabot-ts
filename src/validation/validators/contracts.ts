@@ -44,8 +44,6 @@ export interface IPropertyValidatorInfo {
 export type IModelValidatorsInfo<V> = {
   modelConstructor: IConstructor<V>
   properties: {
-    [prop: string]:
-      | { isOptional?: boolean; isArray?: boolean; validators?: IPropertyValidatorInfo[] }
-      | undefined
+    [prop: string]: { isOptional?: boolean; validators?: IPropertyValidatorInfo[] } | undefined
   }
 }
