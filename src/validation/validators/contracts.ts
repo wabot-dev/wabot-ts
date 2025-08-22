@@ -8,6 +8,10 @@ export interface IModelValidationError extends IValidationError {
   properties: { [key: string]: string[] }
 }
 
+export interface IArrayValidationError extends IValidationError {
+  items: (IValidationError[] | null)[]
+}
+
 export type IValidationResult<V> =
   | { value: V; error?: undefined }
   | {
@@ -22,7 +26,14 @@ export type IModelValidationResult<V> =
       error: IModelValidationError
     }
 
-export type IValidator = (value: any, options: any) => IValidationResult<any>
+export type IArrayValidationResult<V> =
+  | { value: V[]; error?: undefined }
+  | {
+      value?: undefined
+      error: IArrayValidationError
+    }
+
+export type IValidator<V = any, O = any> = (value: V, options: O) => IValidationResult<V>
 
 export interface IPropertyValidatorInfo {
   propertyName: string
