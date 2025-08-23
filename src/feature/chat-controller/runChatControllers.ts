@@ -1,0 +1,74 @@
+import { IConstructor } from '@/core/generics'
+import { container, Container, DependencyContainer } from '@/core/injection'
+import { Chat, ChatBot, ChatBotMetadataStore, ChatMemory, ChatRepository } from '@/feature/chat-bot'
+import { IMindset, Mindset } from '@/feature/mindset'
+import { ChatResolver } from './ChatResolver'
+import { IChannelMessage } from './IChannelMessage'
+import { IMessageContext } from './IMessageContext'
+import { ControllerMetadataStore } from './metadata'
+
+async function prepareChatContainer(
+  container: DependencyContainer,
+  messageContext: IMessageContext,
+  mindsetCtor?: IConstructor<IMindset>,
+): Promise<DependencyContainer> {
+  const chatContainer = container.createChildContainer()
+  chatContainer.register(Container, { useValue: chatContainer })
+  chatContainer.registerInstance(Chat, messageContext.chat)
+
+  const chatRepository = container.resolve(ChatRepository)
+  const chatMemory = await chatRepository.findMemory(messageContext.chat.id)
+
+  if (!chatMemory) {
+    throw new Error('Not found Chat Memory for Chat with Id=' + messageContext.chat.id)
+  }
+  chatContainer.registerInstance(ChatMemory, chatMemory)
+
+  const chatBotMetadataStore = container.resolve(ChatBotMetadataStore)
+  const chatBots = chatBotMetadataStore.getChatBotsMetadata()
+  for (const chatBotMetadata of chatBots) {
+    chatContainer.beforeResolution(chatBotMetadata.constructor, (a, b) => {
+      const subContainer = chatContainer.createChildContainer()
+      subContainer.register(Mindset, { useClass: chatBotMetadata.mindsetConstructor })
+      const chatBot = subContainer.resolve(ChatBot)
+      chatContainer.register(chatBotMetadata.injectionToken, { useValue: chatBot })
+    })
+  }
+  if (mindsetCtor) {
+    chatContainer.register(Mindset, { useClass: mindsetCtor })
+  }
+  return chatContainer
+}
+
+export function runChatControllers(controllers: IConstructor<any>[]) {
+  const metadataStore = container.resolve(ControllerMetadataStore)
+  const chatResolver = container.resolve(ChatResolver)
+
+  for (const controllerCtor of controllers) {
+    const chatControllerMetadata = metadataStore.getChatControllerMetadata(controllerCtor)
+    if (!chatControllerMetadata) {
+      continue
+    }
+    for (const channelMetadata of chatControllerMetadata.channels) {
+      const channelContainer = container.createChildContainer()
+      if (channelMetadata.channelConfig) {
+        channelContainer.register(channelMetadata.channelConfig.constructor as any, {
+          useValue: channelMetadata.channelConfig,
+        })
+      }
+      const channel = channelContainer.resolve(channelMetadata.channelConstructor)
+      channel.listen(async (channelMessage: IChannelMessage) => {
+        const chat = await chatResolver.resolve(channelMessage.chatConnection)
+        const chatContainer = await prepareChatContainer(channelContainer, {
+          chat,
+          message: channelMessage.message,
+          reply: channelMessage.reply,
+        })
+        const chatController = chatContainer.resolve(channelMetadata.controllerConstructor)
+        chatController[channelMetadata.functionName](channelMessage)
+      })
+
+      channel.connect()
+    }
+  }
+}

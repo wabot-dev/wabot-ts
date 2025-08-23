@@ -1,8 +1,7 @@
-import { type IMindsetIdentity, mindset } from '@/mindset'
-import { AuthenticationModule, RegisterUserModule } from '@'
+import { type IMindsetIdentity, mindset } from '@'
 
 @mindset({
-  modules: [RegisterUserModule, AuthenticationModule],
+  modules: [ ],
 })
 export class EliaGuardMindset {
   async identity(): Promise<IMindsetIdentity> {

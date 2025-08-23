@@ -1,0 +1,1 @@
+export type IChatType = 'PRIVATE' | 'GROUP'

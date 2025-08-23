@@ -2,7 +2,7 @@ import { chatBot, ChatBot, chatController, cmd, type IReceivedMessage, telegram 
 
 import { EliaGuardMindset } from './EliaGuardMindset'
 import { EliaMindset } from './EliaMindset'
-import { whatsapp } from '@/channels'
+import { whatsapp } from '@'
 
 @chatController()
 export class EliaChatController {
@@ -19,11 +19,11 @@ export class EliaChatController {
     number: '15550815054',
   })
   onMessage(context: IReceivedMessage) {
-    const isLogin = context.user != null
+    // const isLogin = context.user != null
 
-    const chatBot = isLogin ? this.eliaBot : this.eliaGuardBot
-    chatBot.sendMessage(context.message, (response) => {
-      context.reply(response)
-    })
+    // const chatBot = isLogin ? this.eliaBot : this.eliaGuardBot
+    // chatBot.sendMessage(context.message, (response) => {
+    //   context.reply(response)
+    // })
   }
 }

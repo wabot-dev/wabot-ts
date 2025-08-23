@@ -1,4 +1,4 @@
-import { IEntityData, Entity } from '@/core'
+import { IEntityData, Entity } from '@'
 
 export interface IEliaEventData extends IEntityData {
   userId: string

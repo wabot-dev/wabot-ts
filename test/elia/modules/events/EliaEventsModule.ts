@@ -1,4 +1,4 @@
-import { mindsetFunction, mindsetModule, MessageContext } from '@'
+import { mindsetFunction, mindsetModule } from '@'
 import { EliaEventRepository } from '../../repositories/EliaEventRepository'
 import { EliaEvent } from '../../models/EliaEvent'
 import { EliaSaveEventRequest } from './requests'
@@ -10,7 +10,6 @@ import { EliaSaveEventRequest } from './requests'
 })
 export class EliaEventsModule {
   constructor(
-    private context: MessageContext,
     private repository: EliaEventRepository,
   ) {}
 
@@ -18,14 +17,8 @@ export class EliaEventsModule {
     description: 'Guarda un evento en el calendario',
   })
   async saveEvent(req: EliaSaveEventRequest) {
-    if (!this.context.user) {
-      throw new Error('Esta función requiere iniciar sesión')
-    }
-
-    const userId = this.context.user.id
-
     const newEvent = new EliaEvent({
-      userId,
+      userId: 'unknown',
       dateTime: req.dateTime.getTime(),
       durationInMinutes: req.durationInMinutes,
       title: req.title,

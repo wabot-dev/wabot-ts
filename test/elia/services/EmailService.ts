@@ -1,8 +1,15 @@
-import { injectable, type IEmailService, type ISendEmailRequest } from '@'
+import { injectable} from '@'
 import { Resend } from 'resend'
 
+interface ISendEmailRequest {
+  from: string,
+  to: string,
+  subject: string,
+  html: string
+}
+
 @injectable()
-export class EliaEmailService implements IEmailService {
+export class EliaEmailService {
   private resend = new Resend()
 
   async sendEmail(request: ISendEmailRequest): Promise<void> {
