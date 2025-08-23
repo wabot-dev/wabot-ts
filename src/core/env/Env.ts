@@ -1,4 +1,4 @@
-import { singleton } from 'tsyringe'
+import { singleton } from '../injection'
 
 export type IEnvType = 'development' | 'staging' | 'testing' | 'production'
 

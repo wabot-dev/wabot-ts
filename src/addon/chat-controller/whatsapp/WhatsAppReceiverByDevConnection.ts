@@ -1,11 +1,10 @@
 import { Logger } from '@/core/logger'
 import { WhatsAppReceiver } from './WhatsAppReceiver'
 
-
-import { singleton } from 'tsyringe'
 import type { IWhatsAppWebhookPayload } from './IWhatsAppWebHookPayload'
 import { WabotDevConnection } from './WabotDevConnection'
 import { devListentEvent } from './WabotDevSocketContracts'
+import { singleton } from '@/core/injection'
 
 @singleton()
 export class WhatsAppReceiverByDevConnection extends WhatsAppReceiver {

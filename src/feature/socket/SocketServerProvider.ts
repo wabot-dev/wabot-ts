@@ -1,7 +1,7 @@
+import { singleton } from '@/core/injection'
 import { Logger } from '@/core/logger'
 import { HttpServerProvider } from '@/feature/http'
 import { Server } from 'socket.io'
-import { singleton } from 'tsyringe'
 
 @singleton()
 export class SocketServerProvider {

@@ -1,8 +1,8 @@
 import { HttpServerProvider } from '../http'
 import express, { type Express } from 'express'
-import { singleton } from 'tsyringe'
 import bodyParser from 'body-parser'
 import { Logger } from '@/core/logger'
+import { singleton } from '@/core/injection'
 
 @singleton()
 export class ExpressProvider {

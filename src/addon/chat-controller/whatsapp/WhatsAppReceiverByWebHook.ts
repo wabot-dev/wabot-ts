@@ -1,9 +1,9 @@
 import { Logger } from '@/core/logger'
 import { WhatsAppReceiver } from './WhatsAppReceiver'
-import { singleton } from 'tsyringe'
 import { ExpressProvider } from '@/feature/express'
 import { type Express, type Request, type Response } from 'express'
 import { WhatsAppRepository } from './WhatsAppRepository'
+import { singleton } from '@/core/injection'
 
 @singleton()
 export class WhatsAppReceiverByWebHook extends WhatsAppReceiver {
