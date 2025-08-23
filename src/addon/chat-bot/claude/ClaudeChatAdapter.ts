@@ -1,6 +1,12 @@
-import { IChatAdapter, IChatAdapterNextItemReq, IChatTool } from '@/chatbot'
-import { IChatFunctionCall, IChatItemRawData, IChatMessage, IConnectionChatMessage } from '@/core'
-import { Logger } from '@/logger'
+import { Logger } from '@/core/logger'
+import {
+  IChatAdapter,
+  IChatAdapterNextItemReq,
+  IChatItem,
+  IChatMessage,
+  IFunctionCall,
+} from '@/feature/chat-bot'
+import { IMindsetTool } from '@/feature/mindset'
 import { Anthropic } from '@anthropic-ai/sdk'
 
 export class ClaudeChatAdapter implements IChatAdapter {
@@ -16,7 +22,7 @@ export class ClaudeChatAdapter implements IChatAdapter {
     this.anthropic = new Anthropic({ apiKey })
   }
 
-  async nextItem(req: IChatAdapterNextItemReq): Promise<IChatItemRawData> {
+  async nextItem(req: IChatAdapterNextItemReq): Promise<IChatItem> {
     const tools = req.tools.map((x) => this.mapTool(x))
 
     const messages = this.mapChatItems(req.prevItems)
@@ -36,19 +42,19 @@ export class ClaudeChatAdapter implements IChatAdapter {
     return this.mapResponse(response)
   }
 
-  private mapChatItems(chatItems: IChatItemRawData[]): Anthropic.Messages.MessageParam[] {
+  private mapChatItems(chatItems: IChatItem[]): Anthropic.Messages.MessageParam[] {
     const messages: Anthropic.Messages.MessageParam[] = []
 
-    for (const { type, content } of chatItems) {
-      switch (type) {
-        case 'CONNECTION_MESSAGE':
-          messages.push(this.mapConnectionMessage(content))
+    for (const chatItem of chatItems) {
+      switch (chatItem.type) {
+        case 'humanMessage':
+          messages.push(this.mapHumanMessage(chatItem.humanMessage))
           break
-        case 'BOT_MESSAGE':
-          messages.push(this.mapBotMessage(content))
+        case 'botMessage':
+          messages.push(this.mapBotMessage(chatItem.botMessage))
           break
-        case 'FUNCTION_CALL':
-          messages.push(...this.mapFunctionCall(content))
+        case 'functionCall':
+          messages.push(...this.mapFunctionCall(chatItem.functionCall))
           break
       }
     }
@@ -56,7 +62,7 @@ export class ClaudeChatAdapter implements IChatAdapter {
     return messages
   }
 
-  private mapConnectionMessage(item: IConnectionChatMessage) {
+  private mapHumanMessage(item: IChatMessage) {
     if (!item.text) {
       throw new Error('User message content is empty')
     }
@@ -70,7 +76,7 @@ export class ClaudeChatAdapter implements IChatAdapter {
     return { role: 'assistant', content: item.text } as const
   }
 
-  private mapFunctionCall(item: IChatFunctionCall): Anthropic.Messages.MessageParam[] {
+  private mapFunctionCall(item: IFunctionCall): Anthropic.Messages.MessageParam[] {
     return [
       {
         role: 'assistant',
@@ -96,7 +102,7 @@ export class ClaudeChatAdapter implements IChatAdapter {
     ]
   }
 
-  private mapTool(tool: IChatTool) {
+  private mapTool(tool: IMindsetTool) {
     return {
       name: tool.name,
       description: tool.description,
@@ -114,15 +120,15 @@ export class ClaudeChatAdapter implements IChatAdapter {
     }
   }
 
-  private mapResponse(response: Anthropic.Messages.Message): IChatItemRawData {
+  private mapResponse(response: Anthropic.Messages.Message): IChatItem {
     const content = response.content[0]
 
     if (content.type === 'text') {
-      return { type: 'BOT_MESSAGE', content: { text: content.text } }
+      return { type: 'botMessage', botMessage: { text: content.text } }
     } else if (content.type === 'tool_use') {
       return {
-        type: 'FUNCTION_CALL',
-        content: {
+        type: 'functionCall',
+        functionCall: {
           id: content.id,
           name: content.name,
           arguments: JSON.stringify(content.input),

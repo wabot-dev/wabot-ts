@@ -1,7 +1,7 @@
 import { describe, it, mock, beforeEach, afterEach } from 'node:test'
 import assert from 'node:assert'
 import { DeepSeekChatAdapter } from './DeepSeekChatAdapter'
-import { IChatAdapterNextItemReq } from '@/chatbot'
+import { IChatAdapterNextItemReq } from '@/feature/chat-bot'
 
 describe('DeepSeekChatAdapter', () => {
   let adapter: DeepSeekChatAdapter
@@ -95,8 +95,8 @@ describe('DeepSeekChatAdapter', () => {
         tools: [],
         prevItems: [
           {
-            type: 'CONNECTION_MESSAGE',
-            content: {
+            type: 'humanMessage',
+            humanMessage: {
               text: 'Hello',
               chatConnection: {} as any,
               userConnection: {} as any,
@@ -119,8 +119,8 @@ describe('DeepSeekChatAdapter', () => {
       assert.deepStrictEqual(callArgs.tools, [])
 
       assert.deepStrictEqual(result, {
-        type: 'BOT_MESSAGE',
-        content: { text: 'Test response' },
+        type: 'botMessage',
+        botMessage: { text: 'Test response' },
       })
     })
 
@@ -220,8 +220,8 @@ describe('DeepSeekChatAdapter', () => {
         tools: [],
         prevItems: [
           {
-            type: 'FUNCTION_CALL',
-            content: {
+            type: 'functionCall',
+            functionCall: {
               id: 'call_123',
               name: 'test_function',
               arguments: '{"param":"value"}',
@@ -266,8 +266,8 @@ describe('DeepSeekChatAdapter', () => {
         tools: [],
         prevItems: [
           {
-            type: 'CONNECTION_MESSAGE',
-            content: {
+            type: 'humanMessage',
+            humanMessage: {
               text: '',
               chatConnection: {} as any,
               userConnection: {} as any,
@@ -288,8 +288,8 @@ describe('DeepSeekChatAdapter', () => {
         tools: [],
         prevItems: [
           {
-            type: 'BOT_MESSAGE',
-            content: { text: '' },
+            type: 'botMessage',
+            botMessage: { text: '' },
           },
         ],
       }
@@ -347,8 +347,8 @@ describe('DeepSeekChatAdapter', () => {
         tools: [],
         prevItems: [
           {
-            type: 'FUNCTION_CALL',
-            content: {
+            type: 'functionCall',
+            functionCall: {
               id: 'call_123',
               name: 'test_function',
               arguments: '{"param":"value"}',

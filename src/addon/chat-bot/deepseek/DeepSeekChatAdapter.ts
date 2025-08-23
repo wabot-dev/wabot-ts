@@ -1,6 +1,12 @@
-import { IChatAdapter, IChatAdapterNextItemReq, IChatTool } from '@/chatbot'
-import { IChatFunctionCall, IChatItemRawData, IChatMessage, IConnectionChatMessage } from '@/core'
-import { Logger } from '@/logger'
+import { Logger } from '@/core/logger'
+import {
+  IChatAdapter,
+  IChatAdapterNextItemReq,
+  IChatItem,
+  IChatMessage,
+  IFunctionCall,
+} from '@/feature/chat-bot'
+import { IMindsetTool } from '@/feature/mindset'
 import { OpenAI } from 'openai'
 
 export class DeepSeekChatAdapter implements IChatAdapter {
@@ -24,7 +30,7 @@ export class DeepSeekChatAdapter implements IChatAdapter {
     })
   }
 
-  async nextItem(req: IChatAdapterNextItemReq): Promise<IChatItemRawData> {
+  async nextItem(req: IChatAdapterNextItemReq): Promise<IChatItem> {
     const deepSeekInput: OpenAI.Chat.ChatCompletionMessageParam[] = []
     deepSeekInput.push({ role: 'system', content: req.systemPrompt })
     deepSeekInput.push(...this.mapChatItems(req.prevItems))
@@ -41,19 +47,19 @@ export class DeepSeekChatAdapter implements IChatAdapter {
     return this.mapResponse(response)
   }
 
-  private mapChatItems(chatItems: IChatItemRawData[]): OpenAI.Chat.ChatCompletionMessageParam[] {
+  private mapChatItems(chatItems: IChatItem[]): OpenAI.Chat.ChatCompletionMessageParam[] {
     const deepSeekInput: OpenAI.Chat.ChatCompletionMessageParam[] = []
 
-    for (const { type, content } of chatItems) {
-      switch (type) {
-        case 'CONNECTION_MESSAGE':
-          deepSeekInput.push(this.mapConnectionMessage(content))
+    for (const chatItem of chatItems) {
+      switch (chatItem.type) {
+        case 'humanMessage':
+          deepSeekInput.push(this.mapHumanMessage(chatItem.humanMessage))
           break
-        case 'BOT_MESSAGE':
-          deepSeekInput.push(this.mapBotMessage(content))
+        case 'botMessage':
+          deepSeekInput.push(this.mapBotMessage(chatItem.botMessage))
           break
-        case 'FUNCTION_CALL':
-          deepSeekInput.push(...this.mapFunctionCall(content))
+        case 'functionCall':
+          deepSeekInput.push(...this.mapFunctionCall(chatItem.functionCall))
           break
       }
     }
@@ -61,7 +67,7 @@ export class DeepSeekChatAdapter implements IChatAdapter {
     return deepSeekInput
   }
 
-  private mapConnectionMessage(item: IConnectionChatMessage) {
+  private mapHumanMessage(item: IChatMessage) {
     if (!item.text) {
       throw new Error('User message content is empty')
     }
@@ -75,7 +81,7 @@ export class DeepSeekChatAdapter implements IChatAdapter {
     return { role: 'assistant', content: item.text } as const
   }
 
-  private mapFunctionCall(item: IChatFunctionCall): OpenAI.Chat.ChatCompletionMessageParam[] {
+  private mapFunctionCall(item: IFunctionCall): OpenAI.Chat.ChatCompletionMessageParam[] {
     return [
       {
         role: 'assistant',
@@ -98,7 +104,7 @@ export class DeepSeekChatAdapter implements IChatAdapter {
     ]
   }
 
-  private mapTool(tool: IChatTool) {
+  private mapTool(tool: IMindsetTool) {
     return {
       type: 'function',
       function: {
@@ -121,16 +127,16 @@ export class DeepSeekChatAdapter implements IChatAdapter {
     } as const
   }
 
-  private mapResponse(response: OpenAI.Chat.ChatCompletion): IChatItemRawData {
+  private mapResponse(response: OpenAI.Chat.ChatCompletion): IChatItem {
     const { tool_calls: responseFunctionCall, content: responseText } =
       response.choices?.[0]?.message ?? {}
 
     if (responseText) {
-      return { type: 'BOT_MESSAGE', content: { text: responseText } }
+      return { type: 'botMessage', botMessage: { text: responseText } }
     } else if (responseFunctionCall && responseFunctionCall[0]?.type === 'function') {
       return {
-        type: 'FUNCTION_CALL',
-        content: {
+        type: 'functionCall',
+        functionCall: {
           id: responseFunctionCall[0].id,
           name: responseFunctionCall[0].function.name,
           arguments: responseFunctionCall[0].function.arguments,

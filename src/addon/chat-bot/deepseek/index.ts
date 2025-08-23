@@ -1,1 +1,1 @@
-export * from './DeepSeekChatBotAdapter'
+export * from './DeepSeekChatAdapter'

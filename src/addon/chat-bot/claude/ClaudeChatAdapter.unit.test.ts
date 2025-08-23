@@ -1,7 +1,8 @@
 import { describe, it, mock, beforeEach, afterEach } from 'node:test'
 import assert from 'node:assert'
 import { ClaudeChatAdapter } from './ClaudeChatAdapter'
-import { IChatAdapterNextItemReq } from '@/chatbot'
+import { IChatAdapterNextItemReq } from '@/feature/chat-bot'
+
 
 describe('ClaudeChatAdapter', () => {
   let adapter: ClaudeChatAdapter
@@ -66,8 +67,8 @@ describe('ClaudeChatAdapter', () => {
         tools: [],
         prevItems: [
           {
-            type: 'CONNECTION_MESSAGE',
-            content: {
+            type: 'humanMessage',
+            humanMessage: {
               text: 'Hello',
               chatConnection: {} as any,
               userConnection: {} as any,
@@ -88,8 +89,8 @@ describe('ClaudeChatAdapter', () => {
       assert.strictEqual(callArgs.tools, undefined)
 
       assert.deepStrictEqual(result, {
-        type: 'BOT_MESSAGE',
-        content: { text: 'Test response' },
+        type: 'botMessage',
+        botMessage: { text: 'Test response' },
       })
     })
 
@@ -164,8 +165,8 @@ describe('ClaudeChatAdapter', () => {
         tools: [],
         prevItems: [
           {
-            type: 'FUNCTION_CALL',
-            content: {
+            type: 'functionCall',
+            functionCall: {
               id: 'call_123',
               name: 'test_function',
               arguments: '{"param":"value"}',
@@ -209,8 +210,8 @@ describe('ClaudeChatAdapter', () => {
         tools: [],
         prevItems: [
           {
-            type: 'CONNECTION_MESSAGE',
-            content: {
+            type: 'humanMessage',
+            humanMessage: {
               text: '',
               chatConnection: {} as any,
               userConnection: {} as any,
@@ -231,8 +232,8 @@ describe('ClaudeChatAdapter', () => {
         tools: [],
         prevItems: [
           {
-            type: 'BOT_MESSAGE',
-            content: { text: '' },
+            type: 'botMessage',
+            botMessage: { text: '' },
           },
         ],
       }

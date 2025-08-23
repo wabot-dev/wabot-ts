@@ -1,1 +1,1 @@
-export * from './ClaudeChatBotAdapter'
+export * from './ClaudeChatAdapter'
