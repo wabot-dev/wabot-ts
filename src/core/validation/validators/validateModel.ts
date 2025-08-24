@@ -15,7 +15,9 @@ export function validateModel<V>(
     const propertyInfo = info.properties[propertyName]!
     const propertyValidators = propertyInfo.validators ?? []
 
-    resultValue[propertyName] = value[propertyName] ?? resultValue[propertyName]
+    resultValue[propertyName] = propertyInfo.isOptional
+      ? (value[propertyName] ?? resultValue[propertyName])
+      : value[propertyName]
 
     if (resultValue[propertyName] == null && propertyInfo.isOptional) {
       resultValue[propertyName] = undefined

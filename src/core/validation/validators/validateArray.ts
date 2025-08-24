@@ -1,6 +1,9 @@
 import { IArrayValidationResult, IValidator } from './contracts'
 
-export interface IValidateArrayOptions {}
+export interface IValidateArrayOptions {
+  minLength?: number
+  maxLength?: number
+}
 
 export interface IValidateArrayOptionsWithItemsValidators extends IValidateArrayOptions {
   itemsValidator?: { validator: IValidator; options: any }[]
@@ -13,6 +16,18 @@ export function validateArray(
   if (!Array.isArray(value)) {
     return {
       error: { description: 'Should be an array', items: [] },
+    }
+  }
+
+  if (options?.minLength != null && value.length < options.minLength) {
+    return {
+      error: { description: 'exceeds the established min length limit', items: [] },
+    }
+  }
+
+  if (options?.maxLength != null && value.length > options.maxLength) {
+    return {
+      error: { description: 'exceeds the established max length limit', items: [] },
     }
   }
 
