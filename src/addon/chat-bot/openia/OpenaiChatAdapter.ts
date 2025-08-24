@@ -4,6 +4,8 @@ import {
   IFunctionCall,
   IChatItem,
   IChatMessage,
+  IChatAdapterNextItemRes,
+  ILanguageModelUsage,
 } from '@/feature/chat-bot'
 import { Logger } from '@/core/logger'
 import { OpenAI } from 'openai'
@@ -13,7 +15,7 @@ export class OpenaiChatAdapter implements IChatAdapter {
   private openai = new OpenAI()
   private logger = new Logger('wabot:openai-chat-adapter')
 
-  async nextItem(req: IChatAdapterNextItemReq): Promise<IChatItem> {
+  async nextItem(req: IChatAdapterNextItemReq): Promise<IChatAdapterNextItemRes> {
     const openIaInput: OpenAI.Responses.ResponseInput = []
     openIaInput.push({ role: 'system', content: req.systemPrompt })
     openIaInput.push(...this.mapChatItems(req.prevItems))
@@ -97,12 +99,12 @@ export class OpenaiChatAdapter implements IChatAdapter {
     } as const
   }
 
-  private mapResponse(response: OpenAI.Responses.Response): IChatItem {
-    let newItem: IChatItem
+  private mapResponse(response: OpenAI.Responses.Response): IChatAdapterNextItemRes {
+    let chatItem: IChatItem
     if (response.output_text) {
-      newItem = { type: 'botMessage', botMessage: { text: response.output_text } }
+      chatItem = { type: 'botMessage', botMessage: { text: response.output_text } }
     } else if (response.output && response.output[0]?.type == 'function_call') {
-      newItem = {
+      chatItem = {
         type: 'functionCall',
         functionCall: {
           id: response.output[0].call_id,
@@ -113,6 +115,16 @@ export class OpenaiChatAdapter implements IChatAdapter {
     } else {
       throw new Error('Not supported OpenIA Response')
     }
-    return newItem
+
+    let usage: ILanguageModelUsage
+    if (response.usage) {
+      usage = {
+        inputTokens: response.usage.input_tokens,
+        outputTokens: response.usage.output_tokens,
+      }
+    } else {
+      throw new Error('Unable to found usage info')
+    }
+    return { chatItem, usage }
   }
 }

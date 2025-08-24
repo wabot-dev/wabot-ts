@@ -13,5 +13,5 @@ export * from './IChatMessage'
 export * from './IChatRepository'
 export * from './IChatType'
 export * from './IFunctionCall'
+export * from './ILanguageModelUsage'
 export * from './metadata'
-

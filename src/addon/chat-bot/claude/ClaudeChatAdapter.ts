@@ -2,9 +2,11 @@ import { Logger } from '@/core/logger'
 import {
   IChatAdapter,
   IChatAdapterNextItemReq,
+  IChatAdapterNextItemRes,
   IChatItem,
   IChatMessage,
   IFunctionCall,
+  ILanguageModelUsage,
 } from '@/feature/chat-bot'
 import { IMindsetTool } from '@/feature/mindset'
 import { Anthropic } from '@anthropic-ai/sdk'
@@ -22,7 +24,7 @@ export class ClaudeChatAdapter implements IChatAdapter {
     this.anthropic = new Anthropic({ apiKey })
   }
 
-  async nextItem(req: IChatAdapterNextItemReq): Promise<IChatItem> {
+  async nextItem(req: IChatAdapterNextItemReq): Promise<IChatAdapterNextItemRes> {
     const tools = req.tools.map((x) => this.mapTool(x))
 
     const messages = this.mapChatItems(req.prevItems)
@@ -120,13 +122,13 @@ export class ClaudeChatAdapter implements IChatAdapter {
     }
   }
 
-  private mapResponse(response: Anthropic.Messages.Message): IChatItem {
+  private mapResponse(response: Anthropic.Messages.Message): IChatAdapterNextItemRes {
+    let chatItem: IChatItem
     const content = response.content[0]
-
     if (content.type === 'text') {
-      return { type: 'botMessage', botMessage: { text: content.text } }
+      chatItem = { type: 'botMessage', botMessage: { text: content.text } }
     } else if (content.type === 'tool_use') {
-      return {
+      chatItem = {
         type: 'functionCall',
         functionCall: {
           id: content.id,
@@ -137,5 +139,17 @@ export class ClaudeChatAdapter implements IChatAdapter {
     } else {
       throw new Error('Not supported Claude Response')
     }
+
+    let usage: ILanguageModelUsage
+    if (response.usage) {
+      usage = {
+        inputTokens: response.usage.input_tokens,
+        outputTokens: response.usage.output_tokens,
+      }
+    } else {
+      throw new Error('Unable to found usage info')
+    }
+
+    return { chatItem, usage }
   }
 }

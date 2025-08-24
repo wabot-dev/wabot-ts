@@ -2,9 +2,11 @@ import { Logger } from '@/core/logger'
 import {
   IChatAdapter,
   IChatAdapterNextItemReq,
+  IChatAdapterNextItemRes,
   IChatItem,
   IChatMessage,
   IFunctionCall,
+  ILanguageModelUsage,
 } from '@/feature/chat-bot'
 import { IMindsetTool } from '@/feature/mindset'
 import { OpenAI } from 'openai'
@@ -30,7 +32,7 @@ export class DeepSeekChatAdapter implements IChatAdapter {
     })
   }
 
-  async nextItem(req: IChatAdapterNextItemReq): Promise<IChatItem> {
+  async nextItem(req: IChatAdapterNextItemReq): Promise<IChatAdapterNextItemRes> {
     const deepSeekInput: OpenAI.Chat.ChatCompletionMessageParam[] = []
     deepSeekInput.push({ role: 'system', content: req.systemPrompt })
     deepSeekInput.push(...this.mapChatItems(req.prevItems))
@@ -127,14 +129,16 @@ export class DeepSeekChatAdapter implements IChatAdapter {
     } as const
   }
 
-  private mapResponse(response: OpenAI.Chat.ChatCompletion): IChatItem {
+  private mapResponse(response: OpenAI.Chat.ChatCompletion): IChatAdapterNextItemRes {
+    let chatItem: IChatItem
+
     const { tool_calls: responseFunctionCall, content: responseText } =
       response.choices?.[0]?.message ?? {}
 
     if (responseText) {
-      return { type: 'botMessage', botMessage: { text: responseText } }
+      chatItem = { type: 'botMessage', botMessage: { text: responseText } }
     } else if (responseFunctionCall && responseFunctionCall[0]?.type === 'function') {
-      return {
+      chatItem = {
         type: 'functionCall',
         functionCall: {
           id: responseFunctionCall[0].id,
@@ -145,5 +149,17 @@ export class DeepSeekChatAdapter implements IChatAdapter {
     } else {
       throw new Error('Not supported DeepSeek Response')
     }
+
+    let usage: ILanguageModelUsage
+    if (response.usage) {
+      usage = {
+        inputTokens: response.usage.prompt_tokens,
+        outputTokens: response.usage.completion_tokens,
+      }
+    } else {
+      throw new Error('Unable to found usage info')
+    }
+
+    return { chatItem, usage }
   }
 }

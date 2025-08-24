@@ -32,7 +32,7 @@ export class ChatBot implements IChatBot {
     }
     const systemPrompt = await this.mindset.systemPrompt()
     const tools = this.mindset.tools()
-    const newItemData = await this.adapter.nextItem({
+    const { chatItem: newItemData } = await this.adapter.nextItem({
       model: 'gpt',
       systemPrompt,
       tools,
