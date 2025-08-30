@@ -1,0 +1,1 @@
+export { GeminiChatAdapter } from './GeminiChatAdapter'
