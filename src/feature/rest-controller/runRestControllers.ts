@@ -23,7 +23,7 @@ export function runRestControllers(controllers: IConstructor<any>[]) {
     const endPoints = metadataStore.getControllerEndPointsInfo(controller)
     endPoints.forEach((endPoint) => {
       const method = endPoint.method
-      const route = path.join(endPoint.controller.path, endPoint.path ?? '')
+      const route = path.join(endPoint.controller.path, endPoint.path ?? '').replaceAll('\\', '/')
       logger.info(`config ${endPoint.method.toUpperCase()} ${route}`)
       expressApp[method](route, async (req, res) => {
         const requestContainer = container.createChildContainer()
