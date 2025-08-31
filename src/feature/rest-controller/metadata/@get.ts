@@ -1,17 +1,17 @@
 import { container } from '@/core/injection'
-import { IGetConfig } from './IGetConfig'
 import { RestControllerMetadataStore } from './RestControllerMetadataStore'
+import { IEndPointConfig } from './IEndPointConfig'
 
-export function get(config?: string | IGetConfig) {
+export function get(config?: string | IEndPointConfig) {
   return function (target: object, propertyKey: string | symbol) {
     const functionName = propertyKey.toString()
     const paramsTypes = Reflect.getMetadata('design:paramtypes', target, functionName)
     const store = container.resolve(RestControllerMetadataStore)
     store.saveEndPointMetadata({
       controllerConstructor: target.constructor as any,
-      functionName,
       method: 'get',
-      path: typeof config === 'string' ? config : config?.path,
+      config: typeof config === 'string' ? { path: config } : config,
+      functionName,
       paramsTypes,
     })
   }

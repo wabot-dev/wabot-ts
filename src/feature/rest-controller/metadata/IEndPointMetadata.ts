@@ -1,8 +1,9 @@
 import { IConstructor } from '@/core/generics'
+import { IEndPointConfig } from './IEndPointConfig'
 
 export interface IEndPointMetadata {
   method: 'get' | 'post'
-  path?: string
+  config?: IEndPointConfig
   controllerConstructor: IConstructor<any>
   functionName: string
   paramsTypes: any[]

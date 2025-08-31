@@ -1,7 +1,7 @@
 import { Logger } from '@/core/logger'
 import { WhatsAppReceiver } from './WhatsAppReceiver'
 import { ExpressProvider } from '@/feature/express'
-import { type Express, type Request, type Response } from 'express'
+import { json, type Express, type Request, type Response } from 'express'
 import { WhatsAppRepository } from './WhatsAppRepository'
 import { singleton } from '@/core/injection'
 
@@ -20,7 +20,7 @@ export class WhatsAppReceiverByWebHook extends WhatsAppReceiver {
   }
 
   async connect(): Promise<void> {
-    this.expressApp.get(this.webhookPath, async (req: Request, res: Response) => {
+    this.expressApp.get(this.webhookPath, json(), async (req: Request, res: Response) => {
       try {
         let mode = req.query['hub.mode']
         let token = req.query['hub.verify_token']
@@ -46,7 +46,7 @@ export class WhatsAppReceiverByWebHook extends WhatsAppReceiver {
       }
     })
 
-    this.expressApp.post(this.webhookPath, (req: Request, res: Response) => {
+    this.expressApp.post(this.webhookPath, json(), (req: Request, res: Response) => {
       const payload = req.body
       this.handlePayload(payload)
       res.sendStatus(200)

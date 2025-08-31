@@ -1,13 +1,13 @@
-import { Request } from 'express'
-import path from 'path'
-import { RestControllerMetadataStore } from './metadata'
-import { IConstructor } from '@/core/generics'
-import { Logger } from '@/core/logger'
-import { container } from '@/core/injection'
-import { ExpressProvider } from '@/feature/express'
-import { validate } from '@/core/validation'
 import { CustomError } from '@/core/error'
+import { IConstructor } from '@/core/generics'
+import { container } from '@/core/injection'
+import { Logger } from '@/core/logger'
+import { validate } from '@/core/validation'
+import { ExpressProvider } from '@/feature/express'
+import { Request, json, urlencoded } from 'express'
+import path from 'path'
 import { EXPRESS_REQ, EXPRESS_RES } from './injection-tokens'
+import { RestControllerMetadataStore } from './metadata'
 
 function buildRequest(req: Request): any {
   return Object.assign({}, req.body, req.query, req.params)
@@ -24,9 +24,18 @@ export function runRestControllers(controllers: IConstructor<any>[]) {
     const endPoints = metadataStore.getControllerEndPointsInfo(controller)
     endPoints.forEach((endPoint) => {
       const method = endPoint.method
-      const route = path.join(endPoint.controller.path, endPoint.path ?? '').replaceAll('\\', '/')
+      const route = path
+        .join(endPoint.controller.path, endPoint.config?.path ?? '')
+        .replaceAll('\\', '/')
       logger.info(`config ${endPoint.method.toUpperCase()} ${route}`)
-      expressApp[method](route, async (req, res) => {
+      const rawMiddlewares = []
+      if (!endPoint.config?.disableJsonParser) {
+        rawMiddlewares.push(json())
+      }
+      if (!endPoint.config?.disableUrlEncodedParser) {
+        rawMiddlewares.push(urlencoded({ extended: true }))
+      }
+      expressApp[method](route, ...rawMiddlewares, async (req, res) => {
         const requestContainer = container.createChildContainer()
         requestContainer.register(EXPRESS_REQ, { useValue: req })
         requestContainer.register(EXPRESS_RES, { useValue: req })

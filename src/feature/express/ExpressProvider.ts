@@ -1,6 +1,5 @@
 import { HttpServerProvider } from '../http'
 import express, { type Express } from 'express'
-import bodyParser from 'body-parser'
 import { Logger } from '@/core/logger'
 import { singleton } from '@/core/injection'
 
@@ -24,8 +23,6 @@ export class ExpressProvider {
 
   private createExpress() {
     const expressApp = express()
-
-    expressApp.use(bodyParser.json())
 
     expressApp.use((req, res, next) => {
       const start = process.hrtime()
