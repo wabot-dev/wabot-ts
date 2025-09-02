@@ -28,10 +28,15 @@ export class GeminiChatAdapter implements IChatAdapter {
       throw new Error('GEMINI_API_KEY env variable is required')
     }
 
+
     this.genai = new GoogleGenAI({ apiKey })
   }
 
   async nextItem(req: IChatAdapterNextItemReq): Promise<IChatAdapterNextItemRes> {
+
+    if (!req.model) {
+      throw new Error('Model is required')
+    }
     this.validateModel(req.model)
 
     const geminiInput = []
