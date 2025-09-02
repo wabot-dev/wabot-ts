@@ -1,3 +1,4 @@
+export * from './core/auth'
 export * from './core/entity'
 export * from './core/env'
 export * from './core/error'

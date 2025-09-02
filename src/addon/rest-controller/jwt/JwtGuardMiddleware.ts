@@ -1,9 +1,10 @@
 import { CustomError } from '@/core/error'
 import { DependencyContainer, injectable } from '@/core/injection'
-import { Auth, IMiddleware } from '@/feature/rest-controller'
+import { IMiddleware } from '@/feature/rest-controller'
 import { Request, Response } from 'express'
 import jwt from 'jsonwebtoken'
 import { JwtConfig } from './JwtConfig'
+import { Auth } from '@/core/auth'
 
 @injectable()
 export class JwtGuardMiddleware implements IMiddleware {
