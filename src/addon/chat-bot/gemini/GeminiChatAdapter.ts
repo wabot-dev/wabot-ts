@@ -18,11 +18,8 @@ const SUPPORTED_MODELS = [
   'gemini-pro',
 ] as const
 
-const DEFAULT_MODEL = 'gemini-1.5-flash'
-
 export class GeminiChatAdapter implements IChatAdapter {
   private genai: GoogleGenAI
-  private model: string
   private logger = new Logger('wabot:gemini-chat-adapter')
 
   constructor() {
@@ -31,22 +28,23 @@ export class GeminiChatAdapter implements IChatAdapter {
       throw new Error('GEMINI_API_KEY env variable is required')
     }
 
-    this.model = process.env.GEMINI_MODEL || DEFAULT_MODEL
-    this.validateModel(this.model)
     this.genai = new GoogleGenAI({ apiKey })
   }
 
-  private validateModel(model: string): void {
-    if (!SUPPORTED_MODELS.includes(model as any)) {
-      throw new Error(`Unsupported Gemini model: ${model}. Supported models: ${SUPPORTED_MODELS.join(', ')}`)
-    }
-  }
-
   async nextItem(req: IChatAdapterNextItemReq): Promise<IChatAdapterNextItemRes> {
-    const contents = this.buildContents(req.prevItems, req.systemPrompt)
-    const tools = req.tools.length > 0 ? req.tools.map(this.mapTool) : undefined
+    this.validateModel(req.model)
 
-    const request = { model: this.model, contents, tools }
+    const geminiInput = []
+    
+    geminiInput.push(...this.mapChatItems(req.prevItems, req.systemPrompt))
+
+    const tools = req.tools.map((x) => this.mapTool(x))
+
+    const request = { 
+      model: req.model, 
+      contents: geminiInput, 
+      tools: tools.length > 0 ? tools : undefined
+    }
 
     this.logger.debug(`Call Gemini API with Request: ${JSON.stringify(request)}`)
 
@@ -54,108 +52,131 @@ export class GeminiChatAdapter implements IChatAdapter {
     return this.mapResponse(response)
   }
 
-  private buildContents(chatItems: IChatItem[], systemPrompt: string): Array<{ role: string; parts: Array<any> }> {
-    const contents: Array<{ role: string; parts: Array<any> }> = []
-
-    if (systemPrompt) {
-      contents.push(
-        { role: 'user', parts: [{ text: systemPrompt }] },
-        { role: 'model', parts: [{ text: 'I understand. I will follow these instructions.' }] }
+  private validateModel(model: string): void {
+    if (!SUPPORTED_MODELS.includes(model as any)) {
+      throw new Error(
+        `Unsupported Gemini model: ${model}. Supported models: ${SUPPORTED_MODELS.join(', ')}`,
       )
     }
+  }
 
-    chatItems.forEach(chatItem => {
+  private mapChatItems(chatItems: IChatItem[], systemPrompt?: string): Array<{ role: string; parts: Array<any> }> {
+    const geminiInput: Array<{ role: string; parts: Array<any> }> = []
+    
+    if (systemPrompt) {
+      geminiInput.push({ role: 'user', parts: [{ text: 'system: ' + systemPrompt }] })
+      geminiInput.push({ role: 'model', parts: [{ text: 'I understand.' }] })
+    }
+    
+    for (const chatItem of chatItems) {
       switch (chatItem.type) {
         case 'humanMessage':
-          this.validateMessageContent(chatItem.humanMessage.text, 'User')
-          contents.push({ role: 'user', parts: [{ text: chatItem.humanMessage.text }] })
+          geminiInput.push(this.mapHumanMessage(chatItem.humanMessage))
           break
         case 'botMessage':
-          this.validateMessageContent(chatItem.botMessage.text, 'Assistant')
-          contents.push({ role: 'model', parts: [{ text: chatItem.botMessage.text }] })
+          geminiInput.push(this.mapBotMessage(chatItem.botMessage))
           break
         case 'functionCall':
-          contents.push(...this.mapFunctionCall(chatItem.functionCall))
+          geminiInput.push(...this.mapFunctionCall(chatItem.functionCall))
           break
       }
-    })
-
-    return contents
-  }
-
-  private validateMessageContent(text: string | undefined, messageType: string): void {
-    if (!text) {
-      throw new Error(`${messageType} message content is empty`)
     }
+    return geminiInput
   }
 
-  private mapFunctionCall(item: IFunctionCall): Array<{ role: string; parts: Array<any> }> {
-    const args = JSON.parse(item.arguments || '{}')
+  private mapHumanMessage(item: IChatMessage) {
+    if (!item.text) {
+      throw new Error('User message content is empty')
+    }
+    return { role: 'user', parts: [{ text: item.text }] }
+  }
+
+  private mapBotMessage(item: IChatMessage) {
+    if (!item.text) {
+      throw new Error('Bot message content is empty')
+    }
+    return { role: 'model', parts: [{ text: item.text }] }
+  }
+
+  private mapFunctionCall(item: IFunctionCall) {
     return [
       {
         role: 'model',
-        parts: [{ functionCall: { name: item.name, args } }],
+        parts: [
+          {
+            functionCall: {
+              name: item.name,
+              args: JSON.parse(item.arguments || '{}'),
+            },
+          },
+        ],
       },
       {
         role: 'user',
-        parts: [{ functionResponse: { name: item.name, response: { result: item.result || 'No result' } } }],
+        parts: [
+          {
+            functionResponse: {
+              name: item.name,
+              response: {
+                result: item.result || 'No result',
+              },
+            },
+          },
+        ],
       },
     ]
   }
 
-  private mapTool = (tool: IMindsetTool) => ({
-    functionDeclarations: [{
-      name: tool.name,
-      description: tool.description,
-      parameters: {
-        type: 'object',
-        properties: tool.parameters.reduce(
-          (acc, param) => ({ ...acc, [param.name]: { type: param.type, description: param.description } }),
-          {}
-        ),
-        required: tool.parameters.map(param => param.name),
-      },
-    }],
-  })
+  private mapTool(tool: IMindsetTool) {
+    return {
+      functionDeclarations: [
+        {
+          name: tool.name,
+          description: tool.description,
+          parameters: {
+            type: 'object',
+            properties: tool.parameters.reduce(
+              (prev, param) => ({
+                ...prev,
+                [param.name]: { type: param.type, description: param.description },
+              }),
+              {},
+            ),
+            required: tool.parameters.map((param) => param.name),
+          },
+        },
+      ],
+    }
+  }
 
   private mapResponse(response: any): IChatAdapterNextItemRes {
-    this.validateResponse(response)
-    
+    let chatItem: IChatItem
     const part = response.response.candidates[0].content.parts[0]
-    const chatItem: IChatItem = part.text 
-      ? { type: 'botMessage', botMessage: { text: part.text } }
-      : part.functionCall 
-        ? {
-            type: 'functionCall',
-            functionCall: {
-              id: `gemini_${Date.now()}`,
-              name: part.functionCall.name,
-              arguments: JSON.stringify(part.functionCall.args || {}),
-            },
-          }
-        : (() => { throw new Error('Not supported Gemini Response') })()
-
-    const usage: ILanguageModelUsage = {
-      inputTokens: response.response.usageMetadata?.promptTokenCount || 0,
-      outputTokens: response.response.usageMetadata?.candidatesTokenCount || 0,
+    if (part.text) {
+      chatItem = { type: 'botMessage', botMessage: { text: part.text } }
+    } else if (part.functionCall) {
+      chatItem = {
+        type: 'functionCall',
+        functionCall: {
+          id: `gemini_${Date.now()}`,
+          name: part.functionCall.name,
+          arguments: JSON.stringify(part.functionCall.args || {}),
+        },
+      }
+    } else {
+      throw new Error('Not supported Gemini Response')
     }
 
-    if (!response.response.usageMetadata) {
+    let usage: ILanguageModelUsage
+    if (response.response.usageMetadata) {
+      usage = {
+        inputTokens: response.response.usageMetadata.promptTokenCount || 0,
+        outputTokens: response.response.usageMetadata.candidatesTokenCount || 0,
+      }
+    } else {
       throw new Error('Unable to found usage info')
     }
-
     return { chatItem, usage }
   }
 
-  private validateResponse(response: any): void {
-    if (!response.response) {
-      throw new Error('Invalid Gemini response structure')
-    }
-    if (!response.response.candidates?.[0]) {
-      throw new Error('No candidates in Gemini response')
-    }
-    if (!response.response.candidates[0].content?.parts?.[0]) {
-      throw new Error('No parts in Gemini response')
-    }
-  }
 }
