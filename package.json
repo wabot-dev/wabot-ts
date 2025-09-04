@@ -1,6 +1,6 @@
 {
   "name": "@wabot-dev/framework",
-  "version": "0.1.0-beta.38",
+  "version": "0.1.0-beta.39",
   "description": "Framework for IA Chat Bots",
   "type": "module",
   "main": "dist/src/index.js",
@@ -24,6 +24,7 @@
     "@rollup/plugin-json": "6.1.0",
     "@rollup/plugin-node-resolve": "16.0.1",
     "@rollup/plugin-typescript": "12.1.2",
+    "@types/big.js": "^6.2.2",
     "@types/html-to-text": "^9.0.4",
     "@types/node": "22.14.1",
     "@types/react": "^19.1.2",
@@ -42,6 +43,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/pg": "^8.11.14",
     "@yucacodes/ts": "^0.0.4",
+    "big.js": "^7.0.1",
     "body-parser": "^2.2.0",
     "debug": "^4.4.0",
     "dotenv": "^16.5.0",

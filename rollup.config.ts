@@ -39,7 +39,8 @@ const config: RollupOptions = {
     'html-to-text',
     '@anthropic-ai/sdk',
     'jsonwebtoken',
-    '@google/genai'
+    '@google/genai',
+    'big.js',
   ],
   output: {
     dir: 'dist/src',
