@@ -4,7 +4,8 @@ import { JwtSigner } from './JwtSigner'
 import { JwtRefreshTokenRepository } from './JwtRefreshTokenRepository'
 import { JwtRefreshToken } from './JwtRefreshToken'
 import { injectable } from '@/core/injection'
-import { Auth } from '@/feature/rest-controller'
+import { Auth } from '@/core/auth'
+
 
 @injectable()
 export class Jwt {
