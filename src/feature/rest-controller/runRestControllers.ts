@@ -83,7 +83,7 @@ export function runRestControllers(controllers: IConstructor<any>[]) {
             )
             res
               .status(httpCode ?? 500)
-              .json({ error: { message: err.message, stack: err.stack, ...info } })
+              .json(removeCircular({ error: { message: err.message, stack: err.stack, ...info } }))
           } else {
             res.status(500).json({ error: { message: 'Unknown error' } })
           }
@@ -95,4 +95,19 @@ export function runRestControllers(controllers: IConstructor<any>[]) {
   })
 
   expressProvider.listen()
+}
+
+function removeCircular(obj: any, seen = new WeakSet()) {
+  if (obj && typeof obj === 'object') {
+    if (seen.has(obj)) {
+      return undefined // remove circular ref
+    }
+    seen.add(obj)
+    const clone: any = Array.isArray(obj) ? [] : {}
+    for (const key in obj) {
+      clone[key] = removeCircular(obj[key], seen)
+    }
+    return clone
+  }
+  return obj
 }

@@ -44,7 +44,7 @@ export class PgCrudRepository<P extends Entity<IEntityData>>
     const item = await this.find(id)
     if (!item) {
       throw new CustomError({
-        message: `Not found ${this.config.constructor.name} with id = '${id}'}`,
+        message: `Not found ${this.config.constructor.name} with id = '${id}'`,
         httpCode: 404,
       })
     }
