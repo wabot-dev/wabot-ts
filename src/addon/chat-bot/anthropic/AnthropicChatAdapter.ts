@@ -1,4 +1,5 @@
 import { Env } from '@/core/env'
+import { singleton } from '@/core/injection'
 import { Logger } from '@/core/logger'
 import {
   IChatAdapter,
@@ -12,6 +13,7 @@ import {
 import { IMindsetTool } from '@/feature/mindset'
 import { Anthropic } from '@anthropic-ai/sdk'
 
+@singleton()
 export class AnthropicChatAdapter implements IChatAdapter {
   private anthropic: Anthropic
   private logger = new Logger('wabot:anthropic-chat-adapter')

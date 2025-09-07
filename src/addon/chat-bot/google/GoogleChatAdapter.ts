@@ -1,4 +1,5 @@
 import { Env } from '@/core/env'
+import { singleton } from '@/core/injection'
 import { Logger } from '@/core/logger'
 import {
   IChatAdapter,
@@ -11,6 +12,7 @@ import {
 import { IMindsetTool } from '@/feature/mindset'
 import { GoogleGenAI } from '@google/genai'
 
+@singleton()
 export class GoogleChatAdapter implements IChatAdapter {
   private genai: GoogleGenAI
   private logger = new Logger('wabot:google-chat-adapter')

@@ -10,7 +10,9 @@ import {
 import { Logger } from '@/core/logger'
 import { OpenAI } from 'openai'
 import { IMindsetTool } from '@/feature/mindset'
+import { singleton } from '@/core/injection'
 
+@singleton()
 export class OpenaiChatAdapter implements IChatAdapter {
   private openai = new OpenAI()
   private logger = new Logger('wabot:openai-chat-adapter')
