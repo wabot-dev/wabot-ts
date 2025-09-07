@@ -1,3 +1,4 @@
+import { Env } from '@/core/env'
 import { Logger } from '@/core/logger'
 import {
   IChatAdapter,
@@ -11,16 +12,12 @@ import {
 import { IMindsetTool } from '@/feature/mindset'
 import { Anthropic } from '@anthropic-ai/sdk'
 
-export class ClaudeChatAdapter implements IChatAdapter {
+export class AnthropicChatAdapter implements IChatAdapter {
   private anthropic: Anthropic
-  private logger = new Logger('wabot:claude-chat-adapter')
+  private logger = new Logger('wabot:anthropic-chat-adapter')
 
-  constructor() {
-    const apiKey = process.env.CLAUDE_API_KEY
-    if (!apiKey) {
-      throw new Error('CLAUDE_API_KEY env variable is required')
-    }
-
+  constructor(private env: Env) {
+    const apiKey = this.env.requireString('ANTHROPIC_API_KEY')
     this.anthropic = new Anthropic({ apiKey })
   }
 
