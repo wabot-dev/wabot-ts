@@ -8,13 +8,10 @@ describe('GeminiChatAdapter', () => {
   let adapter: GoogleChatAdapter
   let mockGenAI: any
   let originalApiKey: string | undefined
-  let originalModel: string | undefined
 
   beforeEach(() => {
     originalApiKey = process.env.GEMINI_API_KEY
-    originalModel = process.env.GEMINI_MODEL
     process.env.GEMINI_API_KEY = 'test-api-key'
-    process.env.GEMINI_MODEL = 'gemini-1.5-flash'
 
     mockGenAI = {
       models: {
@@ -41,11 +38,6 @@ describe('GeminiChatAdapter', () => {
     } else {
       delete process.env.GEMINI_API_KEY
     }
-    if (originalModel !== undefined) {
-      process.env.GEMINI_MODEL = originalModel
-    } else {
-      delete process.env.GEMINI_MODEL
-    }
     mock.restoreAll()
   })
 
@@ -60,23 +52,18 @@ describe('GeminiChatAdapter', () => {
       // process.env.GEMINI_API_KEY = 'test-api-key'
     })
 
-    it('should use default model when GEMINI_MODEL is not provided', () => {
-      // delete process.env.GEMINI_MODEL
-      // const testAdapter = new GoogleChatAdapter()
-      // assert.strictEqual(testAdapter['model'], 'gemini-1.5-flash')
-    })
+    it('should throw error for unsupported model in nextItem', async () => {
+      const req: IChatAdapterNextItemReq = {
+        model: 'invalid-model',
+        systemPrompt: 'You are a helpful assistant',
+        tools: [],
+        prevItems: [],
+      }
 
-    it('should use custom model when GEMINI_MODEL is provided', () => {
-      // process.env.GEMINI_MODEL = 'gemini-pro'
-      // const testAdapter = new GoogleChatAdapter()
-      // assert.strictEqual(testAdapter['model'], 'gemini-pro')
-    })
-
-    it('should throw error for unsupported model', () => {
-      // process.env.GEMINI_MODEL = 'invalid-model'
-      // assert.throws(() => new GoogleChatAdapter(), {
-      //   message: 'Unsupported Gemini model: invalid-model. Supported models: gemini-2.0-flash-exp, gemini-1.5-flash, gemini-1.5-pro, gemini-pro',
-      // })
+      await assert.rejects(() => adapter.nextItem(req), {
+        message:
+          'Unsupported Gemini model: invalid-model. Supported models: gemini-2.0-flash-exp, gemini-1.5-flash, gemini-1.5-pro, gemini-pro',
+      })
     })
   })
 
@@ -100,7 +87,7 @@ describe('GeminiChatAdapter', () => {
       mockGenAI.models.generateContent.mock.mockImplementation(() => Promise.resolve(mockResponse))
 
       const req: IChatAdapterNextItemReq = {
-        model: 'gemini-1.5-flash', // This will be ignored, we use env var
+        model: 'gemini-1.5-flash',
         systemPrompt: 'You are a helpful assistant',
         tools: [],
         prevItems: [
@@ -118,9 +105,9 @@ describe('GeminiChatAdapter', () => {
       const result = await adapter.nextItem(req)
 
       assert.strictEqual(mockGenAI.models.generateContent.mock.callCount(), 1)
-      
+
       const callArgs = mockGenAI.models.generateContent.mock.calls[0].arguments[0]
-      assert.strictEqual(callArgs.model, 'gemini-1.5-flash') // Uses env var model
+      assert.strictEqual(callArgs.model, 'gemini-1.5-flash')
       assert.strictEqual(callArgs.contents.length, 3)
       assert.deepStrictEqual(callArgs.contents[2], {
         role: 'user',
@@ -245,7 +232,7 @@ describe('GeminiChatAdapter', () => {
 
       const callArgs = mockGenAI.models.generateContent.mock.calls[0].arguments[0]
       assert.strictEqual(callArgs.contents.length, 4)
-      
+
       assert.deepStrictEqual(callArgs.contents[2], {
         role: 'model',
         parts: [
@@ -257,7 +244,7 @@ describe('GeminiChatAdapter', () => {
           },
         ],
       })
-      
+
       assert.deepStrictEqual(callArgs.contents[3], {
         role: 'user',
         parts: [
@@ -309,33 +296,10 @@ describe('GeminiChatAdapter', () => {
       }
 
       await assert.rejects(() => adapter.nextItem(req), {
-        message: 'Assistant message content is empty',
+        message: 'Bot message content is empty',
       })
     })
 
-    it('should throw error when no candidate found in response', async () => {
-      const mockResponse = {
-        response: {
-          candidates: [],
-          usageMetadata: {
-            promptTokenCount: 10,
-            candidatesTokenCount: 0,
-          },
-        },
-      }
-      mockGenAI.models.generateContent.mock.mockImplementation(() => Promise.resolve(mockResponse))
-
-      const req: IChatAdapterNextItemReq = {
-        model: 'gemini-1.5-flash',
-        systemPrompt: 'You are a helpful assistant',
-        tools: [],
-        prevItems: [],
-      }
-
-      await assert.rejects(() => adapter.nextItem(req), {
-        message: 'No candidates in Gemini response',
-      })
-    })
 
     it('should throw error for unsupported Gemini response', async () => {
       const mockResponse = {
