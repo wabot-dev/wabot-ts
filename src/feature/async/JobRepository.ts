@@ -4,6 +4,7 @@ import { IJobRepository } from './IJobRepository'
 
 @singleton()
 export class JobRepository implements IJobRepository {
+  
   find(id: string): Promise<Job | null> {
     throw new Error('Method not implemented.')
   }

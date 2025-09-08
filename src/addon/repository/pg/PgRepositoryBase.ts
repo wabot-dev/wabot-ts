@@ -59,7 +59,7 @@ export class PgRepositoryBase<P extends Entity<IEntityData>> {
     await conn.query(sql, values)
   }
 
-  protected async query(sql: string, values: any[]) {
+  protected async query(sql: string, values: any[]): Promise<P[]> {
     const conn = await this.connect()
     const { rows } = await conn.query(sql, values)
     return rows.map((row) => new this.config.constructor(row.data))
