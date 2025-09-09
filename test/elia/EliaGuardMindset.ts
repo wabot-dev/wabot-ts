@@ -1,7 +1,7 @@
 import { type IMindsetIdentity, mindset } from '@'
 
 @mindset({
-  modules: [ ],
+  modules: [],
 })
 export class EliaGuardMindset {
   async identity(): Promise<IMindsetIdentity> {
@@ -26,5 +26,14 @@ export class EliaGuardMindset {
       El usuario no tiene acceso a las funciones, 
       se bede requerir que se registre o que inicie sesión
     `
+  }
+
+  async llms() {
+    return [
+      {
+        provider: 'openai',
+        model: 'gpt-4.1',
+      },
+    ]
   }
 }

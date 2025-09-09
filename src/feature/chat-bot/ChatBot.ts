@@ -4,7 +4,9 @@ import { ChatItem } from './ChatItem'
 import { ChatMemory } from './ChatMemory'
 import { IChatBot } from './IChatBot'
 import { IChatMessage } from './IChatMessage'
+import { injectable } from '@/core/injection'
 
+@injectable()
 export class ChatBot implements IChatBot {
   constructor(
     private memory: ChatMemory,
@@ -32,8 +34,15 @@ export class ChatBot implements IChatBot {
     }
     const systemPrompt = await this.mindset.systemPrompt()
     const tools = this.mindset.tools()
+    const llms = await this.mindset.llms()
+    if (llms.length === 0) {
+      throw new Error(`Invalid ${this.mindset.constructor.name} - llms not found`)
+    }
+    const llm = llms[0]
+
     const { chatItem: newItemData } = await this.adapter.nextItem({
-      model: 'gpt',
+      model: llm.model,
+      provider: llm.provider,
       systemPrompt,
       tools,
       prevItems: prevItems.map((x) => x.getData()),

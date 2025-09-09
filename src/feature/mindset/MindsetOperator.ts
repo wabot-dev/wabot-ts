@@ -1,5 +1,5 @@
 import { Container, injectable } from '@/core/injection'
-import { type IMindset, type IMindsetIdentity, Mindset } from './IMindset'
+import { type IMindset, type IMindsetIdentity, IMindsetLlm, Mindset } from './IMindset'
 import {
   IMindsetModuleMetadata,
   type IMindsetFunctionMetadata,
@@ -31,6 +31,10 @@ export class MindsetOperator implements IMindset {
 
   limits(): Promise<string> {
     return this.mindset.limits()
+  }
+
+  llms(): Promise<IMindsetLlm[]> {
+    return this.mindset.llms()
   }
 
   async systemPrompt(): Promise<string> {
