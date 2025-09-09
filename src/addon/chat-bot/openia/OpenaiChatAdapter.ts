@@ -96,9 +96,9 @@ export class OpenaiChatAdapter implements IChatAdapter {
           {},
         ),
         required: tool.parameters.map((param) => param.name),
+        additionalProperties: false,
       },
       strict: true,
-      additionalProperties: false,
     } as const
   }
 
