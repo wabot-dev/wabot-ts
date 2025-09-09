@@ -34,6 +34,10 @@ export class EliaMindset implements IMindset {
         provider: 'openai',
         model: 'gpt-4.1',
       },
+      {
+        provider: 'anthropic',
+        model: 'claude-3-5-haiku-20241022',
+      },
     ]
   }
 }

@@ -32,8 +32,10 @@ export class ChatBot implements IChatBot {
     if (lastChatItem.type === 'botMessage') {
       return
     }
+    
     const systemPrompt = await this.mindset.systemPrompt()
     const tools = this.mindset.tools()
+    const identity = await this.mindset.identity()
     const llms = await this.mindset.llms()
     if (llms.length === 0) {
       throw new Error(`Invalid ${this.mindset.constructor.name} - llms not found`)
@@ -53,6 +55,8 @@ export class ChatBot implements IChatBot {
         newItemData.functionCall.name,
         newItemData.functionCall.arguments ?? '{}',
       )
+    } else if (newItemData.type === 'botMessage') {
+      newItemData.botMessage.senderName = identity.name
     }
 
     const newChatItem = new ChatItem(newItemData)
