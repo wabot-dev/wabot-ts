@@ -4,13 +4,13 @@ import {
   type IGetWhatsAppTemplateRequest,
   type ISendWhatsAppRequest,
   type ISendWhatsAppTemplateRequest,
-} from './WhatsAppSender'
+} from '../WhatsAppSender'
 
 import { ChatResolver } from '@/feature/chat-controller'
 import { ChatRepository } from '@/feature/chat-bot'
 import { singleton } from '@/core/injection'
-import { IWhatsAppTemplate, IWhatsAppTemplateResponse } from './IWhatsAppTemplateResponse'
-import { WhatsAppRepository } from './WhatsAppRepository'
+import { IWhatsAppCloudTemplate, IWhatsAppCloudTemplateResponse } from './IWhatsAppCloudTemplateResponse'
+import { WhatsAppRepository } from '../WhatsAppRepository'
 
 @singleton()
 export class WhatsAppSenderByCloudApi extends WhatsAppSender {
@@ -108,7 +108,7 @@ export class WhatsAppSenderByCloudApi extends WhatsAppSender {
 
   async handleGetWhatsAppTemplate(
     request: IGetWhatsAppTemplateRequest,
-  ): Promise<IWhatsAppTemplate | null> {
+  ): Promise<IWhatsAppCloudTemplate | null> {
     const whatsApp = await this.whatsAppRepository.findByBusinessNumber(request.from)
     if (!whatsApp) {
       throw new Error(`not found WhatsApp with bussiness number '${request.from}'`)
@@ -129,7 +129,7 @@ export class WhatsAppSenderByCloudApi extends WhatsAppSender {
         },
       )
 
-      const data = (await response.json()) as IWhatsAppTemplateResponse
+      const data = (await response.json()) as IWhatsAppCloudTemplateResponse
 
       if (!response.ok) {
         throw new Error(JSON.stringify(data))

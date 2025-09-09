@@ -1,4 +1,4 @@
-export type IWhatsAppTemplateParameter =
+export type IWhatsAppCloudTemplateParameter =
   | {
       type: 'text'
       text: string
@@ -19,8 +19,8 @@ export type IWhatsAppTemplateParameter =
       }
     }
 
-export interface IWhatsAppTemplateMessage {
+export interface IWhatsAppCloudTemplateMessage {
   templateName: string
   languageCode: string
-  parameters: IWhatsAppTemplateParameter[]
+  parameters: IWhatsAppCloudTemplateParameter[]
 }

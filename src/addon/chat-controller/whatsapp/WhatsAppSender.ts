@@ -2,10 +2,10 @@ import type { Logger } from '@/core/logger'
 import { ChatItem, type ChatRepository, type IChatMessage } from '@/feature/chat-bot'
 import type { ChatResolver } from '@/feature/chat-controller'
 import type {
-  IWhatsAppTemplateMessage,
-  IWhatsAppTemplateParameter,
-} from './IWhatsAppTemplateMessage'
-import { IWhatsAppTemplate } from './IWhatsAppTemplateResponse'
+  IWhatsAppCloudTemplateMessage,
+  IWhatsAppCloudTemplateParameter,
+} from './cloud-api/IWhatsAppCloudTemplateMessage'
+import { IWhatsAppCloudTemplate } from './cloud-api/IWhatsAppCloudTemplateResponse'
 import type { WhatsAppRepository } from './WhatsAppRepository'
 
 export interface ISendWhatsAppRequest {
@@ -17,7 +17,7 @@ export interface ISendWhatsAppRequest {
 export interface ISendWhatsAppTemplateRequest {
   from: string
   to: string
-  templateMessage: IWhatsAppTemplateMessage
+  templateMessage: IWhatsAppCloudTemplateMessage
   senderName: string
 }
 
@@ -49,7 +49,7 @@ export class WhatsAppSender {
 
   protected handleGetWhatsAppTemplate(
     request: IGetWhatsAppTemplateRequest,
-  ): Promise<IWhatsAppTemplate | null> {
+  ): Promise<IWhatsAppCloudTemplate | null> {
     throw new Error('Not implemented')
   }
 
@@ -86,7 +86,7 @@ export class WhatsAppSender {
 
   async getWhatsAppTemplate(
     request: IGetWhatsAppTemplateRequest,
-  ): Promise<IWhatsAppTemplate | null> {
+  ): Promise<IWhatsAppCloudTemplate | null> {
     try {
       const template = await this.handleGetWhatsAppTemplate(request)
       return template
@@ -133,13 +133,13 @@ export class WhatsAppSender {
 
     const chatItem = new ChatItem({
       type: 'botMessage',
-      botMessage: message
+      botMessage: message,
     })
 
     await chatMemory!.create(chatItem)
   }
 
-  private replaceTemplateParameters(template: string, data: IWhatsAppTemplateParameter[]): string {
+  private replaceTemplateParameters(template: string, data: IWhatsAppCloudTemplateParameter[]): string {
     let result = template
 
     data.forEach((param) => {
