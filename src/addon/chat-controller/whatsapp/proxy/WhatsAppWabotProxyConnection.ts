@@ -1,9 +1,9 @@
 import { Env } from '@/core/env'
-import { singleton } from '@/core/injection'
+import { injectable } from '@/core/injection'
 import { Logger } from '@/core/logger'
 import { io, type Socket } from 'socket.io-client'
 
-@singleton()
+@injectable()
 export class WhatsAppWabotProxyConnection {
   private baseUrl: string
   private socket: Socket | null = null

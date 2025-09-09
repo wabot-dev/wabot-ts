@@ -1,4 +1,3 @@
-import type { Logger } from '@/core/logger'
 import { ChatItem, type ChatRepository, type IChatMessage } from '@/feature/chat-bot'
 import type { ChatResolver } from '@/feature/chat-controller'
 import type {
@@ -33,73 +32,35 @@ export interface IWhatsAppSenderOptions {
 
 export class WhatsAppSender {
   constructor(
-    protected logger: Logger,
     protected chatRepository: ChatRepository,
     protected chatResolver: ChatResolver,
     protected whatsAppRepository: WhatsAppRepository,
   ) {}
 
-  protected handleSendRequest(request: ISendWhatsAppRequest): Promise<void> {
-    throw new Error('Not implemented')
-  }
-
-  protected handleSendTemplateRequest(request: ISendWhatsAppTemplateRequest): Promise<void> {
-    throw new Error('Not implemented')
-  }
-
-  protected handleGetWhatsAppTemplate(
-    request: IGetWhatsAppTemplateRequest,
-  ): Promise<IWhatsAppCloudTemplate | null> {
-    throw new Error('Not implemented')
-  }
-
   async sendWhatsApp(
     request: ISendWhatsAppRequest,
     options?: IWhatsAppSenderOptions,
   ): Promise<void> {
-    try {
-      await this.handleSendRequest(request)
-      if (options?.writeChatMemory) {
-        await this.writePrivateChatMemory(request.message, request.to)
-      }
-    } catch (error) {
-      this.logger.error(`Error sending WhatsApp message: ${error}`)
-      throw new Error(`Error sending WhatsApp message: ${error}`, { cause: error })
-    }
+    throw new Error('Not implemented')
   }
 
   async sendWhatsAppTemplate(
     request: ISendWhatsAppTemplateRequest,
     options?: IWhatsAppSenderOptions,
   ): Promise<void> {
-    try {
-      await this.handleSendTemplateRequest(request)
-      if (options?.writeChatMemory) {
-        const message = await this.resolveTemplateToChatMessage(request)
-        await this.writePrivateChatMemory(message, request.to)
-      }
-    } catch (error) {
-      this.logger.error(`Error sending WhatsApp message: ${error}`)
-      throw new Error(`Error sending WhatsApp message: ${error}`, { cause: error })
-    }
+    throw new Error('Not implemented')
   }
 
-  async getWhatsAppTemplate(
+  protected getWhatsAppTemplate(
     request: IGetWhatsAppTemplateRequest,
   ): Promise<IWhatsAppCloudTemplate | null> {
-    try {
-      const template = await this.handleGetWhatsAppTemplate(request)
-      return template
-    } catch (error) {
-      this.logger.error(error)
-      throw new Error('Error getting WhatsApp template:', { cause: error })
-    }
+    throw new Error('Not implemented')
   }
 
-  protected async resolveTemplateToChatMessage(
+  protected async mapTemplateToChatMessage(
     request: ISendWhatsAppTemplateRequest,
   ): Promise<IChatMessage> {
-    const template = await this.handleGetWhatsAppTemplate({
+    const template = await this.getWhatsAppTemplate({
       from: request.from,
       templateName: request.templateMessage.templateName,
       languageCode: request.templateMessage.languageCode,
@@ -139,7 +100,10 @@ export class WhatsAppSender {
     await chatMemory!.create(chatItem)
   }
 
-  private replaceTemplateParameters(template: string, data: IWhatsAppCloudTemplateParameter[]): string {
+  protected replaceTemplateParameters(
+    template: string,
+    data: IWhatsAppCloudTemplateParameter[],
+  ): string {
     let result = template
 
     data.forEach((param) => {
