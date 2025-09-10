@@ -1,6 +1,5 @@
 import { Logger } from '@/core/logger'
 import type { IChatConnection } from '@/feature/chat-bot'
-import { IChannelMessage } from '@/feature/chat-controller'
 import type {
   IWhatsAppCloudContact,
   IWhatsAppCloudMessage,
@@ -10,10 +9,12 @@ import type {
 
 import { ExpressProvider } from '@/feature/express'
 import { json, type Express, type Request, type Response } from 'express'
-import { IListenWhatsAppMessageRequest, WhatsAppReceiver } from '../WhatsAppReceiver'
+import {
+  IListenWhatsAppMessageRequest,
+  IWhatsAppMessageListener,
+  WhatsAppReceiver,
+} from '../WhatsAppReceiver'
 import { WhatsAppRepository } from '../WhatsAppRepository'
-
-export type IWhatsAppMessageListener = (message: Omit<IChannelMessage, 'reply'>) => Promise<void>
 
 export class WhatsAppReceiverByCloudApi extends WhatsAppReceiver {
   private listeners: Map<string, IWhatsAppMessageListener> = new Map()

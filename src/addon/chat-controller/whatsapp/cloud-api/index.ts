@@ -1,0 +1,5 @@
+export * from './IWhatsAppCloudTemplateMessage'
+export * from './IWhatsAppCloudTemplateResponse'
+export * from './IWhatsAppCloudWebhookPayload'
+export * from './WhatsAppReceiverByCloudApi'
+export * from './WhatsAppSenderByCloudApi'

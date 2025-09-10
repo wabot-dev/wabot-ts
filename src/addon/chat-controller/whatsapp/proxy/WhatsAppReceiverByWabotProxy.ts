@@ -7,9 +7,13 @@ import {
   WHATSAPP_MESSAGE_EVENT,
 } from './WhatsAppProxyContracts'
 import { WhatsAppWabotProxyConnection } from './WhatsAppWabotProxyConnection'
+import { CustomError } from '@/core/error'
+import { Logger } from '@/core/logger'
 
 @injectable()
 export class WhatsAppReceiverByWabotProxy extends WhatsAppReceiver {
+  private loger = new Logger('wabot:whats-app-receiver-by-wabot-proxy')
+
   constructor(private connection: WhatsAppWabotProxyConnection) {
     super()
   }
@@ -26,7 +30,23 @@ export class WhatsAppReceiverByWabotProxy extends WhatsAppReceiver {
           to: [request.to],
         },
       }
-      await socket.emitWithAck(req.event, req.data)
+      const response = await socket.emitWithAck(req.event, req.data)
+      if (response && typeof response == 'object' && response['error']) {
+        this.loger.error(response.error)
+        return
+      } else if (
+        response &&
+        typeof response == 'object' &&
+        Array.isArray(response.from) &&
+        Array.isArray(response.to)
+      ) {
+        this.loger.trace(
+          `succes add whats-app proxy listener for messages from [${response.from.join(',')}] to [${response.to.join(',')}]`,
+        )
+      } else {
+        this.loger.error('unknown response')
+        return
+      }
 
       socket.on(WHATSAPP_MESSAGE_EVENT, (data: IWhatsAppProxyMessageEventReq['data']) => {
         if (data.to !== request.to) {

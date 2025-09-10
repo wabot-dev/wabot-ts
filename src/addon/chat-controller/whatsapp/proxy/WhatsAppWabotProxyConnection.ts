@@ -13,6 +13,9 @@ export class WhatsAppWabotProxyConnection {
   constructor(env: Env) {
     this.apiKey = env.requireString('WABOT_API_KEY')
     this.baseUrl = env.requireString('WABOT_PROXY_URL')
+    while (this.baseUrl.endsWith('/')) {
+      this.baseUrl = this.baseUrl.substring(0, this.baseUrl.length - 1)
+    }
   }
 
   async getSocket(): Promise<Socket> {
@@ -21,7 +24,7 @@ export class WhatsAppWabotProxyConnection {
     }
 
     return new Promise((resolve, reject) => {
-      const socket = io(this.baseUrl, {
+      const socket = io(`${this.baseUrl}/whats-app`, {
         autoConnect: false,
         auth: { token: this.apiKey },
         reconnection: true,
@@ -33,7 +36,7 @@ export class WhatsAppWabotProxyConnection {
       })
 
       socket.on('connect_error', (err) => {
-        reject(new Error('connection error'))
+        reject(new Error(err && err.message ? err.message : 'connection error', { cause: err }))
       })
 
       socket.connect()
