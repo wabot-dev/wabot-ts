@@ -1,14 +1,13 @@
 import { IListenWhatsAppMessageRequest, WhatsAppReceiver } from '../WhatsAppReceiver'
 
 import { injectable } from '@/core/injection'
+import { Logger } from '@/core/logger'
 import {
   IWhatsAppProxyListenMessageEventReq,
   IWhatsAppProxyMessageEventReq,
   WHATSAPP_MESSAGE_EVENT,
 } from './WhatsAppProxyContracts'
 import { WhatsAppWabotProxyConnection } from './WhatsAppWabotProxyConnection'
-import { CustomError } from '@/core/error'
-import { Logger } from '@/core/logger'
 
 @injectable()
 export class WhatsAppReceiverByWabotProxy extends WhatsAppReceiver {
@@ -35,23 +34,24 @@ export class WhatsAppReceiverByWabotProxy extends WhatsAppReceiver {
         this.loger.error(response.error)
         return
       } else if (
-        response &&
-        typeof response == 'object' &&
-        Array.isArray(response.from) &&
-        Array.isArray(response.to)
+        !response ||
+        typeof response !== 'object' ||
+        !Array.isArray(response.from) ||
+        !Array.isArray(response.to)
       ) {
-        this.loger.trace(
-          `succes add whats-app proxy listener for messages from [${response.from.join(',')}] to [${response.to.join(',')}]`,
-        )
-      } else {
         this.loger.error('unknown response')
         return
       }
 
-      socket.on(WHATSAPP_MESSAGE_EVENT, (data: IWhatsAppProxyMessageEventReq['data']) => {
+      this.loger.trace(
+        `succes add whats-app proxy listener for messages from [${response.from.join(',')}] to [${response.to.join(',')}]`,
+      )
+
+      socket.on(WHATSAPP_MESSAGE_EVENT, (data: IWhatsAppProxyMessageEventReq['data'], callback) => {
         if (data.to !== request.to) {
           throw new Error(`expecting message to '${request.to}' but received to='${data.to}'`)
         }
+        callback({ success: true })
         request.listener({
           chatConnection: {
             channelName: 'WhatsAppChannel',
