@@ -52,6 +52,8 @@ export class WhatsAppReceiverByWabotProxy extends WhatsAppReceiver {
           throw new Error(`expecting message to '${request.to}' but received to='${data.to}'`)
         }
         callback({ success: true })
+
+        this.loger.trace(`success receive message from '${data.from}' to '${data.to}'`)
         request.listener({
           chatConnection: {
             channelName: 'WhatsAppChannel',
