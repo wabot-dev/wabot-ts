@@ -3,6 +3,7 @@ import assert from 'node:assert'
 import { DeepSeekChatAdapter } from './DeepSeekChatAdapter'
 import { IChatAdapterNextItemReq } from '@/feature/chat-bot'
 import { container } from '@/core/injection'
+import { runIChatAdapterComplianceTests } from '../shared-tests/IChatAdapterTests'
 
 describe('DeepSeekChatAdapter', () => {
   let adapter: DeepSeekChatAdapter
@@ -51,131 +52,17 @@ describe('DeepSeekChatAdapter', () => {
     mock.restoreAll()
   })
 
-  test('should handle simple text request correctly', async () => {
-    const mockResponse = {
-      choices: [
-        {
-          message: {
-            content: 'Hello! How can I help you today?',
-            tool_calls: null,
-          },
-        },
-      ],
-      usage: { prompt_tokens: 10, completion_tokens: 15 },
-    }
-    mockDeepSeek.chat.completions.create.mock.mockImplementation(() =>
-      Promise.resolve(mockResponse),
-    )
-
-    const req: IChatAdapterNextItemReq = {
-      model: 'deepseek-chat',
-      systemPrompt: 'You are a helpful assistant',
-      tools: [],
-      prevItems: [
-        {
-          type: 'humanMessage',
-          humanMessage: {
-            text: 'Hello',
-            chatConnection: {} as any,
-            userConnection: {} as any,
-          },
-        },
-      ],
-    }
-
-    const result = await adapter.nextItem(req)
-
-    assert.strictEqual(mockDeepSeek.chat.completions.create.mock.callCount(), 1)
-    const callArgs = mockDeepSeek.chat.completions.create.mock.calls[0].arguments[0]
-
-    assert.strictEqual(callArgs.model, 'deepseek-chat')
-    assert.strictEqual(callArgs.tool_choice, 'auto')
-    assert.deepStrictEqual(callArgs.messages, [
-      { role: 'system', content: 'You are a helpful assistant' },
-      { role: 'user', content: 'Hello' },
-    ])
-    assert.deepStrictEqual(callArgs.tools, [])
-
-    assert.deepStrictEqual(result, {
-      chatItem: {
-        type: 'botMessage',
-        botMessage: { text: 'Hello! How can I help you today?' },
-      },
-      usage: { inputTokens: 10, outputTokens: 15 },
-    })
-  })
-
-  test('should handle tool usage correctly', async () => {
-    const mockResponse = {
-      choices: [
-        {
-          message: {
-            content: null,
-            tool_calls: [
-              {
-                id: 'call_abc123',
-                type: 'function',
-                function: {
-                  name: 'calculate',
-                  arguments: '{"expression":"2 + 2"}',
-                },
-              },
-            ],
-          },
-        },
-      ],
-      usage: { prompt_tokens: 25, completion_tokens: 8 },
-    }
-    mockDeepSeek.chat.completions.create.mock.mockImplementation(() =>
-      Promise.resolve(mockResponse),
-    )
-
-    const req: IChatAdapterNextItemReq = {
-      model: 'deepseek-chat',
-      systemPrompt: 'You are a helpful assistant',
-      tools: [
-        {
-          language: 'typescript',
-          name: 'calculate',
-          description: 'Calculate mathematical expressions',
-          parameters: [
-            {
-              type: 'string',
-              name: 'expression',
-              description: 'Mathematical expression to calculate',
-            },
-          ],
-        },
-      ],
-      prevItems: [
-        {
-          type: 'humanMessage',
-          humanMessage: {
-            text: 'What is 2 + 2?',
-            chatConnection: {} as any,
-            userConnection: {} as any,
-          },
-        },
-      ],
-    }
-
-    const result = await adapter.nextItem(req)
-
-    const callArgs = mockDeepSeek.chat.completions.create.mock.calls[0].arguments[0]
-    assert.strictEqual(callArgs.tools.length, 1)
-    assert.strictEqual(callArgs.tools[0].function.name, 'calculate')
-    assert.strictEqual(callArgs.tools[0].function.description, 'Calculate mathematical expressions')
-
-    assert.deepStrictEqual(result, {
-      chatItem: {
-        type: 'functionCall',
-        functionCall: {
-          id: 'call_abc123',
-          name: 'calculate',
-          arguments: '{"expression":"2 + 2"}',
-        },
-      },
-      usage: { inputTokens: 25, outputTokens: 8 },
-    })
+  runIChatAdapterComplianceTests({
+    get adapter() { return adapter },
+    get mockClient() { return mockDeepSeek },
+    createMockResponse: (content, usage) => ({
+      choices: [{ message: { content, tool_calls: null } }],
+      usage: { prompt_tokens: usage.inputTokens, completion_tokens: usage.outputTokens },
+    }),
+    setupMockCall: (mockClient, mockResponse) => {
+      mockClient.chat.completions.create.mock.mockImplementation(() =>
+        Promise.resolve(mockResponse),
+      )
+    },
   })
 })
