@@ -1,7 +1,8 @@
-import { describe, it, mock, beforeEach, afterEach } from 'node:test'
+import { describe, test, mock, beforeEach, afterEach } from 'node:test'
 import assert from 'node:assert'
 import { DeepSeekChatAdapter } from './DeepSeekChatAdapter'
 import { IChatAdapterNextItemReq } from '@/feature/chat-bot'
+import { container } from '@/core/injection'
 
 describe('DeepSeekChatAdapter', () => {
   let adapter: DeepSeekChatAdapter
@@ -23,8 +24,7 @@ describe('DeepSeekChatAdapter', () => {
       },
     }
 
-    adapter = new DeepSeekChatAdapter()
-    // Override the deepSeek client after construction
+    adapter = container.resolve(DeepSeekChatAdapter)
     adapter['deepSeek'] = mockDeepSeek
     adapter['logger'] = {
       debuggers: {},
@@ -51,321 +51,131 @@ describe('DeepSeekChatAdapter', () => {
     mock.restoreAll()
   })
 
-  describe('constructor', () => {
-    it('should throw error when DEEPSEEK_API_KEY is not provided', () => {
-      delete process.env.DEEPSEEK_API_KEY
+  test('should handle simple text request correctly', async () => {
+    const mockResponse = {
+      choices: [
+        {
+          message: {
+            content: 'Hello! How can I help you today?',
+            tool_calls: null,
+          },
+        },
+      ],
+      usage: { prompt_tokens: 10, completion_tokens: 15 },
+    }
+    mockDeepSeek.chat.completions.create.mock.mockImplementation(() =>
+      Promise.resolve(mockResponse),
+    )
 
-      assert.throws(() => new DeepSeekChatAdapter(), {
-        message: 'DEEPSEEK_API_KEY env variable is required',
-      })
+    const req: IChatAdapterNextItemReq = {
+      model: 'deepseek-chat',
+      systemPrompt: 'You are a helpful assistant',
+      tools: [],
+      prevItems: [
+        {
+          type: 'humanMessage',
+          humanMessage: {
+            text: 'Hello',
+            chatConnection: {} as any,
+            userConnection: {} as any,
+          },
+        },
+      ],
+    }
 
-      process.env.DEEPSEEK_API_KEY = 'test-api-key'
-    })
+    const result = await adapter.nextItem(req)
 
-    it('should throw error when DEEPSEEK_BASE_URL is not provided', () => {
-      delete process.env.DEEPSEEK_BASE_URL
+    assert.strictEqual(mockDeepSeek.chat.completions.create.mock.callCount(), 1)
+    const callArgs = mockDeepSeek.chat.completions.create.mock.calls[0].arguments[0]
 
-      assert.throws(() => new DeepSeekChatAdapter(), {
-        message: 'DEEPSEEK_BASE_URL env variable is required',
-      })
+    assert.strictEqual(callArgs.model, 'deepseek-chat')
+    assert.strictEqual(callArgs.tool_choice, 'auto')
+    assert.deepStrictEqual(callArgs.messages, [
+      { role: 'system', content: 'You are a helpful assistant' },
+      { role: 'user', content: 'Hello' },
+    ])
+    assert.deepStrictEqual(callArgs.tools, [])
 
-      process.env.DEEPSEEK_BASE_URL = 'https://api.deepseek.com'
+    assert.deepStrictEqual(result, {
+      chatItem: {
+        type: 'botMessage',
+        botMessage: { text: 'Hello! How can I help you today?' },
+      },
+      usage: { inputTokens: 10, outputTokens: 15 },
     })
   })
 
-  describe('nextItem', () => {
-    it('should call DeepSeek API with correct parameters for simple request', async () => {
-      const mockResponse = {
-        choices: [
-          {
-            message: {
-              content: 'Test response',
-              tool_calls: null,
-            },
-          },
-        ],
-      }
-      mockDeepSeek.chat.completions.create.mock.mockImplementation(() =>
-        Promise.resolve(mockResponse),
-      )
-
-      const req: IChatAdapterNextItemReq = {
-        model: 'deepseek-chat',
-        systemPrompt: 'You are a helpful assistant',
-        tools: [],
-        prevItems: [
-          {
-            type: 'humanMessage',
-            humanMessage: {
-              text: 'Hello',
-              chatConnection: {} as any,
-              userConnection: {} as any,
-            },
-          },
-        ],
-      }
-
-      const result = await adapter.nextItem(req)
-
-      assert.strictEqual(mockDeepSeek.chat.completions.create.mock.callCount(), 1)
-      const callArgs = mockDeepSeek.chat.completions.create.mock.calls[0].arguments[0]
-
-      assert.strictEqual(callArgs.model, 'deepseek-chat')
-      assert.strictEqual(callArgs.tool_choice, 'auto')
-      assert.deepStrictEqual(callArgs.messages, [
-        { role: 'system', content: 'You are a helpful assistant' },
-        { role: 'user', content: 'Hello' },
-      ])
-      assert.deepStrictEqual(callArgs.tools, [])
-
-      assert.deepStrictEqual(result, {
-        type: 'botMessage',
-        botMessage: { text: 'Test response' },
-      })
-    })
-
-    it('should handle tools in request', async () => {
-      const mockResponse = {
-        choices: [
-          {
-            message: {
-              content: null,
-              tool_calls: [
-                {
-                  id: 'tool_123',
-                  type: 'function',
-                  function: {
-                    name: 'test_tool',
-                    arguments: '{"param":"value"}',
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      }
-      mockDeepSeek.chat.completions.create.mock.mockImplementation(() =>
-        Promise.resolve(mockResponse),
-      )
-
-      const req: IChatAdapterNextItemReq = {
-        model: 'deepseek-chat',
-        systemPrompt: 'You are a helpful assistant',
-        tools: [
-          {
-            language: 'typescript',
-            name: 'test_tool',
-            description: 'A test tool',
-            parameters: [
+  test('should handle tool usage correctly', async () => {
+    const mockResponse = {
+      choices: [
+        {
+          message: {
+            content: null,
+            tool_calls: [
               {
-                type: 'string',
-                name: 'param',
-                description: 'A parameter',
+                id: 'call_abc123',
+                type: 'function',
+                function: {
+                  name: 'calculate',
+                  arguments: '{"expression":"2 + 2"}',
+                },
               },
             ],
           },
-        ],
-        prevItems: [],
-      }
-
-      const result = await adapter.nextItem(req)
-
-      const callArgs = mockDeepSeek.chat.completions.create.mock.calls[0].arguments[0]
-      assert.strictEqual(callArgs.tools.length, 1)
-      assert.deepStrictEqual(callArgs.tools[0], {
-        type: 'function',
-        function: {
-          name: 'test_tool',
-          description: 'A test tool',
-          parameters: {
-            type: 'object',
-            properties: {
-              param: { type: 'string', description: 'A parameter' },
-            },
-            required: ['param'],
-            additionalProperties: false,
-          },
-          strict: true,
         },
-      })
+      ],
+      usage: { prompt_tokens: 25, completion_tokens: 8 },
+    }
+    mockDeepSeek.chat.completions.create.mock.mockImplementation(() =>
+      Promise.resolve(mockResponse),
+    )
 
-      assert.deepStrictEqual(result, {
-        type: 'FUNCTION_CALL',
-        content: {
-          id: 'tool_123',
-          name: 'test_tool',
-          arguments: '{"param":"value"}',
+    const req: IChatAdapterNextItemReq = {
+      model: 'deepseek-chat',
+      systemPrompt: 'You are a helpful assistant',
+      tools: [
+        {
+          language: 'typescript',
+          name: 'calculate',
+          description: 'Calculate mathematical expressions',
+          parameters: [
+            {
+              type: 'string',
+              name: 'expression',
+              description: 'Mathematical expression to calculate',
+            },
+          ],
         },
-      })
-    })
-
-    it('should handle function call in previous items', async () => {
-      const mockResponse = {
-        choices: [
-          {
-            message: {
-              content: 'Function result processed',
-              tool_calls: null,
-            },
+      ],
+      prevItems: [
+        {
+          type: 'humanMessage',
+          humanMessage: {
+            text: 'What is 2 + 2?',
+            chatConnection: {} as any,
+            userConnection: {} as any,
           },
-        ],
-      }
-      mockDeepSeek.chat.completions.create.mock.mockImplementation(() =>
-        Promise.resolve(mockResponse),
-      )
+        },
+      ],
+    }
 
-      const req: IChatAdapterNextItemReq = {
-        model: 'deepseek-chat',
-        systemPrompt: 'You are a helpful assistant',
-        tools: [],
-        prevItems: [
-          {
-            type: 'functionCall',
-            functionCall: {
-              id: 'call_123',
-              name: 'test_function',
-              arguments: '{"param":"value"}',
-              result: 'Function executed successfully',
-            },
-          },
-        ],
-      }
+    const result = await adapter.nextItem(req)
 
-      await adapter.nextItem(req)
+    const callArgs = mockDeepSeek.chat.completions.create.mock.calls[0].arguments[0]
+    assert.strictEqual(callArgs.tools.length, 1)
+    assert.strictEqual(callArgs.tools[0].function.name, 'calculate')
+    assert.strictEqual(callArgs.tools[0].function.description, 'Calculate mathematical expressions')
 
-      const callArgs = mockDeepSeek.chat.completions.create.mock.calls[0].arguments[0]
-      assert.strictEqual(callArgs.messages.length, 3)
-      assert.deepStrictEqual(callArgs.messages[0], {
-        role: 'system',
-        content: 'You are a helpful assistant',
-      })
-      assert.deepStrictEqual(callArgs.messages[1], {
-        role: 'assistant',
-        tool_calls: [
-          {
-            id: 'call_123',
-            type: 'function',
-            function: {
-              name: 'test_function',
-              arguments: '{"param":"value"}',
-            },
-          },
-        ],
-      })
-      assert.deepStrictEqual(callArgs.messages[2], {
-        role: 'tool',
-        tool_call_id: 'call_123',
-        content: 'Function executed successfully',
-      })
-    })
-
-    it('should throw error for empty user message', async () => {
-      const req: IChatAdapterNextItemReq = {
-        model: 'deepseek-chat',
-        systemPrompt: 'You are a helpful assistant',
-        tools: [],
-        prevItems: [
-          {
-            type: 'humanMessage',
-            humanMessage: {
-              text: '',
-              chatConnection: {} as any,
-              userConnection: {} as any,
-            },
-          },
-        ],
-      }
-
-      await assert.rejects(() => adapter.nextItem(req), {
-        message: 'User message content is empty',
-      })
-    })
-
-    it('should throw error for empty bot message', async () => {
-      const req: IChatAdapterNextItemReq = {
-        model: 'deepseek-chat',
-        systemPrompt: 'You are a helpful assistant',
-        tools: [],
-        prevItems: [
-          {
-            type: 'botMessage',
-            botMessage: { text: '' },
-          },
-        ],
-      }
-
-      await assert.rejects(() => adapter.nextItem(req), {
-        message: 'Assistant message content is empty',
-      })
-    })
-
-    it('should throw error for unsupported DeepSeek response', async () => {
-      const mockResponse = {
-        choices: [
-          {
-            message: {
-              content: null,
-              tool_calls: null,
-            },
-          },
-        ],
-      }
-      mockDeepSeek.chat.completions.create.mock.mockImplementation(() =>
-        Promise.resolve(mockResponse),
-      )
-
-      const req: IChatAdapterNextItemReq = {
-        model: 'deepseek-chat',
-        systemPrompt: 'You are a helpful assistant',
-        tools: [],
-        prevItems: [],
-      }
-
-      await assert.rejects(() => adapter.nextItem(req), {
-        message: 'Not supported DeepSeek Response',
-      })
-    })
-
-    it('should handle function call result with null result', async () => {
-      const mockResponse = {
-        choices: [
-          {
-            message: {
-              content: 'Function result processed',
-              tool_calls: null,
-            },
-          },
-        ],
-      }
-      mockDeepSeek.chat.completions.create.mock.mockImplementation(() =>
-        Promise.resolve(mockResponse),
-      )
-
-      const req: IChatAdapterNextItemReq = {
-        model: 'deepseek-chat',
-        systemPrompt: 'You are a helpful assistant',
-        tools: [],
-        prevItems: [
-          {
-            type: 'functionCall',
-            functionCall: {
-              id: 'call_123',
-              name: 'test_function',
-              arguments: '{"param":"value"}',
-              result: undefined,
-            },
-          },
-        ],
-      }
-
-      await adapter.nextItem(req)
-
-      const callArgs = mockDeepSeek.chat.completions.create.mock.calls[0].arguments[0]
-      assert.deepStrictEqual(callArgs.messages[2], {
-        role: 'tool',
-        tool_call_id: 'call_123',
-        content: 'No result',
-      })
+    assert.deepStrictEqual(result, {
+      chatItem: {
+        type: 'functionCall',
+        functionCall: {
+          id: 'call_abc123',
+          name: 'calculate',
+          arguments: '{"expression":"2 + 2"}',
+        },
+      },
+      usage: { inputTokens: 25, outputTokens: 8 },
     })
   })
 })

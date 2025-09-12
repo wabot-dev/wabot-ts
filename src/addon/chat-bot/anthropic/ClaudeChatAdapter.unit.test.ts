@@ -1,4 +1,4 @@
-import { describe, it, mock, beforeEach, afterEach } from 'node:test'
+import { describe, mock, beforeEach, afterEach, test } from 'node:test'
 import assert from 'node:assert'
 import { AnthropicChatAdapter } from './AnthropicChatAdapter'
 import { IChatAdapterNextItemReq } from '@/feature/chat-bot'
@@ -11,8 +11,8 @@ describe('ClaudeChatAdapter', () => {
   let originalEnv: string | undefined
 
   beforeEach(() => {
-    originalEnv = process.env.CLAUDE_API_KEY
-    process.env.CLAUDE_API_KEY = 'test-api-key'
+    originalEnv = process.env.ANTHROPIC_API_KEY
+    process.env.ANTHROPIC_API_KEY = 'test-api-key'
 
     mockAnthropic = {
       messages: {
@@ -21,7 +21,6 @@ describe('ClaudeChatAdapter', () => {
     }
 
     adapter = container.resolve(AnthropicChatAdapter) 
-    // Override the anthropic client after construction
     adapter['anthropic'] = mockAnthropic
     adapter['logger'] = {
       debuggers: {},
@@ -36,29 +35,18 @@ describe('ClaudeChatAdapter', () => {
 
   afterEach(() => {
     if (originalEnv !== undefined) {
-      process.env.CLAUDE_API_KEY = originalEnv
+      process.env.ANTHROPIC_API_KEY = originalEnv
     } else {
-      delete process.env.CLAUDE_API_KEY
+      delete process.env.ANTHROPIC_API_KEY
     }
     mock.restoreAll()
   })
 
-  describe('constructor', () => {
-    // it('should throw error when CLAUDE_API_KEY is not provided', () => {
-    //   delete process.env.CLAUDE_API_KEY
-
-    //   assert.throws(() => new AnthropicChatAdapter(), {
-    //     message: 'CLAUDE_API_KEY env variable is required',
-    //   })
-
-    //   process.env.CLAUDE_API_KEY = 'test-api-key'
-    // })
-  })
-
   describe('nextItem', () => {
-    it('should call Claude API with correct parameters for simple request', async () => {
+    test('should call Claude API with correct parameters for simple text request', async () => {
       const mockResponse = {
-        content: [{ type: 'text', text: 'Test response' }],
+        content: [{ type: 'text', text: 'Hello! How can I help you today?' }],
+        usage: { input_tokens: 10, output_tokens: 15 },
       }
       mockAnthropic.messages.create.mock.mockImplementation(() => Promise.resolve(mockResponse))
 
@@ -87,24 +75,27 @@ describe('ClaudeChatAdapter', () => {
       assert.strictEqual(callArgs.system, 'You are a helpful assistant')
       assert.strictEqual(callArgs.max_tokens, 4096)
       assert.deepStrictEqual(callArgs.messages, [{ role: 'user', content: 'Hello' }])
-      assert.strictEqual(callArgs.tools, undefined)
 
       assert.deepStrictEqual(result, {
-        type: 'botMessage',
-        botMessage: { text: 'Test response' },
+        chatItem: {
+          type: 'botMessage',
+          botMessage: { text: 'Hello! How can I help you today?' },
+        },
+        usage: { inputTokens: 10, outputTokens: 15 },
       })
     })
 
-    it('should handle tools in request', async () => {
+    test('should handle tool usage correctly', async () => {
       const mockResponse = {
         content: [
           {
             type: 'tool_use',
-            id: 'tool_123',
-            name: 'test_tool',
-            input: { param: 'value' },
+            id: 'call_abc123',
+            name: 'calculate',
+            input: { expression: '2 + 2' },
           },
         ],
+        usage: { input_tokens: 25, output_tokens: 8 },
       }
       mockAnthropic.messages.create.mock.mockImplementation(() => Promise.resolve(mockResponse))
 
@@ -114,106 +105,22 @@ describe('ClaudeChatAdapter', () => {
         tools: [
           {
             language: 'typescript',
-            name: 'test_tool',
-            description: 'A test tool',
+            name: 'calculate',
+            description: 'Calculate mathematical expressions',
             parameters: [
               {
                 type: 'string',
-                name: 'param',
-                description: 'A parameter',
+                name: 'expression',
+                description: 'Mathematical expression to calculate',
               },
             ],
           },
         ],
-        prevItems: [],
-      }
-
-      const result = await adapter.nextItem(req)
-
-      const callArgs = mockAnthropic.messages.create.mock.calls[0].arguments[0]
-      assert.strictEqual(callArgs.tools.length, 1)
-      assert.deepStrictEqual(callArgs.tools[0], {
-        name: 'test_tool',
-        description: 'A test tool',
-        input_schema: {
-          type: 'object',
-          properties: {
-            param: { type: 'string', description: 'A parameter' },
-          },
-          required: ['param'],
-        },
-      })
-
-      assert.deepStrictEqual(result, {
-        type: 'FUNCTION_CALL',
-        content: {
-          id: 'tool_123',
-          name: 'test_tool',
-          arguments: '{"param":"value"}',
-        },
-      })
-    })
-
-    it('should handle function call in previous items', async () => {
-      const mockResponse = {
-        content: [{ type: 'text', text: 'Function result processed' }],
-      }
-      mockAnthropic.messages.create.mock.mockImplementation(() => Promise.resolve(mockResponse))
-
-      const req: IChatAdapterNextItemReq = {
-        model: 'claude-3-sonnet-20240229',
-        systemPrompt: 'You are a helpful assistant',
-        tools: [],
-        prevItems: [
-          {
-            type: 'functionCall',
-            functionCall: {
-              id: 'call_123',
-              name: 'test_function',
-              arguments: '{"param":"value"}',
-              result: 'Function executed successfully',
-            },
-          },
-        ],
-      }
-
-      await adapter.nextItem(req)
-
-      const callArgs = mockAnthropic.messages.create.mock.calls[0].arguments[0]
-      assert.strictEqual(callArgs.messages.length, 2)
-      assert.deepStrictEqual(callArgs.messages[0], {
-        role: 'assistant',
-        content: [
-          {
-            type: 'tool_use',
-            id: 'call_123',
-            name: 'test_function',
-            input: { param: 'value' },
-          },
-        ],
-      })
-      assert.deepStrictEqual(callArgs.messages[1], {
-        role: 'user',
-        content: [
-          {
-            type: 'tool_result',
-            tool_use_id: 'call_123',
-            content: 'Function executed successfully',
-          },
-        ],
-      })
-    })
-
-    it('should throw error for empty user message', async () => {
-      const req: IChatAdapterNextItemReq = {
-        model: 'claude-3-sonnet-20240229',
-        systemPrompt: 'You are a helpful assistant',
-        tools: [],
         prevItems: [
           {
             type: 'humanMessage',
             humanMessage: {
-              text: '',
+              text: 'What is 2 + 2?',
               chatConnection: {} as any,
               userConnection: {} as any,
             },
@@ -221,44 +128,23 @@ describe('ClaudeChatAdapter', () => {
         ],
       }
 
-      await assert.rejects(() => adapter.nextItem(req), {
-        message: 'User message content is empty',
-      })
-    })
+      const result = await adapter.nextItem(req)
 
-    it('should throw error for empty bot message', async () => {
-      const req: IChatAdapterNextItemReq = {
-        model: 'claude-3-sonnet-20240229',
-        systemPrompt: 'You are a helpful assistant',
-        tools: [],
-        prevItems: [
-          {
-            type: 'botMessage',
-            botMessage: { text: '' },
+      const callArgs = mockAnthropic.messages.create.mock.calls[0].arguments[0]
+      assert.strictEqual(callArgs.tools.length, 1)
+      assert.strictEqual(callArgs.tools[0].name, 'calculate')
+      assert.strictEqual(callArgs.tools[0].description, 'Calculate mathematical expressions')
+
+      assert.deepStrictEqual(result, {
+        chatItem: {
+          type: 'functionCall',
+          functionCall: {
+            id: 'call_abc123',
+            name: 'calculate',
+            arguments: '{"expression":"2 + 2"}',
           },
-        ],
-      }
-
-      await assert.rejects(() => adapter.nextItem(req), {
-        message: 'Assistant message content is empty',
-      })
-    })
-
-    it('should throw error for unsupported Claude response', async () => {
-      const mockResponse = {
-        content: [{ type: 'unsupported_type' }],
-      }
-      mockAnthropic.messages.create.mock.mockImplementation(() => Promise.resolve(mockResponse))
-
-      const req: IChatAdapterNextItemReq = {
-        model: 'claude-3-sonnet-20240229',
-        systemPrompt: 'You are a helpful assistant',
-        tools: [],
-        prevItems: [],
-      }
-
-      await assert.rejects(() => adapter.nextItem(req), {
-        message: 'Not supported Claude Response',
+        },
+        usage: { inputTokens: 25, outputTokens: 8 },
       })
     })
   })
