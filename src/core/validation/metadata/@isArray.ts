@@ -1,5 +1,5 @@
 import { container } from '@/core/injection'
-import { IValidateArrayOptions, validateArray } from '../validators/validateArray'
+import { IValidateArrayOptions, validateArray } from '../core/validateArray'
 import { ValidationMetadataStore } from './ValidationMetadataStore'
 
 export function isArray(options?: IValidateArrayOptions) {

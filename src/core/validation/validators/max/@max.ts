@@ -1,15 +1,16 @@
 import { container } from '@/core/injection'
-import { ValidationMetadataStore } from './ValidationMetadataStore'
-import { _IS_OPTIONAL_DUMMY_VALIDATOR_ } from '../core/validateIsOptional'
+import { ValidationMetadataStore } from '../../metadata/ValidationMetadataStore'
+import { validateMax } from './validateMax'
 
-export function isOptional() {
+export function max(limit: any) {
   return function (target: object, propertyKey: string | symbol) {
     const propertyName = propertyKey.toString()
     const store = container.resolve(ValidationMetadataStore)
     store.saveValidatorMetadata({
       modelConstructor: target.constructor as any,
       propertyName,
-      validator: _IS_OPTIONAL_DUMMY_VALIDATOR_,
+      validator: validateMax,
+      validatorOptions: { limit },
     })
   }
 }

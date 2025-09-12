@@ -1,6 +1,6 @@
 import { IConstructor } from '@/core/generics'
 import { container } from '@/core/injection'
-import { validateModel } from '../validators/validateModel'
+import { validateModel } from '../core/validateModel'
 import { ValidationMetadataStore } from './ValidationMetadataStore'
 
 export function isModel(model: IConstructor<any>) {

@@ -2,7 +2,7 @@ import { Pool } from 'pg'
 
 import { PgChatMemory } from './PgChatMemory'
 import { singleton } from '@/core/injection'
-import { PgCrudRepository } from '@/addon/repository/pg'
+import { PgCrudRepository } from '@/feature/pg'
 import { Chat, IChatConnection, IChatMemory, IChatRepository } from '@/feature/chat-bot'
 
 @singleton()

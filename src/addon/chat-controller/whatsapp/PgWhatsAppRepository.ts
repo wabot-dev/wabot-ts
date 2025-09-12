@@ -1,7 +1,7 @@
 import { Pool } from 'pg'
 import { WhatsApp } from './WhatsApp'
 import { singleton } from '@/core/injection'
-import { PgCrudRepository } from '@/addon/repository/pg'
+import { PgCrudRepository } from '@/feature/pg'
 import { IWhatsAppRepository } from './IWhatsAppRepository'
 
 @singleton()

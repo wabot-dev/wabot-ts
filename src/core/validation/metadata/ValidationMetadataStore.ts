@@ -1,9 +1,9 @@
 import { singleton } from '@/core/injection'
 import { IValidatorMetadata } from './IValidatorMetadata'
 import { IConstructor } from '@/core/generics'
-import { IModelValidatorsInfo, IPropertyValidatorInfo } from '../validators/contracts'
-import { _IS_OPTIONAL_DUMMY_VALIDATOR_ } from '../validators/validateIsOptional'
-import { IValidateArrayOptionsWithItemsValidators, validateArray } from '../validators'
+import { IModelValidatorsInfo, IPropertyValidatorInfo } from '../core/contracts'
+import { _IS_OPTIONAL_DUMMY_VALIDATOR_ } from '../core/validateIsOptional'
+import { IValidateArrayOptionsWithItemsValidators, validateArray } from '../core'
 
 function getClassHierarchy(cls: Function): Function[] {
   const classes: Function[] = []

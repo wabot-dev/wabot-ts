@@ -1,4 +1,4 @@
-import { PgCrudRepository } from '@/addon/repository/pg'
+import { PgCrudRepository } from '@/feature/pg'
 import { ChatItem, IChatMemory } from '@/feature/chat-bot'
 import { Pool } from 'pg'
 

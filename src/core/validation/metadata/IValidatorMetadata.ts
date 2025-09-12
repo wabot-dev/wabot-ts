@@ -1,5 +1,5 @@
 import { IConstructor } from '@/core/generics'
-import { IValidator } from '../validators/contracts'
+import { IValidator } from '../core/contracts'
 
 export interface IValidatorMetadata {
   modelConstructor: IConstructor<any>

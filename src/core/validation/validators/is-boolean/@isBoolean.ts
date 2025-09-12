@@ -1,15 +1,15 @@
 import { container } from '@/core/injection'
-import { ValidationMetadataStore } from './ValidationMetadataStore'
-import { _IS_OPTIONAL_DUMMY_VALIDATOR_ } from '../core/validateIsOptional'
+import { ValidationMetadataStore } from '../../metadata/ValidationMetadataStore'
+import { validateIsBoolean } from './validateIsBoolean'
 
-export function isOptional() {
+export function isBoolean() {
   return function (target: object, propertyKey: string | symbol) {
     const propertyName = propertyKey.toString()
     const store = container.resolve(ValidationMetadataStore)
     store.saveValidatorMetadata({
       modelConstructor: target.constructor as any,
       propertyName,
-      validator: _IS_OPTIONAL_DUMMY_VALIDATOR_,
+      validator: validateIsBoolean,
     })
   }
 }

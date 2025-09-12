@@ -1,7 +1,7 @@
 import { Pool } from 'pg'
 
 import { singleton } from '@/core/injection'
-import { PgCrudRepository } from '@/addon/repository/pg'
+import { PgCrudRepository } from '@/feature/pg'
 import { IJobRepository, Job } from '@/feature/async'
 
 @singleton()
