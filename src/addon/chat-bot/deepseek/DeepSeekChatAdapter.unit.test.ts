@@ -53,8 +53,12 @@ describe('DeepSeekChatAdapter', () => {
   })
 
   runIChatAdapterComplianceTests({
-    get adapter() { return adapter },
-    get mockClient() { return mockDeepSeek },
+    get adapter() {
+      return adapter
+    },
+    get mockClient() {
+      return mockDeepSeek
+    },
     createMockResponse: (content, usage) => ({
       choices: [{ message: { content, tool_calls: null } }],
       usage: { prompt_tokens: usage.inputTokens, completion_tokens: usage.outputTokens },
