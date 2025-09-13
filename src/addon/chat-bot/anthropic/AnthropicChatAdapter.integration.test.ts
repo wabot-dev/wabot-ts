@@ -11,43 +11,19 @@ describe('AnthropicChatAdapter Integration Tests', () => {
   let originalApiKey: string | undefined
 
   beforeEach(() => {
-    originalApiKey = process.env.ANTHROPIC_API_KEY
-
-    // Skip tests if no API key is provided
-    if (!process.env.ANTHROPIC_API_KEY) {
-      console.log('⚠️  Skipping Anthropic integration tests - ANTHROPIC_API_KEY not provided')
-      return
-    }
-
     adapter = container.resolve(AnthropicChatAdapter)
-  })
-
-  afterEach(() => {
-    if (originalApiKey !== undefined) {
-      process.env.ANTHROPIC_API_KEY = originalApiKey
-    } else {
-      delete process.env.ANTHROPIC_API_KEY
-    }
   })
 
   // Skip all tests if no API key
   const runTests = () => {
-    if (!process.env.ANTHROPIC_API_KEY) {
-      test('Skipping integration tests - no API key', () => {
-        console.log('Set ANTHROPIC_API_KEY environment variable to run integration tests')
-      })
-      return
-    }
-
     // Use default model for integration tests
     const model = 'claude-3-haiku-20240307'
 
     runIChatAdapterIntegrationTests({
       adapter: () => adapter,
-      model, // Using Haiku for faster/cheaper tests
+      model,
       skipTests: {
-        // Anthropic/Claude specific configuration
-        toolCalling: false, // Claude supports tools
+        toolCalling: false,
       },
     })
 
@@ -57,7 +33,6 @@ describe('AnthropicChatAdapter Integration Tests', () => {
     })
 
     test('Integration: Anthropic-specific model variants', async () => {
-      if (!process.env.ANTHROPIC_API_KEY) return
 
       const models = [
         'claude-3-haiku-20240307',
@@ -96,7 +71,6 @@ describe('AnthropicChatAdapter Integration Tests', () => {
     })
 
     test('Integration: Claude tool calling capabilities', async () => {
-      if (!process.env.ANTHROPIC_API_KEY) return
 
       const result = await adapter.nextItem({
         model,
@@ -137,7 +111,6 @@ describe('AnthropicChatAdapter Integration Tests', () => {
     })
 
     test('Integration: Claude system prompt adherence', async () => {
-      if (!process.env.ANTHROPIC_API_KEY) return
 
       const result = await adapter.nextItem({
         model,
@@ -166,7 +139,6 @@ describe('AnthropicChatAdapter Integration Tests', () => {
     })
 
     test('Integration: Claude conversation memory', async () => {
-      if (!process.env.ANTHROPIC_API_KEY) return
 
       const result = await adapter.nextItem({
         model,

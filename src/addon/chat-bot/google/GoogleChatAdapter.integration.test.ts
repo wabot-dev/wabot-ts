@@ -11,34 +11,13 @@ describe('GoogleChatAdapter Integration Tests', () => {
   let originalApiKey: string | undefined
 
   beforeEach(() => {
-    originalApiKey = process.env.GOOGLE_API_KEY
-
-    // Skip tests if no API key is provided
-    if (!process.env.GOOGLE_API_KEY) {
-      console.log('⚠️  Skipping Google integration tests - GOOGLE_API_KEY not provided')
-      return
-    }
-
     adapter = container.resolve(GoogleChatAdapter)
   })
 
-  afterEach(() => {
-    if (originalApiKey !== undefined) {
-      process.env.GOOGLE_API_KEY = originalApiKey
-    } else {
-      delete process.env.GOOGLE_API_KEY
-    }
-  })
 
   // Skip all tests if no API key
   const runTests = () => {
-    if (!process.env.GOOGLE_API_KEY) {
-      test('Skipping integration tests - no API key', () => {
-        console.log('Set GOOGLE_API_KEY environment variable to run integration tests')
-      })
-      return
-    }
-
+  
     runIChatAdapterIntegrationTests({
       adapter: () => adapter,
       model: 'gemini-1.5-pro', // Using Gemini Pro model
@@ -54,7 +33,6 @@ describe('GoogleChatAdapter Integration Tests', () => {
     })
 
     test('Integration: Google-specific model variants', async () => {
-      if (!process.env.GOOGLE_API_KEY) return
 
       const models = ['gemini-1.5-pro', 'gemini-1.5-flash']
 
@@ -89,7 +67,6 @@ describe('GoogleChatAdapter Integration Tests', () => {
     })
 
     test('Integration: Google API specific features', async () => {
-      if (!process.env.GOOGLE_API_KEY) return
 
       // Test with Gemini-specific system prompt
       const result = await adapter.nextItem({

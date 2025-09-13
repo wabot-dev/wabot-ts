@@ -12,46 +12,11 @@ describe('DeepSeekChatAdapter Integration Tests', () => {
   let originalBaseUrl: string | undefined
 
   beforeEach(() => {
-    originalApiKey = process.env.DEEPSEEK_API_KEY
-    originalBaseUrl = process.env.DEEPSEEK_BASE_URL
-
-    // Skip tests if no API key is provided
-    if (!process.env.DEEPSEEK_API_KEY) {
-      console.log('⚠️  Skipping DeepSeek integration tests - DEEPSEEK_API_KEY not provided')
-      return
-    }
-
-    // Set default base URL if not provided
-    if (!process.env.DEEPSEEK_BASE_URL) {
-      process.env.DEEPSEEK_BASE_URL = 'https://api.deepseek.com'
-    }
-
     adapter = container.resolve(DeepSeekChatAdapter)
-  })
-
-  afterEach(() => {
-    if (originalApiKey !== undefined) {
-      process.env.DEEPSEEK_API_KEY = originalApiKey
-    } else {
-      delete process.env.DEEPSEEK_API_KEY
-    }
-
-    if (originalBaseUrl !== undefined) {
-      process.env.DEEPSEEK_BASE_URL = originalBaseUrl
-    } else {
-      delete process.env.DEEPSEEK_BASE_URL
-    }
   })
 
   // Skip all tests if no API key
   const runTests = () => {
-    if (!process.env.DEEPSEEK_API_KEY) {
-      test('Skipping integration tests - no API key', () => {
-        console.log('Set DEEPSEEK_API_KEY environment variable to run integration tests')
-      })
-      return
-    }
-
     runIChatAdapterIntegrationTests({
       adapter: () => adapter,
       model: 'deepseek-chat', // Standard DeepSeek model
@@ -67,8 +32,6 @@ describe('DeepSeekChatAdapter Integration Tests', () => {
     })
 
     test('Integration: DeepSeek-specific model variants', async () => {
-      if (!process.env.DEEPSEEK_API_KEY) return
-
       const models = ['deepseek-chat', 'deepseek-coder']
 
       for (const model of models) {
@@ -103,8 +66,6 @@ describe('DeepSeekChatAdapter Integration Tests', () => {
     })
 
     test('Integration: DeepSeek coding capabilities', async () => {
-      if (!process.env.DEEPSEEK_API_KEY) return
-
       const result = await adapter.nextItem({
         model: 'deepseek-coder',
         systemPrompt: 'You are a coding assistant. Provide brief, accurate code examples.',
@@ -137,7 +98,6 @@ describe('DeepSeekChatAdapter Integration Tests', () => {
     })
 
     test('Integration: DeepSeek API configuration', async () => {
-      if (!process.env.DEEPSEEK_API_KEY) return
 
       // Test with explicit base URL
       const result = await adapter.nextItem({
@@ -167,7 +127,6 @@ describe('DeepSeekChatAdapter Integration Tests', () => {
     })
 
     test('Integration: DeepSeek tool calling with coding context', async () => {
-      if (!process.env.DEEPSEEK_API_KEY) return
 
       const result = await adapter.nextItem({
         model: 'deepseek-coder',
@@ -214,7 +173,6 @@ describe('DeepSeekChatAdapter Integration Tests', () => {
     })
 
     test('Integration: DeepSeek error handling', async () => {
-      if (!process.env.DEEPSEEK_API_KEY) return
 
       // Test with empty message (should be handled by adapter validation)
       try {
@@ -243,8 +201,6 @@ describe('DeepSeekChatAdapter Integration Tests', () => {
     })
 
     test('Integration: DeepSeek with different base URLs', async () => {
-      if (!process.env.DEEPSEEK_API_KEY) return
-
       // This test verifies that the base URL configuration works
       // The actual URL should be set in environment variables
       const currentBaseUrl = process.env.DEEPSEEK_BASE_URL

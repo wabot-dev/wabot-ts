@@ -11,34 +11,11 @@ describe('OpenaiChatAdapter Integration Tests', () => {
   let originalApiKey: string | undefined
 
   beforeEach(() => {
-    originalApiKey = process.env.OPENAI_API_KEY
-
-    // Skip tests if no API key is provided
-    if (!process.env.OPENAI_API_KEY) {
-      console.log('⚠️  Skipping OpenAI integration tests - OPENAI_API_KEY not provided')
-      return
-    }
-
     adapter = container.resolve(OpenaiChatAdapter)
-  })
-
-  afterEach(() => {
-    if (originalApiKey !== undefined) {
-      process.env.OPENAI_API_KEY = originalApiKey
-    } else {
-      delete process.env.OPENAI_API_KEY
-    }
   })
 
   // Skip all tests if no API key
   const runTests = () => {
-    if (!process.env.OPENAI_API_KEY) {
-      test('Skipping integration tests - no API key', () => {
-        console.log('Set OPENAI_API_KEY environment variable to run integration tests')
-      })
-      return
-    }
-
     // Note: Based on the OpenaiChatAdapter code, it seems to use a custom API format
     // that might not be the standard OpenAI API. Adjust model names accordingly.
     runIChatAdapterIntegrationTests({
@@ -54,7 +31,6 @@ describe('OpenaiChatAdapter Integration Tests', () => {
 
     // Basic performance test with a simple model
     test('Integration: Basic OpenAI API connectivity', async () => {
-      if (!process.env.OPENAI_API_KEY) return
 
       try {
         const result = await adapter.nextItem({
@@ -99,7 +75,6 @@ describe('OpenaiChatAdapter Integration Tests', () => {
     })
 
     test('Integration: OpenAI-specific model variants', async () => {
-      if (!process.env.OPENAI_API_KEY) return
 
       const models = ['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo']
 
@@ -135,7 +110,6 @@ describe('OpenaiChatAdapter Integration Tests', () => {
     })
 
     test('Integration: Custom OpenAI API format validation', async () => {
-      if (!process.env.OPENAI_API_KEY) return
 
       // Test the custom format used by this OpenaiChatAdapter
       // which appears to use openai.responses.create instead of chat.completions.create
@@ -176,7 +150,6 @@ describe('OpenaiChatAdapter Integration Tests', () => {
     })
 
     test('Integration: Error handling with invalid model', async () => {
-      if (!process.env.OPENAI_API_KEY) return
 
       try {
         await adapter.nextItem({
