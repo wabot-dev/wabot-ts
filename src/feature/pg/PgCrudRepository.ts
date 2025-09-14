@@ -37,7 +37,6 @@ export class PgCrudRepository<P extends Entity<IEntityData>>
       SELECT ${this.columns}
       FROM ${this.table}
       WHERE id IN (${ids.map((_, i) => '$' + (i + 1)).join(',')})
-      LIMIT 1
     `
     const items = await this.query(sql, ids)
     return items
