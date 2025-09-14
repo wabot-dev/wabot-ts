@@ -30,6 +30,9 @@ export class PgCrudRepository<P extends Entity<IEntityData>>
   }
 
   async findByIds(ids: string[]): Promise<P[]> {
+    if (ids.length === 0) {
+      return []
+    }
     const sql = `
       SELECT ${this.columns}
       FROM ${this.table}
