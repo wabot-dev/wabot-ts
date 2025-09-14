@@ -10,7 +10,7 @@ import { ApiKey } from './ApiKey'
 @injectable()
 export class ApiKeyGuardMiddleware implements IMiddleware {
   constructor(
-    private apiKeyRepository: ApiKeyRepository,
+    private apiKeyRepository: ApiKeyRepository<any>,
     private auth: Auth<any>,
   ) {}
 

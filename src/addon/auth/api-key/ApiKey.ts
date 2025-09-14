@@ -3,19 +3,18 @@ import { CustomError } from '@/core/error'
 import { Password } from '@/core/password'
 import { IStorableData } from '@/core/storable'
 
-export interface IApiKeyData extends IEntityData {
+export interface IApiKeyData<A extends IStorableData> extends IEntityData {
   passwordHash?: string
-  authInfo: IStorableData
+  authInfo: A
 }
 
-export interface IApiKeySecretData {
-  id: string
-  pass: string
-}
-
-export class ApiKey extends Entity<IApiKeyData> {
+export class ApiKey<A extends IStorableData> extends Entity<IApiKeyData<A>> {
   get authInfo() {
     return this.data.authInfo
+  }
+
+  setAuthInfo(authInfo: A) {
+    this.data.authInfo = authInfo
   }
 
   generatePassword(): string {
@@ -34,25 +33,29 @@ export class ApiKey extends Entity<IApiKeyData> {
 
   validatePassword(password: string) {
     if (!this.isValidPassword(password)) {
-      throw new CustomError({ message: 'Invalid Api key', httpCode: 401 })
+      throw new CustomError({ message: 'invalid api key', httpCode: 401 })
     }
   }
 
-  static inflate(secret: string): IApiKeySecretData {
+  static inflate(secret: string): { id: string; pass: string } {
     try {
       const json = Buffer.from(secret, 'base64').toString('utf-8')
       const data = JSON.parse(json)
       if (!data.id || !data.pass) {
-        throw new Error('Invalid secret structure')
+        throw new Error('invalid secret structure')
       }
       return data
     } catch (err) {
-      throw new Error('Failed to inflate secret: ' + (err as Error).message)
+      throw new Error('fail to inflate secret: ' + (err as Error).message)
     }
   }
 
-  static deflate(data: IApiKeySecretData): string {
-    const json = JSON.stringify(data)
+  static deflate(data: { id: string; pass: string }): string {
+    const { id, pass } = data
+    if (!id || !pass) {
+      throw new Error('id and pass required')
+    }
+    const json = JSON.stringify({ id, pass })
     return Buffer.from(json, 'utf-8').toString('base64')
   }
 }
