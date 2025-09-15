@@ -32,6 +32,6 @@ export class Password {
   }
 
   static generate(length: number) {
-    return Random.string(length)
+    return Random.alphaNumeric(length)
   }
 }
