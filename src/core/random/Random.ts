@@ -5,6 +5,29 @@ const ALPHA_NUMERIC_CHARSET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvw
 const ALPHA_NUMERIC_LOWER_CASE_CHARSET = 'abcdefghijklmnopqrstuvwxyz0123456789'
 
 export class Random {
+  static integer(options: { min: number; max: number }): number {
+    const { min, max } = options
+    if (min > max) {
+      throw new RangeError('min must be less than or equal to max')
+    }
+
+    const range = max - min + 1
+    if (range <= 0) {
+      throw new RangeError('Range must be a positive number')
+    }
+
+    const byteSize = 6 // gives us up to 2^48
+    const maxGeneratedValue = Math.pow(2, byteSize * 8) - 1
+    const maxAcceptable = maxGeneratedValue - (maxGeneratedValue % range)
+
+    let randomNumber: number
+    do {
+      randomNumber = parseInt(randomBytes(byteSize).toString('hex'), 16)
+    } while (randomNumber >= maxAcceptable)
+
+    return min + (randomNumber % range)
+  }
+
   static slug(name: string, options: { randomLength: number }): string {
     const base = name
       .toLowerCase()
