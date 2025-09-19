@@ -23,7 +23,7 @@ export class JobRepository implements IJobRepository {
   update(item: Job): Promise<void> {
     throw new Error('Method not implemented.')
   }
-  discard(item: Job): Promise<void> {
+  delete(item: Job): Promise<void> {
     throw new Error('Method not implemented.')
   }
 }

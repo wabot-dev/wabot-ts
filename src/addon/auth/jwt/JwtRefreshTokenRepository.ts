@@ -23,7 +23,7 @@ export class JwtRefreshTokenRepository<D extends IStorableData>
   update(item: JwtRefreshToken<D>): Promise<void> {
     throw new Error('Method not implemented.')
   }
-  discard(item: JwtRefreshToken<D>): Promise<void> {
+  delete(item: JwtRefreshToken<D>): Promise<void> {
     throw new Error('Method not implemented.')
   }
 }

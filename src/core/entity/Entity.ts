@@ -51,10 +51,6 @@ export class Entity<D extends IEntityData> extends Storable<D> {
       throw new Error('createdAt is required')
     }
   }
-
-  discard() {
-    this.data.discardedAt = new Date().getTime()
-  }
 }
 
 /**

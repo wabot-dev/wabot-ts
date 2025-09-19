@@ -5,5 +5,5 @@ export interface ICrudRepository<T> {
   findAll(id: string): Promise<T[]>
   create(item: T): Promise<void>
   update(item: T): Promise<void>
-  discard(item: T): Promise<void>
+  delete(item: T): Promise<void>
 }

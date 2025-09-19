@@ -90,13 +90,11 @@ export class PgCrudRepository<P extends Entity<IEntityData>>
     await this.exec(sql, [...this.values(item), item.id])
   }
 
-  async discard(item: P): Promise<void> {
-    const _item = await this.find(item.id)
-    if (!_item) {
-      throw new Error('Not found')
-    }
-    item.discard()
-    _item.discard()
-    await this.update(_item)
+  async delete(item: P): Promise<void> {
+    const sql = `
+      DELETE FROM ${this.table}
+      WHERE id = $1
+    `
+    await this.exec(sql, [item.id])
   }
 }
