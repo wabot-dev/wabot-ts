@@ -1,6 +1,5 @@
-import { Entity, IEntityData } from "@/core/entity"
-import { CustomError } from "@/core/error"
-
+import { Entity, IEntityData } from '@/core/entity'
+import { CustomError } from '@/core/error'
 
 export interface IJobData extends IEntityData {
   commandName: string
@@ -8,6 +7,7 @@ export interface IJobData extends IEntityData {
   startedAt?: number
   successAt?: number
   failedAt?: number
+  retryAt?: number
   error?: {
     message: string
     stack?: string
@@ -18,6 +18,10 @@ export interface IJobData extends IEntityData {
 export class Job extends Entity<IJobData> {
   get commandName() {
     return this.data.commandName
+  }
+
+  hasFinished() {
+    return this.data.successAt != null || this.data.failedAt != null
   }
 
   setAsStarted() {
