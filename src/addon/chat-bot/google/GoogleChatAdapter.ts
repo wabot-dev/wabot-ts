@@ -41,8 +41,6 @@ export class GoogleChatAdapter implements IChatAdapter {
       tools,
     }
 
-    this.logger.debug(`Call Gemini API with Request: ${JSON.stringify(request)}`)
-
     const response = await this.openai.chat.completions.create(request)
     return this.mapResponse(response)
   }
