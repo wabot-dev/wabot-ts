@@ -6,6 +6,7 @@ import { IStorableData } from '@/core/storable'
 export interface IApiKeyData<A extends IStorableData> extends IEntityData {
   passwordHash?: string
   authInfo: A
+  name: string
 }
 
 export class ApiKey<A extends IStorableData> extends Entity<IApiKeyData<A>> {
