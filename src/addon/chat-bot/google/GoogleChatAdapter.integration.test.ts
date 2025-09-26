@@ -14,6 +14,6 @@ describe('GoogleChatAdapter Integration Tests', () => {
 
   runIChatAdapterIntegrationTests({
     adapter: () => adapter,
-    model: 'gemini-1.5-pro',
+    model: 'gemini-2.5-flash-lite',
   })
 })

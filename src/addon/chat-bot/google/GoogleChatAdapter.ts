@@ -28,11 +28,9 @@ export class GoogleChatAdapter implements IChatAdapter {
 
   async nextItem(req: IChatAdapterNextItemReq): Promise<IChatAdapterNextItemRes> {
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = []
-    
-    // Add system prompt as system message
+
     messages.push({ role: 'system', content: req.systemPrompt })
-    
-    // Add previous chat items
+
     messages.push(...this.mapChatItems(req.prevItems))
 
     const tools = req.tools.map((x) => this.mapTool(x))
@@ -40,8 +38,7 @@ export class GoogleChatAdapter implements IChatAdapter {
     const request = {
       model: req.model,
       messages,
-      tools: tools.length > 0 ? tools : undefined,
-      tool_choice: 'auto' as const,
+      tools,
     }
 
     this.logger.debug(`Call Gemini API with Request: ${JSON.stringify(request)}`)
@@ -87,21 +84,8 @@ export class GoogleChatAdapter implements IChatAdapter {
   private mapFunctionCall(item: IFunctionCall): OpenAI.Chat.ChatCompletionMessageParam[] {
     return [
       {
-        role: 'assistant',
-        tool_calls: [
-          {
-            id: item.id,
-            type: 'function',
-            function: {
-              name: item.name,
-              arguments: item.arguments || '{}',
-            },
-          },
-        ],
-      },
-      {
-        role: 'tool',
-        tool_call_id: item.id,
+        role: 'function',
+        name: item.id,
         content: item.result ?? 'No result',
       },
     ]
@@ -118,14 +102,16 @@ export class GoogleChatAdapter implements IChatAdapter {
           properties: tool.parameters.reduce(
             (prev, param) => ({
               ...prev,
-              [param.name]: { type: param.type, description: param.description },
+              [param.name]: { 
+                type: param.type, 
+                description: param.description,
+              },
             }),
-            {},
+            {}
           ),
           required: tool.parameters.map((param) => param.name),
           additionalProperties: false,
-        },
-        strict: true,
+        }
       },
     } as const
   }

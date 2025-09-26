@@ -1,6 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
 import { IChatAdapter, IChatAdapterNextItemReq } from '@/feature/chat-bot'
+import dotenv from 'dotenv'
+dotenv.config()
 
 export interface IChatAdapterIntegrationTestConfig {
   adapter: IChatAdapter | (() => IChatAdapter)
@@ -17,8 +19,8 @@ function createBasicIntegrationRequest(model: string): IChatAdapterNextItemReq {
         type: 'humanMessage',
         humanMessage: {
           text: 'Hello! Please respond with exactly: "Integration test successful"',
-          chatConnection: {} as any,
-          userConnection: {} as any,
+          senderId: 'user-123',
+          senderName: 'User 123',
         },
       },
     ],
@@ -31,14 +33,14 @@ function createToolIntegrationRequest(model: string): IChatAdapterNextItemReq {
     systemPrompt: 'You are a helpful assistant. Use the provided tools when appropriate.',
     tools: [
       {
-        language: 'typescript',
-        name: 'getCurrentTime',
+        language: 'spanish',
+        name: 'sofia',
         description: 'Get the current date and time',
         parameters: [],
       },
       {
-        language: 'typescript',
-        name: 'calculate',
+        language: 'spanish',
+        name: 'sofia',
         description: 'Perform mathematical calculations',
         parameters: [
           {
@@ -54,8 +56,8 @@ function createToolIntegrationRequest(model: string): IChatAdapterNextItemReq {
         type: 'humanMessage',
         humanMessage: {
           text: 'What time is it?',
-          chatConnection: {} as any,
-          userConnection: {} as any,
+          senderId: 'user-123',
+          senderName: 'User 123',
         },
       },
     ],
@@ -72,8 +74,8 @@ function createConversationRequest(model: string): IChatAdapterNextItemReq {
         type: 'humanMessage',
         humanMessage: {
           text: 'My name is Alice.',
-          chatConnection: {} as any,
-          userConnection: {} as any,
+          senderId: 'user-123',
+          senderName: 'User 123',
         },
       },
       {
@@ -86,8 +88,8 @@ function createConversationRequest(model: string): IChatAdapterNextItemReq {
         type: 'humanMessage',
         humanMessage: {
           text: 'What is my name?',
-          chatConnection: {} as any,
-          userConnection: {} as any,
+          senderId: 'user-123',
+          senderName: 'User 123',
         },
       },
     ],
@@ -126,8 +128,6 @@ export function runIChatAdapterIntegrationTests(config: IChatAdapterIntegrationT
     assert.ok(result.usage.outputTokens > 0, 'outputTokens should be positive')
   })
 
-
-
   test('Integration: should respect system prompt', async () => {
     const request = createBasicIntegrationRequest(model)
     request.systemPrompt = 'You are a pirate. Always respond like a pirate with "Ahoy matey!"'
@@ -140,7 +140,6 @@ export function runIChatAdapterIntegrationTests(config: IChatAdapterIntegrationT
     assert.strictEqual(result.chatItem.type, 'botMessage')
     if (result.chatItem.type === 'botMessage' && result.chatItem.botMessage.text) {
       const responseText = result.chatItem.botMessage.text.toLowerCase()
-      // Check for pirate-like language
       const hasPirateLanguage =
         responseText.includes('ahoy') ||
         responseText.includes('matey') ||
@@ -151,7 +150,6 @@ export function runIChatAdapterIntegrationTests(config: IChatAdapterIntegrationT
       )
     }
   })
-
 
   test('Integration: should handle tool calling (if supported)', async () => {
     const request = createToolIntegrationRequest(model)
@@ -181,7 +179,7 @@ export function runIChatAdapterIntegrationTests(config: IChatAdapterIntegrationT
       )
     }
   })
-  
+
   test('Integration: should maintain conversation context', async () => {
     const request = createConversationRequest(model)
 
@@ -197,8 +195,6 @@ export function runIChatAdapterIntegrationTests(config: IChatAdapterIntegrationT
       )
     }
   })
-  
-
 
   test('Integration: should handle invalid requests appropriately', async () => {
     const request = createBasicIntegrationRequest(model)
@@ -224,10 +220,6 @@ export function runIChatAdapterIntegrationTests(config: IChatAdapterIntegrationT
     if (result.chatItem.type === 'botMessage' && result.chatItem.botMessage.text) {
       assert.ok(result.chatItem.botMessage.text.length > 0, 'Should handle long input')
     }
-    assert.ok(
-      result.usage.inputTokens > 50,
-      'Should report significant token usage for long input',
-    )
+    assert.ok(result.usage.inputTokens > 50, 'Should report significant token usage for long input')
   })
-  
 }
