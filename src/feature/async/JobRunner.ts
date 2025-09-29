@@ -2,12 +2,14 @@ import { CommandMetadataStore } from './CommandMetadataStore'
 import { JobRepository } from './JobRepository'
 import { Job } from './Job'
 import { container, singleton } from '@/core/injection'
+import { Logger } from '@/core/logger'
 
 @singleton()
 export class JobRunner {
+  private logger = new Logger('wabot:job-runner')
   constructor(
     private jobRepository: JobRepository,
-    private handlerContainer: CommandMetadataStore
+    private handlerContainer: CommandMetadataStore,
   ) {}
 
   async run(job: Job) {
@@ -33,6 +35,7 @@ export class JobRunner {
       await handler.handle(command)
       job.setAsSuccess()
     } catch (e) {
+      this.logger.error(e)
       job.setAsFailed(e instanceof Error ? e : new Error('Invalid Job error'))
     } finally {
       await this.jobRepository.update(job)

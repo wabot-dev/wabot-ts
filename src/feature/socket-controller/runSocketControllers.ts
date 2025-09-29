@@ -1,4 +1,3 @@
-
 import { IConstructor } from '@/core/generics'
 import { SocketControllerMetadataStore } from './metadata'
 import path from 'path'
@@ -79,6 +78,7 @@ export function runSocketControllers(controllers: IConstructor<any>[]) {
                 )
                 callback(out)
               } catch (err) {
+                logger.error(err)
                 if (err instanceof Error) {
                   const keys = Object.keys(err).filter((key) => !['message', 'stack'].includes(key))
                   const { httpCode, ...info } = keys.reduce(
