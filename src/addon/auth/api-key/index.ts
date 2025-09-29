@@ -1,5 +1,7 @@
+export * from './@apiKeyConnectionGuard'
 export * from './@apiKeyGuard'
 export * from './ApiKey'
+export * from './ApiKeyConnectionGuardMiddleware'
 export * from './ApiKeyGuardMiddleware'
 export * from './ApiKeyRepository'
 export * from './IApiKeyRepository'
