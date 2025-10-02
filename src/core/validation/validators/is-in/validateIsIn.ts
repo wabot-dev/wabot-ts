@@ -1,7 +1,7 @@
 import { IValidationResult } from '@/core/validation'
 
 export interface IValidateIsInOptions {
-  values: (number | string | boolean | null)[]
+  values: readonly (number | string | boolean | null)[]
 }
 
 export function validateIsIn(value: any, options: IValidateIsInOptions): IValidationResult<any> {
