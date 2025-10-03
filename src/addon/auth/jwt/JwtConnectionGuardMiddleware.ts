@@ -22,8 +22,8 @@ export class JwtConnectionGuardMiddleware implements IConnectionMiddleware {
         authorization = authorization[0]
       }
       if (authorization) {
-        const [bearer, token] = authorization.split(' ')
-        if (bearer.toLowerCase() !== 'bearer' || !token) {
+        const [prefix, token] = authorization.split(' ')
+        if (prefix.toLowerCase() !== 'bearer' || !token) {
           throw new CustomError({
             httpCode: 401,
             message: 'Authorization should be a bearer token',
