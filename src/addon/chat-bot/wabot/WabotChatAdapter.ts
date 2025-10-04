@@ -22,7 +22,7 @@ export class WabotChatAdapter implements IChatAdapter {
     const response = await fetch(this.baseUrl + '/chat-bot/next-item', {
       method: 'post',
       headers: {
-        Authorization: `Bearer ${this.apiKey}`,
+        Authorization: `Api-Key ${this.apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(req),
