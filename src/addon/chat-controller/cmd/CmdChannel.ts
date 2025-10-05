@@ -5,10 +5,17 @@ import { injectable } from '@/core/injection'
 import { type IChatConnection, type IChatMessage } from '@/feature/chat-bot'
 import * as readline from 'readline'
 
+import * as fs from 'fs'
+import * as path from 'path'
+
 const chatId = 'cmd'
+
+const authInfoPath = '.cmd-channel/auth-info.json'
 
 @injectable()
 export class CmdChannel implements IChatChannel {
+  private authInfo: any = undefined
+
   private rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -41,6 +48,10 @@ export class CmdChannel implements IChatChannel {
 
       if (!this.callBack) return
 
+      if (this.authInfo === undefined) {
+        this.authInfo = readJsonFromFile(authInfoPath)
+      }
+
       this.callBack({
         chatConnection,
         message: {
@@ -50,7 +61,32 @@ export class CmdChannel implements IChatChannel {
           console.log(`\n[${message.senderName}]: ${message.text}\n`)
           this.rl.prompt()
         },
+        authInfo: this.authInfo || undefined,
+        setAuthInfo: (authInfo) => {
+          this.authInfo = authInfo || null
+          writeJsonToFile(authInfoPath, this.authInfo)
+        },
       })
     })
+  }
+}
+
+export function writeJsonToFile<T>(filename: string, data: T): void {
+  const filePath = path.join(process.cwd(), filename)
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8')
+}
+
+export function readJsonFromFile<T>(filename: string): T | null {
+  const filePath = path.join(process.cwd(), filename)
+
+  if (!fs.existsSync(filePath)) {
+    return null
+  }
+
+  const jsonData = fs.readFileSync(filePath, 'utf-8')
+  try {
+    return JSON.parse(jsonData) as T
+  } catch (err) {
+    return null
   }
 }
