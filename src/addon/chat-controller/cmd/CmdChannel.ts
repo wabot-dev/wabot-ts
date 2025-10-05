@@ -72,19 +72,21 @@ export class CmdChannel implements IChatChannel {
 }
 
 export function writeJsonToFile<T>(filename: string, data: T): void {
-  const filePath = path.join(process.cwd(), filename)
+  const filePath = path.resolve(process.cwd(), filename)
+  const dir = path.dirname(filePath)
+  fs.mkdirSync(dir, { recursive: true })
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8')
 }
 
 export function readJsonFromFile<T>(filename: string): T | null {
-  const filePath = path.join(process.cwd(), filename)
+  const filePath = path.resolve(process.cwd(), filename)
 
   if (!fs.existsSync(filePath)) {
     return null
   }
 
-  const jsonData = fs.readFileSync(filePath, 'utf-8')
   try {
+    const jsonData = fs.readFileSync(filePath, 'utf-8')
     return JSON.parse(jsonData) as T
   } catch (err) {
     return null
