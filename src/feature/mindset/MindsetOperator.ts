@@ -133,13 +133,31 @@ export class MindsetOperator implements IMindset {
       if (!response) {
         return 'success'
       }
-      return this.functionResponseToString(response)
+      return await this.functionResponseToString(response)
     } catch (error) {
-      return `Error: ${error}`
+      return await this.functionErrorToString(error)
     }
   }
 
-  functionResponseToString(response: any): string {
+  async functionResponseToString(response: any): Promise<string> {
+    if (response instanceof Response) {
+      const contentType = response.headers.get('Content-Type') || ''
+      let body: any
+
+      try {
+        body = contentType.includes('application/json')
+          ? await response.json()
+          : await response.text()
+      } catch {
+        body = { message: 'Unable to parse error body' }
+      }
+
+      return JSON.stringify({
+        httpCode: response.status,
+        body: typeof body === 'object' ? body : { message: body },
+      })
+    }
+
     const type = typeof response
     if (type === 'string') {
       return response
@@ -148,5 +166,26 @@ export class MindsetOperator implements IMindset {
     } else {
       return JSON.stringify(response)
     }
+  }
+
+  async functionErrorToString(error: any): Promise<string> {
+    if (error?.response && typeof error.response === 'object' && error.response.status) {
+      const { status, data } = error.response
+
+      return JSON.stringify({
+        httpCode: status,
+        body: typeof data === 'object' ? data : { message: data?.toString?.() || 'Unknown error' },
+      })
+    }
+
+    if (error instanceof Response) {
+      return await this.functionResponseToString(error)
+    }
+
+    if (error?.message) {
+      return error.message
+    }
+
+    return 'Unknown error occurred'
   }
 }
