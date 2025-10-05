@@ -133,9 +133,20 @@ export class MindsetOperator implements IMindset {
       if (!response) {
         return 'success'
       }
-      return response.toString()
+      return this.functionResponseToString(response)
     } catch (error) {
       return `Error: ${error}`
+    }
+  }
+
+  functionResponseToString(response: any): string {
+    const type = typeof response
+    if (type === 'string') {
+      return response
+    } else if (type === 'boolean' || type === 'number') {
+      return `${response}`
+    } else {
+      return JSON.stringify(response)
     }
   }
 }
