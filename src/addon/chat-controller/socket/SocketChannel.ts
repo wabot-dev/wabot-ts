@@ -57,8 +57,12 @@ export class SocketChannel implements IChatChannel {
             text: trimmedInput,
             senderName: message.senderName,
           },
-          reply: (message: IChatMessage) => {
+          reply: (message) => {
             socket.emit(this.config.channel, message)
+          },
+          authInfo: socket.data.authInfo,
+          setAuthInfo: (authInfo) => {
+            socket.data.authInfo = authInfo
           },
         })
       })

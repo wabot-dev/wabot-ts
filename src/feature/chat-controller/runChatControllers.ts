@@ -1,3 +1,4 @@
+import { Auth } from '@/core/auth'
 import { IConstructor } from '@/core/generics'
 import { container, Container, DependencyContainer } from '@/core/injection'
 import { Chat, ChatBot, ChatBotMetadataStore, ChatMemory, ChatRepository } from '@/feature/chat-bot'
@@ -23,6 +24,11 @@ async function prepareChatContainer(
     throw new Error('Not found Chat Memory for Chat with Id=' + messageContext.chat.id)
   }
   chatContainer.registerInstance(ChatMemory, chatMemory)
+
+  if (messageContext.authInfo) {
+    const auth = chatContainer.resolve(Auth)
+    auth.assign(messageContext.authInfo)
+  }
 
   const chatBotMetadataStore = container.resolve(ChatBotMetadataStore)
   const chatBots = chatBotMetadataStore.getChatBotsMetadata()
@@ -62,7 +68,13 @@ export function runChatControllers(controllers: IConstructor<any>[]) {
         const chatContainer = await prepareChatContainer(channelContainer, {
           chat,
           message: channelMessage.message,
-          reply: channelMessage.reply,
+          reply: (message) => {
+            channelMessage.reply(message)
+            if (channelMessage.setAuthInfo) {
+              const auth = chatContainer.resolve(Auth)
+              channelMessage.setAuthInfo(auth['authInfo'] || undefined)
+            }
+          },
         })
         const chatController = chatContainer.resolve(channelMetadata.controllerConstructor)
         chatController[channelMetadata.functionName](channelMessage)
