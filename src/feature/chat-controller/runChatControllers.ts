@@ -6,6 +6,7 @@ import { IMindset, Mindset } from '@/feature/mindset'
 import { ChatResolver } from './ChatResolver'
 import { IChannelMessage } from './IChannelMessage'
 import { IMessageContext } from './IMessageContext'
+import { IReceivedMessage } from './IReceivedMessage'
 import { ControllerMetadataStore } from './metadata'
 
 async function prepareChatContainer(
@@ -65,8 +66,15 @@ export function runChatControllers(controllers: IConstructor<any>[]) {
       const channel = channelContainer.resolve(channelMetadata.channelConstructor)
       channel.listen(async (channelMessage: IChannelMessage) => {
         const chat = await chatResolver.resolve(channelMessage.chatConnection)
+
         const chatContainer = await prepareChatContainer(channelContainer, {
           chat,
+          ...channelMessage,
+        })
+
+        const chatController = chatContainer.resolve(channelMetadata.controllerConstructor)
+
+        const receivedMessage: IReceivedMessage = {
           message: channelMessage.message,
           reply: (message) => {
             channelMessage.reply(message)
@@ -75,9 +83,9 @@ export function runChatControllers(controllers: IConstructor<any>[]) {
               channelMessage.setAuthInfo(auth['authInfo'] || undefined)
             }
           },
-        })
-        const chatController = chatContainer.resolve(channelMetadata.controllerConstructor)
-        chatController[channelMetadata.functionName](channelMessage)
+        }
+
+        chatController[channelMetadata.functionName](receivedMessage)
       })
 
       channel.connect()
