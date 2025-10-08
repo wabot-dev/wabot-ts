@@ -7,14 +7,15 @@ import * as readline from 'readline'
 
 import * as fs from 'fs'
 import * as path from 'path'
+import { Random } from '@/core/random'
 
-const chatId = 'cmd'
-
+const chatIdPath = '.cmd-channel/id.json'
 const authInfoPath = '.cmd-channel/auth-info.json'
 
 @injectable()
 export class CmdChannel implements IChatChannel {
   private authInfo: any = undefined
+  private chatId: string | undefined = undefined
 
   private rl = readline.createInterface({
     input: process.stdin,
@@ -40,8 +41,16 @@ export class CmdChannel implements IChatChannel {
         return
       }
 
+      if (this.chatId === undefined) {
+        this.chatId = readJsonFromFile(chatIdPath) ?? undefined
+        if (!this.chatId) {
+          this.chatId = Random.alphaNumericLowerCase(10)
+          writeJsonToFile(chatIdPath, this.chatId)
+        }
+      }
+
       const chatConnection: IChatConnection = {
-        id: chatId,
+        id: this.chatId,
         chatType: 'PRIVATE',
         channelName: CmdChannel.name,
       }
