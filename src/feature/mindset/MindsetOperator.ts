@@ -33,15 +33,20 @@ export class MindsetOperator implements IMindset {
     return this.mindset.limits()
   }
 
+  workflow(): Promise<string> {
+    return this.mindset.workflow()
+  }
+
   llms(): Promise<IMindsetLlm[]> {
     return this.mindset.llms()
   }
 
   async systemPrompt(): Promise<string> {
-    let [identity, skills, limits] = await Promise.all([
+    let [identity, skills, limits, workflow] = await Promise.all([
       this.identity(),
       this.skills(),
       this.limits(),
+      this.workflow(),
     ])
 
     const language = identity.language.replaceAll('#', ' ')
@@ -51,6 +56,7 @@ export class MindsetOperator implements IMindset {
 
     skills = skills.replaceAll('#', ' ')
     limits = limits.replaceAll('#', ' ')
+    workflow = workflow.replaceAll('#', ' ')
 
     const systemPrompt = `
          # System Instructions
@@ -63,6 +69,9 @@ export class MindsetOperator implements IMindset {
   
           ## Skills (in your main language)
           ${skills}
+
+          ## Workflow (in your main language)
+          ${workflow}
   
           ## System limitations (in your main language)
           ${limits}
