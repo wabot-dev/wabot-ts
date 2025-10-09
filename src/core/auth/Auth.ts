@@ -19,4 +19,16 @@ export class Auth<D extends IStorableData> {
     }
     this.authInfo = authInfo
   }
+
+  override(authInfo: D): void {
+    this.authInfo = authInfo
+  }
+
+  clear(): void {
+    this.authInfo = null
+  }
+
+  isAssigned(): boolean {
+    return this.authInfo !== null
+  }
 }
