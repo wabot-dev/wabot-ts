@@ -157,8 +157,8 @@ export class MindsetOperator implements IMindset {
         body = contentType.includes('application/json')
           ? await response.json()
           : await response.text()
-      } catch {
-        body = { message: 'Unable to parse error body' }
+      } catch (error) {
+        body = { message: response.ok ? 'OK' : 'Unable to parse error body' }
       }
 
       return JSON.stringify({
@@ -178,6 +178,10 @@ export class MindsetOperator implements IMindset {
   }
 
   async functionErrorToString(error: any): Promise<string> {
+    if (error instanceof Response) {
+      return await this.functionResponseToString(error)
+    }
+
     if (error?.response && typeof error.response === 'object' && error.response.status) {
       const { status, data } = error.response
 
@@ -185,10 +189,6 @@ export class MindsetOperator implements IMindset {
         httpCode: status,
         body: typeof data === 'object' ? data : { message: data?.toString?.() || 'Unknown error' },
       })
-    }
-
-    if (error instanceof Response) {
-      return await this.functionResponseToString(error)
     }
 
     if (error?.message) {
