@@ -4,6 +4,15 @@ import { IChannelMessage, type IChatChannel } from '@/feature/chat-controller'
 import { SocketServerProvider } from '@/feature/socket'
 import type { Server } from 'socket.io'
 import { SocketChannelConfig } from './SocketChannelConfig'
+import {
+  runSocketControllers,
+  socketConnection,
+  socketController,
+  socketEvent,
+} from '@/feature/socket-controller'
+import { Socket } from 'socket.io'
+import { IConstructor } from '@/core/generics'
+import { jwtConnectionGuard } from '@/addon/auth'
 
 export interface ISocketChannelReceivedMessage {
   chatId: string
@@ -15,13 +24,49 @@ export interface ISocketChannelReceivedMessage {
 @injectable()
 export class SocketChannel implements IChatChannel {
   private callBack: ((message: IChannelMessage) => void) | null = null
-  private server: Server
+  private controller: IConstructor<any> | null = null
 
-  constructor(
-    private config: SocketChannelConfig,
-    private socketServerProvider: SocketServerProvider,
-  ) {
-    this.server = this.socketServerProvider.getSocketServer()
+  constructor(private config: SocketChannelConfig) {
+    this.configController()
+  }
+
+  private configController() {
+    const channel = this
+
+    @socketController(this.config.namespace)
+    class SocketChannelController {
+
+      @socketEvent('message')
+      onMessage(message: ISocketChannelReceivedMessage, socket: Socket) {
+        if (!channel.callBack) return
+
+        const trimmedInput = message.text.trim()
+        if (!trimmedInput) {
+          return
+        }
+
+        channel.callBack({
+          chatConnection: {
+            id: message.chatId,
+            chatType: 'PRIVATE',
+            channelName: SocketChannel.name,
+          },
+          message: {
+            text: message.text,
+            senderName: message.senderName,
+          },
+          reply: (message) => {
+            socket.emit('message', message)
+          },
+          authInfo: socket.data.authInfo,
+          setAuthInfo: (authInfo) => {
+            socket.data.authInfo = authInfo
+            socket.emit('authInfo', authInfo)
+          },
+        })
+      }
+    }
+    this.controller = SocketChannelController
   }
 
   listen(callback: (message: IChannelMessage) => void): void {
@@ -29,45 +74,8 @@ export class SocketChannel implements IChatChannel {
   }
 
   connect(): void {
-    this.server.on('connection', (socket) => {
-      socket.on(this.config.channel, async (message: ISocketChannelReceivedMessage) => {
-        const trimmedInput = message.text.trim()
-        if (!trimmedInput) {
-          return
-        }
+    if (!this.controller) return
 
-        if (!message.chatId || !message.userId || !message.senderName) {
-          socket.emit(this.config.channel, {
-            error: 'Invalid message format. chatId, userId, and senderName are required.',
-          })
-          return
-        }
-
-        const chatConnection: IChatConnection = {
-          id: message.chatId,
-          chatType: 'PRIVATE',
-          channelName: SocketChannel.name,
-        }
-
-        if (!this.callBack) return
-
-        this.callBack({
-          chatConnection,
-          message: {
-            text: trimmedInput,
-            senderName: message.senderName,
-          },
-          reply: (message) => {
-            socket.emit(this.config.channel, message)
-          },
-          authInfo: socket.data.authInfo,
-          setAuthInfo: (authInfo) => {
-            socket.data.authInfo = authInfo
-          },
-        })
-      })
-    })
-
-    this.socketServerProvider.listen()
+    runSocketControllers([this.controller])
   }
 }

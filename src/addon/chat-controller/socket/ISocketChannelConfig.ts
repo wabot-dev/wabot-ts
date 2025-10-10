@@ -1,3 +1,3 @@
 export interface ISocketChannelConfig {
-  channel: string
+  namespace: string
 }
