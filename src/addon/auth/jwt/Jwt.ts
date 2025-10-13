@@ -17,18 +17,19 @@ export class Jwt {
     private config: JwtConfig,
   ) {}
 
-  async createToken(): Promise<JwtAccessAndRefreshTokenDto> {
+  async createToken(metadata?: Record<string, string>): Promise<JwtAccessAndRefreshTokenDto> {
     const authInfo = this.auth.require()
     const refreshToken = new JwtRefreshToken({
+      metadata,
       authInfo,
-      expirationTime: new Date().getTime() + this.config.refreshExpirationSeconds * 1000,
+      expirationTime: Date.now() + this.config.refreshExpirationSeconds * 1000,
     })
-    const refreshPassword = refreshToken.generatePassword()
+    const refreshSecret = refreshToken.generateSecret()
     await this.jwtRefreshTokenRepository.create(refreshToken)
 
     const access = await this.jwtSigner.signAccessToken(refreshToken)
     const refresh: JwtTokenDto = {
-      token: JwtRefreshToken.deflate({ id: refreshToken.id, pass: refreshPassword }),
+      token: refreshSecret,
       expiration: new Date(refreshToken.expirationTime),
     }
     return {
@@ -37,10 +38,7 @@ export class Jwt {
     }
   }
 
-  async refreshToken(refreshSecret: string): Promise<JwtTokenDto> {
-    const { id, pass } = JwtRefreshToken.inflate(refreshSecret)
-    const refreshToken = await this.jwtRefreshTokenRepository.findOrThrow(id)
-    refreshToken.validatePassword(pass)
-    return this.jwtSigner.signAccessToken(refreshToken)
+  async findRefreshTokenAuthInfo(secret: string) {
+    return await this.jwtRefreshTokenRepository.findAndValidate(secret)
   }
 }

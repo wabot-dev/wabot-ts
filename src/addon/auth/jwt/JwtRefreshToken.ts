@@ -1,65 +1,78 @@
 import { Entity, IEntityData } from '@/core/entity'
 import { CustomError } from '@/core/error'
-import { Password } from '@/core/password'
 import { IStorableData } from '@/core/storable'
+import crypto from 'node:crypto'
 
 export interface IJwtRefreshTokenData<A extends IStorableData> extends IEntityData {
+  secretHash?: string
+  metadata?: Record<string, string>
   authInfo: A
-  passwordHash?: string
   expirationTime: number
+  revokedAt?: number
 }
 
 export class JwtRefreshToken<A extends IStorableData> extends Entity<IJwtRefreshTokenData<A>> {
+  static PREFIX = 'rt_'
+
+  static hashSecret(secret: string) {
+    return crypto.createHash('sha256').update(secret).digest('hex')
+  }
+
   get authInfo() {
     return this.data.authInfo
+  }
+
+  get metadata() {
+    return this.data.metadata ?? {}
   }
 
   get expirationTime() {
     return new Date(this.data.expirationTime)
   }
 
-  generatePassword(): string {
-    if (this.data.passwordHash) {
-      throw new Error('This api key, already has a secret')
-    }
-    const password = Password.generate(64)
-    this.data.passwordHash = Password.hash({ password: password })
-    return password
+  isExpired(): boolean {
+    return Date.now() > this.data.expirationTime
   }
 
-  isValidPassword(password: string) {
-    if (new Date().getTime() > this.data.expirationTime) {
-      return false
-    }
-    if (!this.data.passwordHash) return false
-    return Password.isValid({ password: password, hash: this.data.passwordHash })
+  revoke() {
+    this.data.revokedAt = Date.now()
   }
 
-  validatePassword(password: string) {
-    if (!this.isValidPassword(password)) {
-      throw new CustomError({ message: 'Invalid Api key', httpCode: 401 })
-    }
+  isRevoked(): boolean {
+    return this.data.revokedAt != null
   }
 
-  static inflate(secret: string): { id: string; pass: string } {
-    try {
-      const json = Buffer.from(secret, 'base64').toString('utf-8')
-      const data = JSON.parse(json)
-      if (!data.id || !data.pass) {
-        throw new Error('invalid secret structure')
-      }
-      return data
-    } catch (err) {
-      throw new Error('fail to inflate secret: ' + (err as Error).message)
+  generateSecret(): string {
+    if (this.data.secretHash) {
+      throw new Error('This Token key already has a secret')
     }
+    const secret = `${JwtRefreshToken.PREFIX}${crypto.randomBytes(32).toString('hex')}`
+    this.data.secretHash = JwtRefreshToken.hashSecret(secret)
+    return secret
   }
 
-  static deflate(data: { id: string; pass: string }): string {
-    const { id, pass } = data
-    if (!id || !pass) {
-      throw new Error('id and pass required')
+  isValidSecret(secret: string): boolean {
+    if (!secret.startsWith(JwtRefreshToken.PREFIX)) return false
+    if (!this.data.secretHash) return false
+
+    const hashed = JwtRefreshToken.hashSecret(secret)
+    const stored = this.data.secretHash
+
+    const hashedBuf = Buffer.from(hashed, 'hex')
+    const storedBuf = Buffer.from(stored, 'hex')
+
+    return hashedBuf.length === storedBuf.length && crypto.timingSafeEqual(hashedBuf, storedBuf)
+  }
+
+  isValidToken(secret: string): boolean {
+    if (this.isExpired()) return false
+    if (this.isRevoked()) return false
+    return this.isValidSecret(secret)
+  }
+
+  validateToken(secret: string) {
+    if (!this.isValidToken(secret)) {
+      throw new CustomError({ message: 'Invalid Token', httpCode: 401 })
     }
-    const json = JSON.stringify({ id, pass })
-    return Buffer.from(json, 'utf-8').toString('base64')
   }
 }

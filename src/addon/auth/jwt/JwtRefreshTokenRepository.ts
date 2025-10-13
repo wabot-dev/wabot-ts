@@ -5,6 +5,12 @@ import { JwtRefreshToken } from './JwtRefreshToken'
 export class JwtRefreshTokenRepository<D extends IStorableData>
   implements IJwtRefreshTokenRepository<D>
 {
+  findByMetadata(metadata: Record<string, string>): Promise<JwtRefreshToken<D>[]> {
+    throw new Error('Method not implemented.')
+  }
+  findAndValidate(secret: string): Promise<D> {
+    throw new Error('Method not implemented.')
+  }
   find(id: string): Promise<JwtRefreshToken<D> | null> {
     throw new Error('Method not implemented.')
   }
