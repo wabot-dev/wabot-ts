@@ -1,62 +1,58 @@
 import { Entity, IEntityData } from '@/core/entity'
 import { CustomError } from '@/core/error'
-import { Password } from '@/core/password'
 import { IStorableData } from '@/core/storable'
+import crypto from 'node:crypto'
 
 export interface IApiKeyData<A extends IStorableData> extends IEntityData {
-  passwordHash?: string
+  secretHash?: string
+  metadata?: Record<string, string>
   authInfo: A
   name: string
 }
 
 export class ApiKey<A extends IStorableData> extends Entity<IApiKeyData<A>> {
+  static PREFIX = 'sk_'
+
+  static hashSecret(secret: string) {
+    return crypto.createHash('sha256').update(secret).digest('hex')
+  }
+
   get authInfo() {
     return this.data.authInfo
+  }
+
+  get metadata() {
+    return this.data.metadata ?? {}
   }
 
   setAuthInfo(authInfo: A) {
     this.data.authInfo = authInfo
   }
 
-  generatePassword(): string {
-    if (this.data.passwordHash) {
-      throw new Error('This api key, already has a secret')
+  generateSecret(): string {
+    if (this.data.secretHash) {
+      throw new Error('This API key already has a secret')
     }
-    const password = Password.generate(64)
-    this.data.passwordHash = Password.hash({ password: password })
-    return password
+    const secret = `${ApiKey.PREFIX}${crypto.randomBytes(32).toString('hex')}`
+    this.data.secretHash = ApiKey.hashSecret(secret)
+    return secret
   }
 
-  isValidPassword(password: string) {
-    if (!this.data.passwordHash) return false
-    return Password.isValid({ password: password, hash: this.data.passwordHash })
+  isValidSecret(secret: string): boolean {
+    if (!secret.startsWith(ApiKey.PREFIX)) return false
+    if (!this.data.secretHash) return false
+    const hashed = ApiKey.hashSecret(secret)
+    const stored = this.data.secretHash
+
+    const hashedBuf = Buffer.from(hashed, 'hex')
+    const storedBuf = Buffer.from(stored, 'hex')
+
+    return hashedBuf.length === storedBuf.length && crypto.timingSafeEqual(hashedBuf, storedBuf)
   }
 
-  validatePassword(password: string) {
-    if (!this.isValidPassword(password)) {
-      throw new CustomError({ message: 'invalid api key', httpCode: 401 })
+  validateSecret(secret: string): void {
+    if (!this.isValidSecret(secret)) {
+      throw new CustomError({ message: 'Invalid API key', httpCode: 401 })
     }
-  }
-
-  static inflate(secret: string): { id: string; pass: string } {
-    try {
-      const json = Buffer.from(secret, 'base64').toString('utf-8')
-      const data = JSON.parse(json)
-      if (!data.id || !data.pass) {
-        throw new Error('invalid secret structure')
-      }
-      return data
-    } catch (err) {
-      throw new Error('fail to inflate secret: ' + (err as Error).message)
-    }
-  }
-
-  static deflate(data: { id: string; pass: string }): string {
-    const { id, pass } = data
-    if (!id || !pass) {
-      throw new Error('id and pass required')
-    }
-    const json = JSON.stringify({ id, pass })
-    return Buffer.from(json, 'utf-8').toString('base64')
   }
 }
