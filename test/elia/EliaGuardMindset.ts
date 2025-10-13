@@ -21,6 +21,10 @@ export class EliaGuardMindset {
     `
   }
 
+  async workflow() {
+    return ''
+  }
+
   async limits() {
     return `
       El usuario no tiene acceso a las funciones, 

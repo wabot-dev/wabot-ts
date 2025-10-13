@@ -28,6 +28,10 @@ export class EliaMindset implements IMindset {
     `
   }
 
+  async workflow() {
+    return ''
+  }
+
   async llms() {
     return [
       {
