@@ -7,7 +7,8 @@ export interface IApiKeyRepository<A extends IStorableData> {
   findByMetadata(metadata: Record<string, string>): Promise<ApiKey<A>[]>
   create(item: ApiKey<A>): Promise<void>
   generate(req: IGenerateApiKeyReq<A>): Promise<IGenerateApiKeyRes<A>>
-  findAuthInfoBySecret(secret: string): Promise<A | null>
+  findBySecret(secret: string): Promise<ApiKey<A> | null>
+  findAndValidate(secret: string): Promise<A>
 }
 
 export interface IGenerateApiKeyReq<A extends IStorableData> extends IStorableData {

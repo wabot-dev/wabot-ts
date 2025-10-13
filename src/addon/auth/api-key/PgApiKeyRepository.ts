@@ -4,6 +4,7 @@ import { Pool } from 'pg'
 import { singleton } from 'tsyringe'
 import { ApiKey } from './ApiKey'
 import { IApiKeyRepository, IGenerateApiKeyReq, IGenerateApiKeyRes } from './IApiKeyRepository'
+import { CustomError } from '@/core/error'
 
 @singleton()
 export class PgApiKeyRepository<A extends IStorableData>
@@ -18,7 +19,15 @@ export class PgApiKeyRepository<A extends IStorableData>
     })
   }
 
-  async findAuthInfoBySecret(secret: string): Promise<A | null> {
+  async findAndValidate(secret: string): Promise<A> {
+    const apiKey = await this.findBySecret(secret)
+    if (!apiKey) {
+      throw new CustomError({ message: 'Invalid Api Key', httpCode: 401 })
+    }
+    return apiKey.authInfo
+  }
+
+  async findBySecret(secret: string): Promise<ApiKey<A> | null> {
     const secretHash = ApiKey.hashSecret(secret)
     const query = `
       SELECT ${this.columns}
@@ -27,7 +36,7 @@ export class PgApiKeyRepository<A extends IStorableData>
       LIMIT 1
     `
     const items = await this.query(query, [JSON.stringify({ secretHash })])
-    return items[0]?.authInfo ?? null
+    return items[0] ?? null
   }
 
   async findByMetadata(metadata: Record<string, string>): Promise<ApiKey<A>[]> {

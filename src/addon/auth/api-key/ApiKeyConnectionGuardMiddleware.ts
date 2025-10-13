@@ -39,10 +39,7 @@ export class ApiKeyConnectionGuardMiddleware implements IConnectionMiddleware {
     }
 
     try {
-      const authInfo = await this.apiKeyRepository.findAuthInfoBySecret(keySecret)
-      if (!authInfo) {
-        throw new CustomError({ httpCode: 401, message: 'Invalid token' })
-      }
+      const authInfo = await this.apiKeyRepository.findAndValidate(keySecret)
       this.auth.assign(authInfo)
     } catch (err) {
       throw new CustomError({

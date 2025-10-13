@@ -25,10 +25,7 @@ export class ApiKeyGuardMiddleware implements IMiddleware {
     }
 
     try {
-      const authInfo = await this.apiKeyRepository.findAuthInfoBySecret(keySecret)
-      if (!authInfo) {
-        throw new CustomError({ httpCode: 401, message: 'Invalid key' })
-      }
+      const authInfo = await this.apiKeyRepository.findAndValidate(keySecret)
       this.auth.assign(authInfo)
     } catch (err) {
       throw new CustomError({
