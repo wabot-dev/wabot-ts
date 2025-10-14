@@ -4,9 +4,15 @@ import { ValidationMetadataStore } from './metadata/ValidationMetadataStore'
 import { IModelValidationResult } from './core/contracts'
 import { validateModel } from './core/validateModel'
 
-export type IValidateInputShape<V> = {
-  [K in keyof V]: V[K] extends Date ? string | number | Date : V[K]
-}
+export type IValidateInputShape<T> = T extends Date
+  ? Date
+  : T extends Array<infer U>
+    ? Array<IValidateInputShape<U>>
+    : T extends object
+      ? {
+          [K in keyof T]: IValidateInputShape<T[K]>
+        }
+      : T
 
 export function validateAndTransform<V>(
   value: IValidateInputShape<V>,

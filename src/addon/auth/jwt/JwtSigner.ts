@@ -28,7 +28,7 @@ export class JwtSigner {
     const token = jwt.sign(_authInfo, this.config.secretOrPrivateKey, {
       expiresIn: this.config.accessExpirationSeconds,
     })
-    const expiration = new Date().getTime() + this.config.accessExpirationSeconds * 1000
+    const expiration = new Date(new Date().getTime() + this.config.accessExpirationSeconds * 1000)
     return this.mapper.map({ token, expiration }, JwtTokenDto)
   }
 }
