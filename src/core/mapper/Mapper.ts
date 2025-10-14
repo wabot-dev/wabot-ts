@@ -1,9 +1,9 @@
 import { Storable } from '@/core/storable'
 import { CustomError } from '@/core/error'
-import { validate } from '@/core/validation'
+import { IValidateInputShape, validateAndTransform } from '@/core/validation'
 import { IConstructor } from '@/core/generics'
 
-function deepCopyWithStorable(obj: any): any {
+function deepCopyWithStorable(obj: any, visited = new WeakMap()): any {
   if (obj === null || typeof obj !== 'object') {
     return obj
   }
@@ -13,25 +13,43 @@ function deepCopyWithStorable(obj: any): any {
   }
 
   if (obj instanceof Storable) {
-    return deepCopyWithStorable(obj['data'])
+    const dataCopy = deepCopyWithStorable(obj['data'], visited)
+    const result = { ...dataCopy }
+
+    // Handle getters from prototype
+    const proto = Object.getPrototypeOf(obj)
+    const descriptors = Object.getOwnPropertyDescriptors(proto)
+
+    for (const [key, descriptor] of Object.entries(descriptors)) {
+      if (typeof descriptor.get === 'function') {
+        try {
+          const value = (obj as any)[key]
+          result[key] = deepCopyWithStorable(value, visited)
+        } catch {
+          // Silently ignore getters that throw
+        }
+      }
+    }
+
+    return result
   }
 
   if (Array.isArray(obj)) {
-    return obj.map((item) => deepCopyWithStorable(item))
+    return obj.map((item) => deepCopyWithStorable(item, visited))
   }
 
   const copy: any = {}
   for (const key in obj) {
     if (Object.prototype.hasOwnProperty.call(obj, key)) {
-      copy[key] = deepCopyWithStorable(obj[key])
+      copy[key] = deepCopyWithStorable(obj[key], visited)
     }
   }
   return copy
 }
 
 export class Mapper {
-  map<T>(data: any, ctor: IConstructor<T>): T {
-    const validationResult = validate(deepCopyWithStorable(data), ctor)
+  map<T>(data: IValidateInputShape<T>, ctor: IConstructor<T>): T {
+    const validationResult = validateAndTransform(deepCopyWithStorable(data), ctor)
     if (validationResult.error) {
       throw new CustomError({
         httpCode: 500,

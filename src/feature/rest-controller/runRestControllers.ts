@@ -2,7 +2,7 @@ import { CustomError } from '@/core/error'
 import { IConstructor } from '@/core/generics'
 import { container } from '@/core/injection'
 import { Logger } from '@/core/logger'
-import { validate } from '@/core/validation'
+import { validateAndTransform } from '@/core/validation'
 import { ExpressProvider } from '@/feature/express'
 import { Request, json, urlencoded } from 'express'
 import path from 'path'
@@ -58,7 +58,7 @@ export function runRestControllers(controllers: IConstructor<any>[]) {
             }
             defaultArgFound = true
             if (typeof paramType === 'function') {
-              const { value, error } = validate(buildRequest(req), paramType)
+              const { value, error } = validateAndTransform(buildRequest(req), paramType)
               if (error) {
                 throw new CustomError({ httpCode: 400, message: error.description, info: error })
               }

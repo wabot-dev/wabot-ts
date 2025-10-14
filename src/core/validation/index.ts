@@ -1,5 +1,5 @@
 export * from './metadata'
 export * from './core'
-export * from './validate'
+export * from './validateAndTransform'
 export * from './modelInfo'
 export * from './validators'

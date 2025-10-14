@@ -5,7 +5,7 @@ import { Logger } from '@/core/logger'
 import { container, DependencyContainer } from '@/core/injection'
 import { SocketServerProvider } from '../socket'
 import { CustomError } from '@/core/error'
-import { validate } from '@/core/validation'
+import { validateAndTransform } from '@/core/validation'
 
 export function runSocketControllers(controllers: IConstructor<any>[]) {
   const logger = new Logger('wabot:socket')
@@ -63,7 +63,7 @@ export function runSocketControllers(controllers: IConstructor<any>[]) {
                   })
                 }
 
-                const { value, error } = validate(req, reqType)
+                const { value, error } = validateAndTransform(req, reqType)
                 if (error) {
                   throw new CustomError({
                     httpCode: 400,

@@ -4,8 +4,12 @@ import { ValidationMetadataStore } from './metadata/ValidationMetadataStore'
 import { IModelValidationResult } from './core/contracts'
 import { validateModel } from './core/validateModel'
 
-export function validate<V>(
-  value: any,
+export type IValidateInputShape<V> = {
+  [K in keyof V]: V[K] extends Date ? string | number | Date : V[K]
+}
+
+export function validateAndTransform<V>(
+  value: IValidateInputShape<V>,
   modelConstructor: IConstructor<V>,
 ): IModelValidationResult<V> {
   const metadataStore = container.resolve(ValidationMetadataStore)
