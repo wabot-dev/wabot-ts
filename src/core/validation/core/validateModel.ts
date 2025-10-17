@@ -15,9 +15,20 @@ export function validateModel<V>(
     const propertyInfo = info.properties[propertyName]!
     const propertyValidators = propertyInfo.validators ?? []
 
-    resultValue[propertyName] = propertyInfo.isOptional
-      ? (value[propertyName] ?? resultValue[propertyName])
-      : value[propertyName]
+    const descriptor = Object.getOwnPropertyDescriptor(
+      Object.getPrototypeOf(resultValue),
+      propertyName,
+    )
+
+    const hasSetterOrWritable = !descriptor || descriptor.set || descriptor.writable
+
+    const originalValue = value[propertyName]
+
+    if (propertyInfo.isOptional && originalValue == null) {
+      continue
+    }
+
+    let currentValue = originalValue
 
     if (resultValue[propertyName] == null && propertyInfo.isOptional) {
       resultValue[propertyName] = undefined
@@ -26,11 +37,11 @@ export function validateModel<V>(
 
     for (let propertyValidatorInfo of propertyValidators) {
       const propertyValidatorResult = propertyValidatorInfo.validator(
-        resultValue[propertyName],
+        currentValue,
         propertyValidatorInfo.validatorOptions,
       )
 
-      resultValue[propertyName] = propertyValidatorResult.value
+      currentValue = propertyValidatorResult.value
 
       if (propertyValidatorResult.error) {
         let propertyErrors = propertiesErrors[propertyName]
@@ -40,6 +51,10 @@ export function validateModel<V>(
         }
         propertyErrors.push(propertyValidatorResult.error.description)
       }
+    }
+
+    if (hasSetterOrWritable) {
+      resultValue[propertyName] = currentValue
     }
   }
 
