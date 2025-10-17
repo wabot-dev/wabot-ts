@@ -11,37 +11,70 @@ export function validateModel<V>(
   let propertiesErrors: { [key: string]: string[] } = {}
   let resultValue = new info.modelConstructor() as any
 
-  for (const propertyName in info.properties) {
-    const propertyInfo = info.properties[propertyName]!
-    const propertyValidators = propertyInfo.validators ?? []
+  const properties: string[] = []
+  const getters: string[] = []
 
+  for (const propertyName in info.properties) {
     const descriptor = Object.getOwnPropertyDescriptor(
       Object.getPrototypeOf(resultValue),
       propertyName,
     )
-
-    const hasSetterOrWritable = !descriptor || descriptor.set || descriptor.writable
-
-    const originalValue = value[propertyName]
-
-    if (propertyInfo.isOptional && originalValue == null) {
-      continue
+    if (descriptor?.get) {
+      getters.push(propertyName)
     }
+    if (!descriptor?.set && !descriptor?.get) {
+      properties.push(propertyName)
+    }
+  }
 
-    let currentValue = originalValue
+  for (const propertyName of properties) {
+    const propertyInfo = info.properties[propertyName]!
+    const propertyValidators = propertyInfo.validators ?? []
 
-    if (resultValue[propertyName] == null && propertyInfo.isOptional) {
+    let currentPropValue = propertyInfo.isOptional
+      ? (value[propertyName] ?? resultValue[propertyName])
+      : value[propertyName]
+
+    if (currentPropValue == null && propertyInfo.isOptional) {
       resultValue[propertyName] = undefined
       continue
     }
 
     for (let propertyValidatorInfo of propertyValidators) {
       const propertyValidatorResult = propertyValidatorInfo.validator(
-        currentValue,
+        currentPropValue,
         propertyValidatorInfo.validatorOptions,
       )
 
-      currentValue = propertyValidatorResult.value
+      if (propertyValidatorResult.error) {
+        let propertyErrors = propertiesErrors[propertyName]
+        if (!propertyErrors) {
+          propertyErrors = []
+          propertiesErrors[propertyName] = propertyErrors
+        }
+        propertyErrors.push(propertyValidatorResult.error.description)
+      } else {
+        currentPropValue = propertyValidatorResult.value
+      }
+    }
+    resultValue[propertyName] = currentPropValue
+  }
+
+  for (const propertyName of getters) {
+    const propertyInfo = info.properties[propertyName]!
+    const propertyValidators = propertyInfo.validators ?? []
+
+    let propValue = resultValue[propertyName]
+
+    if (propValue == null && propertyInfo.isOptional) {
+      continue
+    }
+
+    for (let propertyValidatorInfo of propertyValidators) {
+      const propertyValidatorResult = propertyValidatorInfo.validator(
+        propValue,
+        propertyValidatorInfo.validatorOptions,
+      )
 
       if (propertyValidatorResult.error) {
         let propertyErrors = propertiesErrors[propertyName]
@@ -51,10 +84,6 @@ export function validateModel<V>(
         }
         propertyErrors.push(propertyValidatorResult.error.description)
       }
-    }
-
-    if (hasSetterOrWritable) {
-      resultValue[propertyName] = currentValue
     }
   }
 
