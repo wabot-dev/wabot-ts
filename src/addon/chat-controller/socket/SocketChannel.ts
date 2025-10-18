@@ -9,11 +9,26 @@ import {
 } from '@/feature/socket-controller'
 import { Socket } from 'socket.io'
 import { SocketChannelConfig } from './SocketChannelConfig'
+import { isNotEmpty, isString } from '@/core/validation'
 
 export interface ISocketChannelReceivedMessage {
   chatId: string
   senderName: string
   text: string
+}
+
+export class SocketChannelReceivedMessage implements ISocketChannelReceivedMessage {
+  @isString()
+  @isNotEmpty()
+  chatId!: string
+
+  @isString()
+  @isNotEmpty()
+  senderName!: string
+
+  @isString()
+  @isNotEmpty()
+  text!: string
 }
 
 @injectable()
@@ -32,7 +47,7 @@ export class SocketChannel implements IChatChannel {
     @handshakeMiddlewares(channel.config.handshakeMidlewares ?? [])
     class SocketChannelController {
       @onSocketEvent('message')
-      onMessage(message: ISocketChannelReceivedMessage, socket: Socket) {
+      onMessage(message: SocketChannelReceivedMessage, socket: Socket) {
         if (!channel.callBack) return
 
         const trimmedInput = message.text.trim()
