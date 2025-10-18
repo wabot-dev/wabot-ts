@@ -1,22 +1,17 @@
+import { IConstructor } from '@/core/generics'
 import { injectable } from '@/core/injection'
-import type { IChatConnection, IChatMessage } from '@/feature/chat-bot'
 import { IChannelMessage, type IChatChannel } from '@/feature/chat-controller'
-import { SocketServerProvider } from '@/feature/socket'
-import type { Server } from 'socket.io'
-import { SocketChannelConfig } from './SocketChannelConfig'
 import {
+  handshakeMiddlewares,
+  onSocketEvent,
   runSocketControllers,
-  socketConnection,
   socketController,
-  socketEvent,
 } from '@/feature/socket-controller'
 import { Socket } from 'socket.io'
-import { IConstructor } from '@/core/generics'
-import { jwtConnectionGuard } from '@/addon/auth'
+import { SocketChannelConfig } from './SocketChannelConfig'
 
 export interface ISocketChannelReceivedMessage {
   chatId: string
-  userId: string
   senderName: string
   text: string
 }
@@ -33,10 +28,10 @@ export class SocketChannel implements IChatChannel {
   private configController() {
     const channel = this
 
-    @socketController(this.config.namespace)
+    @socketController(channel.config.namespace)
+    @handshakeMiddlewares(channel.config.handshakeMidlewares ?? [])
     class SocketChannelController {
-
-      @socketEvent('message')
+      @onSocketEvent('message')
       onMessage(message: ISocketChannelReceivedMessage, socket: Socket) {
         if (!channel.callBack) return
 
@@ -45,12 +40,14 @@ export class SocketChannel implements IChatChannel {
           return
         }
 
+        const chatConnection = {
+          id: message.chatId,
+          chatType: 'PRIVATE',
+          channelName: SocketChannel.name,
+        }
+
         channel.callBack({
-          chatConnection: {
-            id: message.chatId,
-            chatType: 'PRIVATE',
-            channelName: SocketChannel.name,
-          },
+          chatConnection,
           message: {
             text: message.text,
             senderName: message.senderName,
@@ -61,7 +58,6 @@ export class SocketChannel implements IChatChannel {
           authInfo: socket.data.authInfo,
           setAuthInfo: (authInfo) => {
             socket.data.authInfo = authInfo
-            socket.emit('authInfo', authInfo)
           },
         })
       }
@@ -75,7 +71,6 @@ export class SocketChannel implements IChatChannel {
 
   connect(): void {
     if (!this.controller) return
-
     runSocketControllers([this.controller])
   }
 }

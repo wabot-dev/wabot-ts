@@ -5,6 +5,7 @@ import { Lifecycle, scoped } from '@/core/injection'
 @scoped(Lifecycle.ContainerScoped)
 export class Auth<D extends IStorableData> {
   private authInfo: D | null = null
+  private overrided = false
 
   require(): D {
     if (!this.authInfo) {
@@ -22,13 +23,19 @@ export class Auth<D extends IStorableData> {
 
   override(authInfo: D): void {
     this.authInfo = authInfo
+    this.overrided = true
   }
 
   clear(): void {
     this.authInfo = null
+    this.overrided = true
   }
 
   isAssigned(): boolean {
     return this.authInfo !== null
+  }
+
+  wasOverrided(): boolean {
+    return this.overrided
   }
 }

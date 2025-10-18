@@ -1,3 +1,3 @@
 export * from './metadata'
-export * from './IConnectionMiddleware'
+export * from './IHandshakeMiddleware'
 export * from './runSocketControllers'

@@ -80,7 +80,9 @@ export function runChatControllers(controllers: IConstructor<any>[]) {
             channelMessage.reply(message)
             if (channelMessage.setAuthInfo) {
               const auth = chatContainer.resolve(Auth)
-              channelMessage.setAuthInfo(auth['authInfo'] || undefined)
+              if (auth.wasOverrided()) {
+                channelMessage.setAuthInfo(auth['authInfo'] || undefined)
+              }
             }
           },
         }

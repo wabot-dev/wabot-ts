@@ -1,5 +1,4 @@
-import { isDate, isNotEmpty, isString } from "@/core/validation"
-
+import { isDate, isNotEmpty, isString } from '@/core/validation'
 
 export class JwtTokenDto {
   @isString()

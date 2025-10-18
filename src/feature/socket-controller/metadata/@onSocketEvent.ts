@@ -1,15 +1,15 @@
 import { container } from '@/core/injection'
-import { ISocketConnectionConfig as ISocketConnectionConfig } from './ISocketConnectionConfig'
+import { ISocketEventConfig } from './ISocketEventConfig'
 import { SocketControllerMetadataStore } from './SocketControllerMetadataStore'
 
-export function socketConnection(config?: string | ISocketConnectionConfig) {
+export function onSocketEvent(config: string | ISocketEventConfig) {
   return function (target: object, propertyKey: string | symbol) {
     const functionName = propertyKey.toString()
     const paramsTypes = (Reflect as any).getMetadata('design:paramtypes', target, functionName)
     const store = container.resolve(SocketControllerMetadataStore)
-    store.saveSocketConnectionMetadata({
+    store.saveSocketEventMetadata({
       controllerConstructor: target.constructor as any,
-      config: typeof config === 'string' ? { namespace: config } : config,
+      config: typeof config === 'string' ? { event: config } : config,
       functionName,
       paramsTypes,
     })

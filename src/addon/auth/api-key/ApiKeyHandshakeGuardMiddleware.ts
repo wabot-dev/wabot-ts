@@ -1,15 +1,14 @@
-import { Socket } from 'socket.io'
-import jwt from 'jsonwebtoken'
-import { IConnectionMiddleware } from '@/feature/socket-controller'
-import { DependencyContainer, injectable } from '@/core/injection'
 import { Auth } from '@/core/auth'
 import { CustomError } from '@/core/error'
-import { JwtConfig } from './JwtConfig'
+import { DependencyContainer, injectable } from '@/core/injection'
+import { IHandshakeMiddleware } from '@/feature/socket-controller'
+import { Socket } from 'socket.io'
+import { ApiKeyRepository } from './ApiKeyRepository'
 
 @injectable()
-export class JwtConnectionGuardMiddleware implements IConnectionMiddleware {
+export class ApiKeyHandshakeGuardMiddleware implements IHandshakeMiddleware {
   constructor(
-    private config: JwtConfig,
+    private apiKeyRepository: ApiKeyRepository<any>,
     private auth: Auth<any>,
   ) {}
 
@@ -23,27 +22,25 @@ export class JwtConnectionGuardMiddleware implements IConnectionMiddleware {
       }
       if (authorization) {
         const [prefix, token] = authorization.split(' ')
-        if (prefix.toLowerCase() !== 'bearer' || !token) {
+        if (prefix.toLowerCase() !== 'api-key' || !token) {
           throw new CustomError({
             httpCode: 401,
-            message: 'Authorization should be a bearer token',
+            message: 'Authorization should be an Api-Key',
           })
         }
         socket.handshake.auth.token = token
       }
     }
 
-    let token = socket.handshake.auth.token
+    let keySecret = socket.handshake.auth.token
 
-    if (!token) {
+    if (!keySecret) {
       throw new CustomError({ httpCode: 401, message: 'Token not available' })
     }
 
     try {
-      const jwtPayload = jwt.verify(token, this.config.secretOrPublicKey, {
-        algorithms: [this.config.algorithm],
-      })
-      this.auth.assign(jwtPayload)
+      const authInfo = await this.apiKeyRepository.findAndValidate(keySecret)
+      this.auth.assign(authInfo)
     } catch (err) {
       throw new CustomError({
         httpCode: 401,

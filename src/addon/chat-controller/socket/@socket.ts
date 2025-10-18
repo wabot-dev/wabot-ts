@@ -11,7 +11,7 @@ export function socket(config: SocketChannelConfig) {
       channelConstructor: SocketChannel,
       functionName: propertyKey.toString(),
       controllerConstructor: target.constructor as IConstructor<any>,
-      channelConfig: new SocketChannelConfig(config.channel),
+      channelConfig: new SocketChannelConfig(config.namespace, config.handshakeMidlewares),
     })
   }
 }
