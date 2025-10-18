@@ -25,6 +25,10 @@ export class ApiKey<A extends IStorableData> extends Entity<IApiKeyData<A>> {
     return this.data.metadata ?? {}
   }
 
+  get name() {
+    return this.data.name
+  }
+
   setAuthInfo(authInfo: A) {
     this.data.authInfo = authInfo
   }
