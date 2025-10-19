@@ -8,6 +8,7 @@ import * as readline from 'readline'
 import * as fs from 'fs'
 import * as path from 'path'
 import { Random } from '@/core/random'
+import { Auth } from '@/core/auth'
 
 const chatIdPath = '.cmd-channel/id.json'
 const authInfoPath = '.cmd-channel/auth-info.json'
@@ -23,6 +24,8 @@ export class CmdChannel implements IChatChannel {
   })
 
   private callBack: ((message: IChannelMessage) => void) | null = null
+
+  constructor(private auth: Auth<any>) {}
 
   listen(callback: (message: IChannelMessage) => void): void {
     this.callBack = callback
@@ -69,12 +72,11 @@ export class CmdChannel implements IChatChannel {
         reply: (message: IChatMessage) => {
           console.log(`\n[${message.senderName}]: ${message.text}\n`)
           this.rl.prompt()
+          if (this.auth.isAssigned()) {
+            writeJsonToFile(authInfoPath, this.auth.require())
+          }
         },
-        authInfo: this.authInfo || undefined,
-        setAuthInfo: (authInfo) => {
-          this.authInfo = authInfo || null
-          writeJsonToFile(authInfoPath, this.authInfo)
-        },
+        injectInstances: [[Auth, this.auth]],
       })
     })
   }

@@ -72,19 +72,17 @@ export function runChatControllers(controllers: IConstructor<any>[]) {
           ...channelMessage,
         })
 
+        if (channelMessage.injectInstances) {
+          for (const [token, instance] of channelMessage.injectInstances) {
+            chatContainer.registerInstance(token, instance)
+          }
+        }
+
         const chatController = chatContainer.resolve(channelMetadata.controllerConstructor)
 
         const receivedMessage: IReceivedMessage = {
           message: channelMessage.message,
-          reply: (message) => {
-            channelMessage.reply(message)
-            if (channelMessage.setAuthInfo) {
-              const auth = chatContainer.resolve(Auth)
-              if (auth.wasOverrided()) {
-                channelMessage.setAuthInfo(auth['authInfo'] || undefined)
-              }
-            }
-          },
+          reply: channelMessage.reply,
         }
 
         chatController[channelMetadata.functionName](receivedMessage)

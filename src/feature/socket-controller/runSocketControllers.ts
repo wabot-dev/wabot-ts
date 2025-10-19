@@ -33,6 +33,7 @@ export function runSocketControllers(controllers: IConstructor<any>[]) {
           await middleware.handle(socket, connectionContainer)
         }
         socket.data.connectionContainer = connectionContainer
+        connectionContainer.registerInstance(Socket, socket)
         next()
       } catch (err) {
         next(err as any)

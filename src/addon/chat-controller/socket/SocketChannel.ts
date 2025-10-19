@@ -10,6 +10,7 @@ import {
 import { Socket } from 'socket.io'
 import { SocketChannelConfig } from './SocketChannelConfig'
 import { isNotEmpty, isString } from '@/core/validation'
+import { Auth } from '@/core/auth'
 
 export interface ISocketChannelReceivedMessage {
   chatId: string
@@ -46,6 +47,8 @@ export class SocketChannel implements IChatChannel {
     @socketController(channel.config.namespace)
     @handshakeMiddlewares(channel.config.handshakeMidlewares ?? [])
     class SocketChannelController {
+      constructor(private auth: Auth<any>) {}
+
       @onSocketEvent('message')
       onMessage(message: SocketChannelReceivedMessage, socket: Socket) {
         if (!channel.callBack) return
@@ -70,10 +73,10 @@ export class SocketChannel implements IChatChannel {
           reply: (message) => {
             socket.emit('message', message)
           },
-          authInfo: socket.data.authInfo,
-          setAuthInfo: (authInfo) => {
-            socket.data.authInfo = authInfo
-          },
+          injectInstances: [
+            [Socket, socket],
+            [Auth, this.auth],
+          ],
         })
       }
     }
