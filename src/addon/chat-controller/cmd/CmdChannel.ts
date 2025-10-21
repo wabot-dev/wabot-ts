@@ -15,7 +15,6 @@ const authInfoPath = '.cmd-channel/auth-info.json'
 
 @injectable()
 export class CmdChannel implements IChatChannel {
-  private authInfo: any = undefined
   private chatId: string | undefined = undefined
 
   private rl = readline.createInterface({
@@ -60,8 +59,11 @@ export class CmdChannel implements IChatChannel {
 
       if (!this.callBack) return
 
-      if (this.authInfo === undefined) {
-        this.authInfo = readJsonFromFile(authInfoPath)
+      if (!this.auth.isAssigned()) {
+        const authInfo = readJsonFromFile(authInfoPath)
+        if (authInfo) {
+          this.auth.assign(authInfo)
+        }
       }
 
       this.callBack({
