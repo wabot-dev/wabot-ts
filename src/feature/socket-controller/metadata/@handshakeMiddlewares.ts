@@ -9,7 +9,7 @@ export function handshakeMiddlewares(middlewares: IConstructor<IHandshakeMiddlew
 
     for (const mw of middlewares) {
       store.saveHandshakeMiddlewareMetadata({
-        controllerConstructor: target.constructor as any,
+        controllerConstructor: target,
         middlewareConstructor: mw,
       })
     }
