@@ -70,7 +70,7 @@ export function runRestControllers(controllers: IConstructor<any>[]) {
             controllerInstance,
             endPointArgs,
           )
-          res.status(200).json(response)
+          res.status(200).json(response ?? null)
         } catch (err) {
           logger.error(err)
           if (err instanceof Error) {
