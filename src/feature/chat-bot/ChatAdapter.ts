@@ -1,7 +1,7 @@
-import { IChatAdapter, IChatAdapterNextItemReq, IChatAdapterNextItemRes } from './IChatAdapter'
+import { IChatAdapter, IChatAdapterNextItemsReq, IChatAdapterNextItemsRes } from './IChatAdapter'
 
 export class ChatAdapter implements IChatAdapter {
-  nextItem(req: IChatAdapterNextItemReq & { provider?: string }): Promise<IChatAdapterNextItemRes> {
+  nextItems(req: IChatAdapterNextItemsReq & { provider?: string }): Promise<IChatAdapterNextItemsRes> {
     throw new Error('Method not implemented.')
   }
 }

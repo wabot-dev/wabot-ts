@@ -1,8 +1,8 @@
 import { Logger } from '@/core/logger'
 import {
   IChatAdapter,
-  IChatAdapterNextItemReq,
-  IChatAdapterNextItemRes,
+  IChatAdapterNextItemsReq,
+  IChatAdapterNextItemsRes,
   IChatItem,
   IChatMessage,
   IFunctionCall,
@@ -32,7 +32,7 @@ export class DeepSeekChatAdapter implements IChatAdapter {
     })
   }
 
-  async nextItem(req: IChatAdapterNextItemReq): Promise<IChatAdapterNextItemRes> {
+  async nextItems(req: IChatAdapterNextItemsReq): Promise<IChatAdapterNextItemsRes> {
     const deepSeekInput: OpenAI.Chat.ChatCompletionMessageParam[] = []
     deepSeekInput.push({ role: 'system', content: req.systemPrompt })
     deepSeekInput.push(...this.mapChatItems(req.prevItems))
@@ -129,7 +129,7 @@ export class DeepSeekChatAdapter implements IChatAdapter {
     } as const
   }
 
-  private mapResponse(response: OpenAI.Chat.ChatCompletion): IChatAdapterNextItemRes {
+  private mapResponse(response: OpenAI.Chat.ChatCompletion): IChatAdapterNextItemsRes {
     let chatItem: IChatItem
 
     const { tool_calls: responseFunctionCall, content: responseText } =
@@ -160,6 +160,6 @@ export class DeepSeekChatAdapter implements IChatAdapter {
       throw new Error('Unable to found usage info')
     }
 
-    return { chatItem, usage }
+    return { nextItems:[chatItem], usage }
   }
 }

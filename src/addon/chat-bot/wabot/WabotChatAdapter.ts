@@ -2,7 +2,7 @@ import { Env } from '@/core/env'
 import { CustomError } from '@/core/error'
 import { singleton } from '@/core/injection'
 import { Logger } from '@/core/logger'
-import { IChatAdapter, IChatAdapterNextItemReq, IChatAdapterNextItemRes } from '@/feature/chat-bot'
+import { IChatAdapter, IChatAdapterNextItemsReq, IChatAdapterNextItemsRes } from '@/feature/chat-bot'
 
 @singleton()
 export class WabotChatAdapter implements IChatAdapter {
@@ -18,7 +18,7 @@ export class WabotChatAdapter implements IChatAdapter {
     }
   }
 
-  async nextItem(req: IChatAdapterNextItemReq): Promise<IChatAdapterNextItemRes> {
+  async nextItems(req: IChatAdapterNextItemsReq): Promise<IChatAdapterNextItemsRes> {
     const response = await fetch(this.baseUrl + '/chat-bot/next-item', {
       method: 'post',
       headers: {

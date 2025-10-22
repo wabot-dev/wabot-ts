@@ -3,8 +3,8 @@ import { singleton } from '@/core/injection'
 import { Logger } from '@/core/logger'
 import {
   IChatAdapter,
-  IChatAdapterNextItemReq,
-  IChatAdapterNextItemRes,
+  IChatAdapterNextItemsReq,
+  IChatAdapterNextItemsRes,
   IChatItem,
   IChatMessage,
   IFunctionCall,
@@ -23,7 +23,7 @@ export class AnthropicChatAdapter implements IChatAdapter {
     this.anthropic = new Anthropic({ apiKey })
   }
 
-  async nextItem(req: IChatAdapterNextItemReq): Promise<IChatAdapterNextItemRes> {
+  async nextItems(req: IChatAdapterNextItemsReq): Promise<IChatAdapterNextItemsRes> {
     const tools = req.tools.map((x) => this.mapTool(x))
 
     const messages = this.mapChatItems(req.prevItems)
@@ -121,7 +121,7 @@ export class AnthropicChatAdapter implements IChatAdapter {
     }
   }
 
-  private mapResponse(response: Anthropic.Messages.Message): IChatAdapterNextItemRes {
+  private mapResponse(response: Anthropic.Messages.Message): IChatAdapterNextItemsRes {
     let chatItem: IChatItem
     const content = response.content[0]
     if (content.type === 'text') {
@@ -149,6 +149,6 @@ export class AnthropicChatAdapter implements IChatAdapter {
       throw new Error('Unable to found usage info')
     }
 
-    return { chatItem, usage }
+    return { nextItems: [chatItem], usage }
   }
 }

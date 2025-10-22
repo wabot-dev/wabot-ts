@@ -3,8 +3,8 @@ import { singleton } from '@/core/injection'
 import { Logger } from '@/core/logger'
 import {
   IChatAdapter,
-  IChatAdapterNextItemReq,
-  IChatAdapterNextItemRes,
+  IChatAdapterNextItemsReq,
+  IChatAdapterNextItemsRes,
   IChatItem,
   IChatMessage,
   IFunctionCall,
@@ -26,7 +26,7 @@ export class GoogleChatAdapter implements IChatAdapter {
     })
   }
 
-  async nextItem(req: IChatAdapterNextItemReq): Promise<IChatAdapterNextItemRes> {
+  async nextItems(req: IChatAdapterNextItemsReq): Promise<IChatAdapterNextItemsRes> {
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = []
 
     messages.push({ role: 'system', content: req.systemPrompt })
@@ -114,7 +114,7 @@ export class GoogleChatAdapter implements IChatAdapter {
     } as const
   }
 
-  private mapResponse(response: OpenAI.Chat.ChatCompletion): IChatAdapterNextItemRes {
+  private mapResponse(response: OpenAI.Chat.ChatCompletion): IChatAdapterNextItemsRes {
     let chatItem: IChatItem
 
     const { tool_calls: responseFunctionCall, content: responseText } =
@@ -145,6 +145,6 @@ export class GoogleChatAdapter implements IChatAdapter {
       throw new Error('Unable to found usage info')
     }
 
-    return { chatItem, usage }
+    return { nextItems: [chatItem], usage }
   }
 }

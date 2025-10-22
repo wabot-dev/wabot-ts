@@ -1,10 +1,10 @@
 import {
   IChatAdapter,
-  IChatAdapterNextItemReq,
+  IChatAdapterNextItemsReq,
   IFunctionCall,
   IChatItem,
   IChatMessage,
-  IChatAdapterNextItemRes,
+  IChatAdapterNextItemsRes,
   ILanguageModelUsage,
 } from '@/feature/chat-bot'
 import { Logger } from '@/core/logger'
@@ -17,7 +17,7 @@ export class OpenaiChatAdapter implements IChatAdapter {
   private openai = new OpenAI()
   private logger = new Logger('wabot:openai-chat-adapter')
 
-  async nextItem(req: IChatAdapterNextItemReq): Promise<IChatAdapterNextItemRes> {
+  async nextItems(req: IChatAdapterNextItemsReq): Promise<IChatAdapterNextItemsRes> {
     const openIaInput: OpenAI.Responses.ResponseInput = []
     openIaInput.push({ role: 'system', content: req.systemPrompt })
     openIaInput.push(...this.mapChatItems(req.prevItems))
@@ -102,23 +102,7 @@ export class OpenaiChatAdapter implements IChatAdapter {
     } as const
   }
 
-  private mapResponse(response: OpenAI.Responses.Response): IChatAdapterNextItemRes {
-    let chatItem: IChatItem
-    if (response.output_text) {
-      chatItem = { type: 'botMessage', botMessage: { text: response.output_text } }
-    } else if (response.output && response.output[0]?.type == 'function_call') {
-      chatItem = {
-        type: 'functionCall',
-        functionCall: {
-          id: response.output[0].call_id,
-          name: response.output[0].name,
-          arguments: response.output[0].arguments,
-        },
-      }
-    } else {
-      throw new Error('Not supported OpenIA Response')
-    }
-
+  private mapResponse(response: OpenAI.Responses.Response): IChatAdapterNextItemsRes {
     let usage: ILanguageModelUsage
     if (response.usage) {
       usage = {
@@ -128,6 +112,51 @@ export class OpenaiChatAdapter implements IChatAdapter {
     } else {
       throw new Error('Unable to found usage info')
     }
-    return { chatItem, usage }
+
+    const nextItems: IChatItem[] = []
+
+    for (const output of response.output) {
+      if (output.type === 'message') {
+        for (const content of output.content) {
+          if (content.type === 'output_text' && content.text) {
+            nextItems.push({ type: 'botMessage', botMessage: { text: content.text } })
+          }
+        }
+      } else if (output.type === 'function_call') {
+        nextItems.push({
+          type: 'functionCall',
+          functionCall: { id: output.call_id, name: output.name, arguments: output.arguments },
+        })
+      }
+    }
+
+    return { usage, nextItems }
+
+    // let chatItem: IChatItem
+    // if (response.output_text) {
+    //   chatItem = { type: 'botMessage', botMessage: { text: response.output_text } }
+    // } else if (response.output && response.output[0]?.type == 'function_call') {
+    //   chatItem = {
+    //     type: 'functionCall',
+    //     functionCall: {
+    //       id: response.output[0].call_id,
+    //       name: response.output[0].name,
+    //       arguments: response.output[0].arguments,
+    //     },
+    //   }
+    // } else {
+    //   throw new Error('Not supported OpenIA Response')
+    // }
+
+    // let usage: ILanguageModelUsage
+    // if (response.usage) {
+    //   usage = {
+    //     inputTokens: response.usage.input_tokens,
+    //     outputTokens: response.usage.output_tokens,
+    //   }
+    // } else {
+    //   throw new Error('Unable to found usage info')
+    // }
+    // return { chatItem, usage }
   }
 }

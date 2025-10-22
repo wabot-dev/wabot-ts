@@ -11,7 +11,7 @@ export class EliaChatController {
   ) {}
 
   @cmd()
-  @whatsApp('573134336124')
+  //@whatsApp('573134336124')
   onMessage(context: IReceivedMessage) {
     const chatBot = this.eliaBot
     chatBot.sendMessage(context.message, (response) => {

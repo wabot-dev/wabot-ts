@@ -32,7 +32,7 @@ export class ChatBot implements IChatBot {
     if (lastChatItem.type === 'botMessage') {
       return
     }
-    
+
     const systemPrompt = await this.mindset.systemPrompt()
     const tools = this.mindset.tools()
     const identity = await this.mindset.identity()
@@ -42,7 +42,7 @@ export class ChatBot implements IChatBot {
     }
     const llm = llms[0]
 
-    const { chatItem: newItemData } = await this.adapter.nextItem({
+    const { nextItems: newItemsData } = await this.adapter.nextItems({
       model: llm.model,
       provider: llm.provider,
       systemPrompt,
@@ -50,23 +50,27 @@ export class ChatBot implements IChatBot {
       prevItems: prevItems.map((x) => x.getData()),
     })
 
-    if (newItemData.type === 'functionCall') {
-      newItemData.functionCall.result = await this.mindset.callFunction(
-        newItemData.functionCall.name,
-        newItemData.functionCall.arguments ?? '{}',
-      )
-    } else if (newItemData.type === 'botMessage') {
-      newItemData.botMessage.senderName = identity.name
+    for (const newItemData of newItemsData) {
+      if (newItemData.type === 'functionCall') {
+        newItemData.functionCall.result = await this.mindset.callFunction(
+          newItemData.functionCall.name,
+          newItemData.functionCall.arguments ?? '{}',
+        )
+      } else if (newItemData.type === 'botMessage') {
+        newItemData.botMessage.senderName = identity.name
+      }
+
+      const newChatItem = new ChatItem(newItemData)
+      await this.memory.create(newChatItem)
+
+      if (newItemData.type === 'botMessage') {
+        callback(newChatItem.botMessage)
+      }
     }
 
-    const newChatItem = new ChatItem(newItemData)
-    await this.memory.create(newChatItem)
-
-    if (newChatItem.type === 'botMessage') {
-      callback(newChatItem.botMessage)
+    if (newItemsData.length == 0 || newItemsData[newItemsData.length - 1].type === 'botMessage') {
       return
     }
-
     this.processLoop(callback)
   }
 }

@@ -34,10 +34,10 @@ export class EliaMindset implements IMindset {
 
   async llms() {
     return [
-      {
-        provider: 'anthropic',
-        model: 'claude-3-5-haiku-20241022',
-      },
+      // {
+      //   provider: 'anthropic',
+      //   model: 'claude-3-5-haiku-20241022',
+      // },
       {
         provider: 'openai',
         model: 'gpt-4.1',
