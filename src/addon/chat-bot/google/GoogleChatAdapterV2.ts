@@ -7,7 +7,6 @@ import {
   IChatAdapterNextItemsRes,
   IChatItem,
   IChatMessage,
-  IFunctionCall,
   ILanguageModelUsage,
 } from '@/feature/chat-bot'
 import { GoogleGenAI } from '@google/genai'
