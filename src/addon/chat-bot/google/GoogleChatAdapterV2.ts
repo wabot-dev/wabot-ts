@@ -10,232 +10,152 @@ import {
   IFunctionCall,
   ILanguageModelUsage,
 } from '@/feature/chat-bot'
-import { IMindsetTool } from '@/feature/mindset'
 import { GoogleGenAI } from '@google/genai'
 
 export interface GoogleChatAdapterV2Options {
   apiKey?: string
-  model?: string
-  timeoutMs?: number
 }
 
 @singleton()
 export class GoogleChatAdapterV2 implements IChatAdapter {
-  private client: GoogleGenAI
-  private readonly logger = new Logger('wabot:google-chat-adapter-v2')
+  private ai: GoogleGenAI
+  private readonly logger = new Logger('wabot:google-chat-adapter-v2')  
   private readonly defaultModel: string
   private readonly timeoutMs: number
+  private readonly maxHistoryItems: number
 
-  constructor(private env: Env, options: GoogleChatAdapterV2Options = {}) {
-    const apiKey = options.apiKey ?? this.env.requireString('GOOGLE_API_KEY')
-    this.defaultModel = options.model ?? 'gemini-2.5-flash'
-    this.timeoutMs = options.timeoutMs ?? 30000
 
-    // Cliente de Google GenAI: GoogleGenAI
-    this.client =  new GoogleGenAI({ apiKey })
+  constructor(private env: Env) {
+
+    this.ai = new GoogleGenAI({})
+    this.defaultModel = this.env.requireString('GOOGLE_MODEL', { default: 'gemini-2.5-flash' })
+    this.timeoutMs = this.env.requireNumber('GOOGLE_TIMEOUT_MS', { default: 30000 })
+    this.maxHistoryItems = this.env.requireNumber('GOOGLE_MAX_HISTORY_ITEMS', { default: 32 })
   }
 
   async nextItems(req: IChatAdapterNextItemsReq): Promise<IChatAdapterNextItemsRes> {
-    const input = this.mapChatItems(req.prevItems)
-    const tools = req.tools.map((x) => this.mapTool(x))
+    const contents = this.buildContents(req.systemPrompt, req.prevItems)
 
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), this.timeoutMs)
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Google GenAI request timeout')), this.timeoutMs),
+    )
 
     try {
-      const response = await (this.client as any).responses.generate({
-        model: req.model || this.defaultModel,
-        input: [{ role: 'system', content: req.systemPrompt }, ...input],
-        tools,
-        signal: controller.signal,
-      })
+      const response = await Promise.race([
+        this.ai.models.generateContent({ model: req.model ?? this.defaultModel, contents }),
+        timeoutPromise,
+      ])
 
       return this.mapResponse(response)
     } catch (err) {
       this.logger.error('Google GenAI request failed', err instanceof Error ? err : undefined)
       throw err instanceof Error ? err : new Error(String(err))
     } finally {
-      clearTimeout(timeout)
+     
     }
   }
 
-  /**
-   * Envía un único mensaje de texto y obtiene la respuesta.
-   */
-  async sendMessage(text: string, options?: { model?: string; tools?: IMindsetTool[] }): Promise<IChatAdapterNextItemsRes> {
-    const req: IChatAdapterNextItemsReq = {
-      model: options?.model ?? this.defaultModel,
-      systemPrompt: 'You are a helpful assistant. Keep responses brief.',
-      tools: options?.tools ?? [],
-      prevItems: [
-        { type: 'humanMessage', humanMessage: { text, senderId: 'user', senderName: 'User' } },
-      ],
+  private buildContents(systemPrompt: string, chatItems: IChatItem[]): any[] {
+    const contents: any[] = []
+    if (systemPrompt) {
+      contents.push({ role: 'user', parts: [{ text: systemPrompt }] })
     }
-    return this.nextItems(req)
+
+    const tail = chatItems.slice(Math.max(0, chatItems.length - this.maxHistoryItems))
+    for (const chatItem of tail) {
+      switch (chatItem.type) {
+        case 'humanMessage':
+          contents.push(this.mapHumanMessage(chatItem.humanMessage))
+          break
+        case 'botMessage':
+          contents.push(this.mapBotMessage(chatItem.botMessage))
+          break
+      }
+    }
+    return contents
   }
 
-  /**
-   * Streaming de respuesta. Devuelve un AsyncGenerator que emite `IChatItem` conforme llegan los chunks.
-   */
-  async *sendMessageStream(text: string, options?: { model?: string; tools?: IMindsetTool[] }) {
-    const tools = (options?.tools ?? []).map((x) => this.mapTool(x))
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), this.timeoutMs)
+ 
+  private mapHumanMessage(item: IChatMessage) {
+    if (!item.text) {
+      throw new Error('User message content is empty')
+    }
+    return { role: 'user', parts: [{ text: item.text }] } as const
+  }
 
+
+  private mapBotMessage(item: IChatMessage) {
+    if (!item.text) {
+      throw new Error('Bot message content is empty')
+    }
+    return { role: 'model', parts: [{ text: item.text }] } as const
+  }
+
+  async *sendMessageStream(text: string, options?: { model?: string }) {
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Google GenAI stream timeout')), this.timeoutMs),
+    )
     try {
-      const stream = await (this.client as any).responses.streamGenerate({
-        model: options?.model ?? this.defaultModel,
-        input: [{ role: 'user', content: text }],
-        tools,
-        signal: controller.signal,
-      })
-
-      // Adoptamos un protocolo de iteración básico: cada chunk con texto se emite como botMessage.
-      for await (const chunk of stream) {
-        const items = this.tryMapStreamChunkToItems(chunk)
-        for (const item of items) {
-          yield item
+      const response: AsyncIterable<any> = (await Promise.race([
+        this.ai.models.generateContentStream({
+          model: options?.model ?? this.defaultModel,
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text }],
+            },
+          ],
+        }),
+        timeoutPromise,
+      ])) as any
+      for await (const chunk of response) {
+        if (chunk && typeof (chunk as any).text === 'string' && (chunk as any).text.length > 0) {
+          yield { type: 'botMessage', botMessage: { text: (chunk as any).text } } as IChatItem
         }
       }
     } catch (err) {
       this.logger.error('Google GenAI stream failed', err instanceof Error ? err : undefined)
       throw err instanceof Error ? err : new Error(String(err))
     } finally {
-      clearTimeout(timeout)
+      
     }
   }
-
-  /**
-   * Mapea los items del historial de chat al formato de Responses API.
-   */
-  private mapChatItems(chatItems: IChatItem[]): any[] {
-    const input: any[] = []
-    for (const chatItem of chatItems) {
-      switch (chatItem.type) {
-        case 'humanMessage':
-          input.push(this.mapHumanMessage(chatItem.humanMessage))
-          break
-        case 'botMessage':
-          input.push(this.mapBotMessage(chatItem.botMessage))
-          break
-        case 'functionCall':
-          input.push(...this.mapFunctionCall(chatItem.functionCall))
-          break
-      }
-    }
-    return input
-  }
-
-  /**
-   * Valida y compone el mensaje de usuario.
-   */
-  private mapHumanMessage(item: IChatMessage) {
-    if (!item.text) {
-      throw new Error('System message content is empty')
-    }
-    return { role: 'user', content: item.text } as const
-  }
-
-  /**
-   * Valida y compone el mensaje del asistente.
-   */
-  private mapBotMessage(item: IChatMessage) {
-    if (!item.text) {
-      throw new Error('System message content is empty')
-    }
-    return { role: 'assistant', content: item.text } as const
-  }
-
-  /**
-   * Mapea llamadas a función al formato Responses API (estilo OpenAI adapter).
-   */
-  private mapFunctionCall(item: IFunctionCall) {
-    return [
-      {
-        type: 'function_call',
-        call_id: item.id,
-        name: item.name,
-        arguments: JSON.stringify(item.arguments),
-      },
-      {
-        type: 'function_call_output',
-        call_id: item.id,
-        output: item.result ?? 'Not result',
-      },
-    ] as const
-  }
-
-  /**
-   * Define herramientas usando JSON Schema (estricto), similar al OpenaiChatAdapter.
-   */
-  private mapTool(tool: IMindsetTool) {
-    return {
-      type: 'function',
-      name: tool.name,
-      description: tool.description,
-      parameters: {
-        type: 'object',
-        properties: tool.parameters.reduce(
-          (prev, param) => ({
-            ...prev,
-            [param.name]: { type: param.type, description: param.description },
-          }),
-          {},
-        ),
-        required: tool.parameters.map((param) => param.name),
-        additionalProperties: false,
-      },
-      strict: true,
-    } as const
-  }
-
-  /**
-   * Traduce la respuesta de Responses API a `{ usage, nextItems }`.
-   */
+ 
   private mapResponse(response: any): IChatAdapterNextItemsRes {
-    let usage: ILanguageModelUsage
-    if (response.usage) {
-      usage = {
-        inputTokens: response.usage.input_tokens,
-        outputTokens: response.usage.output_tokens,
-      }
-    } else {
-      throw new Error('Unable to found usage info')
-    }
-
     const nextItems: IChatItem[] = []
 
-    for (const output of response.output ?? []) {
-      if (output.type === 'message') {
-        for (const content of output.content ?? []) {
-          if (content.type === 'output_text' && content.text) {
-            nextItems.push({ type: 'botMessage', botMessage: { text: content.text } })
-          }
+    const text = response?.text
+    if (typeof text === 'string' && text.length > 0) {
+      nextItems.push({ type: 'botMessage', botMessage: { text } })
+    } else {
+      const parts = response?.candidates?.[0]?.content?.parts ?? []
+      for (const part of parts) {
+        if (typeof part?.text === 'string' && part.text.length > 0) {
+          nextItems.push({ type: 'botMessage', botMessage: { text: part.text } })
         }
-      } else if (output.type === 'function_call') {
-        nextItems.push({
-          type: 'functionCall',
-          functionCall: { id: output.call_id, name: output.name, arguments: output.arguments },
-        })
       }
+    }
+
+    let usage: ILanguageModelUsage = { inputTokens: 0, outputTokens: 0 }
+    const meta = response?.usageMetadata
+    if (meta) {
+      usage = {
+        inputTokens: Number(meta.promptTokenCount ?? 0),
+        outputTokens: Number(meta.candidatesTokenCount ?? 0),
+      }
+    } else if (response?.usage) {
+      usage = {
+        inputTokens: Number(response.usage.input_tokens ?? 0),
+        outputTokens: Number(response.usage.output_tokens ?? 0),
+      }
+    }
+
+    if (nextItems.length === 0) {
+      this.logger.trace('Empty response mapping from Google GenAI', response)
     }
 
     return { usage, nextItems }
   }
 
-  /**
-   * Intenta traducir un chunk del stream a items de salida.
-   */
-  private tryMapStreamChunkToItems(chunk: any): IChatItem[] {
-    const items: IChatItem[] = []
-    // Asumimos que el chunk tiene estructura similar a `output.message.content[..].output_text`.
-    if (chunk && chunk.type === 'message') {
-      for (const content of chunk.content ?? []) {
-        if (content.type === 'output_text' && content.text) {
-          items.push({ type: 'botMessage', botMessage: { text: content.text } })
-        }
-      }
-    }
-    return items
-  }
+ 
 }
