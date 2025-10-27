@@ -5,7 +5,7 @@ import {
   runIChatAdapterIntegrationTests,
 } from '../shared-tests/IChatAdapterIntegrationTests'
 
-describe('GoogleChatAdapter Integration Tests', () => {
+describe('GoogleChatAdapter v2 Integration Tests', () => {
   let adapter: GoogleChatAdapterV2
 
   beforeEach(() => {
