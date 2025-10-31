@@ -122,23 +122,6 @@ export class AnthropicChatAdapter implements IChatAdapter {
   }
 
   private mapResponse(response: Anthropic.Messages.Message): IChatAdapterNextItemsRes {
-    let chatItem: IChatItem
-    const content = response.content[0]
-    if (content.type === 'text') {
-      chatItem = { type: 'botMessage', botMessage: { text: content.text } }
-    } else if (content.type === 'tool_use') {
-      chatItem = {
-        type: 'functionCall',
-        functionCall: {
-          id: content.id,
-          name: content.name,
-          arguments: JSON.stringify(content.input),
-        },
-      }
-    } else {
-      throw new Error('Not supported Claude Response')
-    }
-
     let usage: ILanguageModelUsage
     if (response.usage) {
       usage = {
@@ -149,6 +132,23 @@ export class AnthropicChatAdapter implements IChatAdapter {
       throw new Error('Unable to found usage info')
     }
 
-    return { nextItems: [chatItem], usage }
+    const nextItems: IChatItem[] = []
+
+    for (const content of response.content) {
+      if (content.type === 'text' && content.text) {
+        nextItems.push({ type: 'botMessage', botMessage: { text: content.text } })
+      } else if (content.type === 'tool_use') {
+        nextItems.push({
+          type: 'functionCall',
+          functionCall: {
+            id: content.id,
+            name: content.name,
+            arguments: JSON.stringify(content.input),
+          },
+        })
+      }
+    }
+
+    return { usage, nextItems }
   }
 }
