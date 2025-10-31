@@ -1,19 +1,13 @@
-import { describe, beforeEach } from 'node:test'
-import { OpenaiChatAdapter } from './OpenaiChatAdapter'
 import { container } from '@/core/injection'
-import {
-  runIChatAdapterIntegrationTests,
-} from '../shared-tests/IChatAdapterIntegrationTests'
+import { testChatAdapter } from '@/feature/chat-bot/testChatAdapter'
+import { describe } from 'node:test'
+import { OpenaiChatAdapter } from './OpenaiChatAdapter'
 
-describe('OpenaiChatAdapter Integration Tests', () => {
-  let adapter: OpenaiChatAdapter
+describe('OpenaiChatAdapter', () => {
+  const adapter = container.resolve(OpenaiChatAdapter)
 
-  beforeEach(() => {
-    adapter = container.resolve(OpenaiChatAdapter)
-  })
-
-  runIChatAdapterIntegrationTests({
-    adapter: () => adapter,
+  testChatAdapter({
+    adapter,
     model: 'gpt-3.5-turbo',
   })
 })

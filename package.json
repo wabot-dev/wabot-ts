@@ -12,7 +12,7 @@
   "scripts": {
     "build": "rollup --config rollup.config.ts --configPlugin typescript && tsup --dts-only --format esm --out-dir dist/src src/index.ts",
     "test:units": "node --import @yucacodes/ts/src/custom-import.mjs  --test './src/**/*.unit.test.ts'",
-    "test:integration": "node --import @yucacodes/ts/src/custom-import.mjs  --test './src/**/*.integration.test.ts'",
+    "test:integration": "node --import ./env.mjs --import @yucacodes/ts/src/custom-import.mjs  --test './src/**/*.integration.test.ts'",
     "fmt": "prettier --write .",
     "fmt:check": "prettier --check .",
     "types:check": "tsc --noEmit",

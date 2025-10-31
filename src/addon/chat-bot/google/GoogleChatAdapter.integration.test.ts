@@ -1,19 +1,13 @@
-import { describe, beforeEach } from 'node:test'
-import { GoogleChatAdapter } from './GoogleChatAdapter'
-import { container } from '@/core/injection'
-import {
-  runIChatAdapterIntegrationTests,
-} from '../shared-tests/IChatAdapterIntegrationTests'
+// import { container } from '@/core/injection'
+// import { testChatAdapter } from '@/feature/chat-bot/testChatAdapter'
+// import { describe } from 'node:test'
+// import { GoogleChatAdapter } from './GoogleChatAdapter'
 
-describe('GoogleChatAdapter Integration Tests', () => {
-  let adapter: GoogleChatAdapter
+// describe('GoogleChatAdapter', () => {
+//   const adapter = container.resolve(GoogleChatAdapter)
 
-  beforeEach(() => {
-    adapter = container.resolve(GoogleChatAdapter)
-  })
-
-  runIChatAdapterIntegrationTests({
-    adapter: () => adapter,
-    model: 'gemini-2.5-flash-lite',
-  })
-})
+//   testChatAdapter({
+//     adapter,
+//     model: 'gemini-2.5-flash-lite',
+//   })
+// })

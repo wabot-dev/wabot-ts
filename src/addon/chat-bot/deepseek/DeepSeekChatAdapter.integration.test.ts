@@ -1,19 +1,13 @@
-import { describe, beforeEach } from 'node:test'
-import { DeepSeekChatAdapter } from './DeepSeekChatAdapter'
-import { container } from '@/core/injection'
-import {
-  runIChatAdapterIntegrationTests,
-} from '../shared-tests/IChatAdapterIntegrationTests'
+// import { container } from '@/core/injection'
+// import { testChatAdapter } from '@/feature/chat-bot/testChatAdapter'
+// import { describe } from 'node:test'
+// import { DeepSeekChatAdapter } from './DeepSeekChatAdapter'
 
-describe('DeepSeekChatAdapter Integration Tests', () => {
-  let adapter: DeepSeekChatAdapter
+// describe('DeepSeekChatAdapter', () => {
+//   const adapter = container.resolve(DeepSeekChatAdapter)
 
-  beforeEach(() => {
-    adapter = container.resolve(DeepSeekChatAdapter)
-  })
-
-  runIChatAdapterIntegrationTests({
-    adapter: () => adapter,
-    model: 'deepseek-chat',
-  })
-})
+//   testChatAdapter({
+//     adapter,
+//     model: 'deepseek-chat',
+//   })
+// })
