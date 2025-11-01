@@ -1,19 +1,13 @@
-import { describe, beforeEach } from 'node:test'
-import { AnthropicChatAdapter } from './AnthropicChatAdapter'
 import { container } from '@/core/injection'
-import {
-  runIChatAdapterIntegrationTests,
-} from '../shared-tests/IChatAdapterIntegrationTests'
+import { testChatAdapter } from '@/feature/chat-bot/testChatAdapter'
+import { describe } from 'node:test'
+import { AnthropicChatAdapter } from './AnthropicChatAdapter'
 
-describe('AnthropicChatAdapter Integration Tests', () => {
-  let adapter: AnthropicChatAdapter
+describe('AnthropicChatAdapter', () => {
+  const adapter = container.resolve(AnthropicChatAdapter)
 
-  beforeEach(() => {
-    adapter = container.resolve(AnthropicChatAdapter)
-  })
-
-  runIChatAdapterIntegrationTests({
-    adapter: () => adapter,
+  testChatAdapter({
+    adapter,
     model: 'claude-3-haiku-20240307',
   })
 })
