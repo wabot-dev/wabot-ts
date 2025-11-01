@@ -1,15 +1,18 @@
 import { Env } from '@/core/env'
 import { singleton } from '@/core/injection'
 import { Logger } from '@/core/logger'
+import { Random } from '@/core/random'
 import {
   IChatAdapter,
   IChatAdapterNextItemsReq,
   IChatAdapterNextItemsRes,
   IChatItem,
   IChatMessage,
+  IFunctionCall,
   ILanguageModelUsage,
 } from '@/feature/chat-bot'
-import { GoogleGenAI } from '@google/genai'
+import { IMindsetTool } from '@/feature/mindset'
+import { Content, FunctionDeclaration, GenerateContentResponse, GoogleGenAI } from '@google/genai'
 
 export interface GoogleChatAdapterV2Options {
   apiKey?: string
@@ -18,50 +21,31 @@ export interface GoogleChatAdapterV2Options {
 @singleton()
 export class GoogleChatAdapterV2 implements IChatAdapter {
   private ai: GoogleGenAI
-  private readonly logger = new Logger('wabot:google-chat-adapter-v2')  
-  private readonly defaultModel: string
-  private readonly timeoutMs: number
-  private readonly maxHistoryItems: number
+  private readonly logger = new Logger('wabot:google-chat-adapter-v2')
 
-
-  constructor(private env: Env) {
-
-    this.ai = new GoogleGenAI({})
-    this.defaultModel = this.env.requireString('GOOGLE_MODEL', { default: 'gemini-2.5-flash' })
-    this.timeoutMs = this.env.requireNumber('GOOGLE_TIMEOUT_MS', { default: 30000 })
-    this.maxHistoryItems = this.env.requireNumber('GOOGLE_MAX_HISTORY_ITEMS', { default: 32 })
+  constructor(env: Env) {
+    this.ai = new GoogleGenAI({ apiKey: env.requireString('GOOGLE_API_KEY') })
   }
 
   async nextItems(req: IChatAdapterNextItemsReq): Promise<IChatAdapterNextItemsRes> {
-    const contents = this.buildContents(req.systemPrompt, req.prevItems)
+    const contents: Content[] = []
+    contents.push({ role: 'user', parts: [{ text: req.systemPrompt }] })
+    contents.push(...this.mapChatItems(req.prevItems))
 
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Google GenAI request timeout')), this.timeoutMs),
-    )
+    const functionDeclarations = req.tools.map((x) => this.mapTool(x))
 
-    try {
-      const response = await Promise.race([
-        this.ai.models.generateContent({ model: req.model ?? this.defaultModel, contents }),
-        timeoutPromise,
-      ])
+    const response = await this.ai.models.generateContent({
+      model: req.model,
+      contents,
+      config: { tools: [{ functionDeclarations }] },
+    })
 
-      return this.mapResponse(response)
-    } catch (err) {
-      this.logger.error('Google GenAI request failed', err instanceof Error ? err : undefined)
-      throw err instanceof Error ? err : new Error(String(err))
-    } finally {
-     
-    }
+    return this.mapResponse(response)
   }
 
-  private buildContents(systemPrompt: string, chatItems: IChatItem[]): any[] {
-    const contents: any[] = []
-    if (systemPrompt) {
-      contents.push({ role: 'user', parts: [{ text: systemPrompt }] })
-    }
-
-    const tail = chatItems.slice(Math.max(0, chatItems.length - this.maxHistoryItems))
-    for (const chatItem of tail) {
+  private mapChatItems(chatItems: IChatItem[]): Content[] {
+    const contents: Content[] = []
+    for (const chatItem of chatItems) {
       switch (chatItem.type) {
         case 'humanMessage':
           contents.push(this.mapHumanMessage(chatItem.humanMessage))
@@ -69,92 +53,117 @@ export class GoogleChatAdapterV2 implements IChatAdapter {
         case 'botMessage':
           contents.push(this.mapBotMessage(chatItem.botMessage))
           break
+        case 'functionCall':
+          contents.push(...this.mapFunctionCall(chatItem.functionCall))
+          break
       }
     }
     return contents
   }
 
- 
-  private mapHumanMessage(item: IChatMessage) {
+  private mapHumanMessage(item: IChatMessage): Content {
     if (!item.text) {
       throw new Error('User message content is empty')
     }
-    return { role: 'user', parts: [{ text: item.text }] } as const
+    return { role: 'user', parts: [{ text: item.text }] }
   }
 
-
-  private mapBotMessage(item: IChatMessage) {
+  private mapBotMessage(item: IChatMessage): Content {
     if (!item.text) {
       throw new Error('Bot message content is empty')
     }
-    return { role: 'model', parts: [{ text: item.text }] } as const
+    return { role: 'model', parts: [{ text: item.text }] }
   }
 
-  async *sendMessageStream(text: string, options?: { model?: string }) {
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Google GenAI stream timeout')), this.timeoutMs),
-    )
-    try {
-      const response: AsyncIterable<any> = (await Promise.race([
-        this.ai.models.generateContentStream({
-          model: options?.model ?? this.defaultModel,
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text }],
+  private mapFunctionCall(item: IFunctionCall): Content[] {
+    return [
+      {
+        role: 'model',
+        parts: [
+          {
+            functionCall: {
+              id: item.id,
+              name: item.name,
+              args: JSON.parse(item.arguments ?? '{}'),
             },
-          ],
-        }),
-        timeoutPromise,
-      ])) as any
-      for await (const chunk of response) {
-        if (chunk && typeof (chunk as any).text === 'string' && (chunk as any).text.length > 0) {
-          yield { type: 'botMessage', botMessage: { text: (chunk as any).text } } as IChatItem
-        }
-      }
-    } catch (err) {
-      this.logger.error('Google GenAI stream failed', err instanceof Error ? err : undefined)
-      throw err instanceof Error ? err : new Error(String(err))
-    } finally {
-      
+          },
+        ],
+      },
+      {
+        role: 'function',
+        parts: [
+          {
+            functionResponse: {
+              id: item.id,
+              name: item.name,
+              response: { output: item.result ?? '' },
+            },
+          },
+        ],
+      },
+    ]
+  }
+
+  private mapTool(tool: IMindsetTool): FunctionDeclaration {
+    return {
+      name: tool.name,
+      description: tool.description,
+      parametersJsonSchema: {
+        type: 'object',
+        properties: tool.parameters.reduce(
+          (prev, param) => ({
+            ...prev,
+            [param.name]: { type: param.type, description: param.description },
+          }),
+          {},
+        ),
+        required: tool.parameters.map((param) => param.name),
+        additionalProperties: false,
+      },
     }
   }
- 
-  private mapResponse(response: any): IChatAdapterNextItemsRes {
+
+  private mapResponse(response: GenerateContentResponse): IChatAdapterNextItemsRes {
+    if (!response.candidates || !response.candidates.length) {
+      throw new Error('No candidates in response')
+    }
+
+    if (
+      !response.usageMetadata ||
+      !response.usageMetadata.promptTokenCount ||
+      !response.usageMetadata.candidatesTokenCount
+    ) {
+      throw new Error('Not usage metadata')
+    }
+
+    const content = response.candidates.find((x) => x.content)?.content
+    if (!content) {
+      throw new Error('Candidates has no content')
+    }
+
     const nextItems: IChatItem[] = []
 
-    const text = response?.text
-    if (typeof text === 'string' && text.length > 0) {
-      nextItems.push({ type: 'botMessage', botMessage: { text } })
-    } else {
-      const parts = response?.candidates?.[0]?.content?.parts ?? []
-      for (const part of parts) {
-        if (typeof part?.text === 'string' && part.text.length > 0) {
-          nextItems.push({ type: 'botMessage', botMessage: { text: part.text } })
+    for (const part of content.parts ?? []) {
+      if (part.text) {
+        nextItems.push({ type: 'botMessage', botMessage: { text: part.text } })
+      }
+      if (part.functionCall) {
+        const { id, name, args } = part.functionCall
+        if (!name) {
+          throw new Error('invalid function call')
         }
+        nextItems.push({
+          type: 'functionCall',
+          functionCall: { id: id ?? Random.numberCode(10), name, arguments: args && JSON.stringify(args) },
+        })
       }
     }
 
-    let usage: ILanguageModelUsage = { inputTokens: 0, outputTokens: 0 }
-    const meta = response?.usageMetadata
-    if (meta) {
-      usage = {
-        inputTokens: Number(meta.promptTokenCount ?? 0),
-        outputTokens: Number(meta.candidatesTokenCount ?? 0),
-      }
-    } else if (response?.usage) {
-      usage = {
-        inputTokens: Number(response.usage.input_tokens ?? 0),
-        outputTokens: Number(response.usage.output_tokens ?? 0),
-      }
-    }
-
-    if (nextItems.length === 0) {
-      this.logger.trace('Empty response mapping from Google GenAI', response)
+    let usage: ILanguageModelUsage = {
+      inputTokens: response.usageMetadata.promptTokenCount,
+      outputTokens: response.usageMetadata.candidatesTokenCount,
     }
 
     return { usage, nextItems }
   }
-
- 
 }
