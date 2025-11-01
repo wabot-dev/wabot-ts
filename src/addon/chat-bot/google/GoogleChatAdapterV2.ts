@@ -154,7 +154,7 @@ export class GoogleChatAdapterV2 implements IChatAdapter {
         }
         nextItems.push({
           type: 'functionCall',
-          functionCall: { id: id ?? Random.numberCode(10), name, arguments: args && JSON.stringify(args) },
+          functionCall: { id: id ?? Random.alphaNumericLowerCase(10), name, arguments: args && JSON.stringify(args) },
         })
       }
     }

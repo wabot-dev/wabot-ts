@@ -69,7 +69,7 @@ export function testChatAdapter({ adapter, model }: ItestChatAdapterReq) {
     await assert.rejects(responsePromise)
   })
 
-  test('use the appropiate tool', async () => {
+  test('call the appropiate tool', async () => {
     const tools: IMindsetTool[] = [
       {
         language: 'english',
@@ -125,5 +125,49 @@ export function testChatAdapter({ adapter, model }: ItestChatAdapterReq) {
     const args = JSON.parse(functionCall.arguments)
     assert(typeof args === 'object', 'function call argument should be an object')
     assert(typeof args.country === 'string', 'country argument should be string')
+  })
+
+  test('consume function calls response', async () => {
+    const tools: IMindsetTool[] = [
+      {
+        language: 'english',
+        name: 'getCountryTime',
+        parameters: [{ name: 'country', type: 'string', description: 'the country iso code' }],
+        description: 'return the current time of a country',
+      },
+      {
+        language: 'english',
+        name: 'getCountryMainLanguage',
+        parameters: [{ name: 'country', type: 'string', description: 'the country iso code' }],
+        description: 'return the main language of a country',
+      },
+    ]
+
+    const { nextItems } = await adapter.nextItems({
+      model,
+      tools,
+      systemPrompt: 'Act as a Bot',
+      prevItems: [
+        {
+          type: 'humanMessage',
+          humanMessage: {
+            text: 'What is the time in Colombia'
+          }
+        },
+        {
+          type: 'functionCall',
+          functionCall: {
+            id: 'id_erksndfooqne',
+            name: 'getCountryTime',
+            arguments: '{"country": "CO"}',
+            result: '2023-10-12T12:00:00.000Z'
+          }
+        }
+      ],
+    })
+    
+    assert(Array.isArray(nextItems), 'nextItems is not array')
+    assert(nextItems.length === 1, 'nexItems length should be 1')
+    assert(nextItems[0].type === 'botMessage', 'next item should have botMessage type')
   })
 }
