@@ -1,6 +1,7 @@
 import { Env } from '@/core/env'
 import { singleton } from '@/core/injection'
 import { Logger } from '@/core/logger'
+import { Random } from '@/core/random'
 import {
   IChatAdapter,
   IChatAdapterNextItemsReq,
@@ -11,140 +12,158 @@ import {
   ILanguageModelUsage,
 } from '@/feature/chat-bot'
 import { IMindsetTool } from '@/feature/mindset'
-import OpenAI from 'openai'
+import { Content, FunctionDeclaration, GenerateContentResponse, GoogleGenAI } from '@google/genai'
+
+export interface GoogleChatAdapterV2Options {
+  apiKey?: string
+}
 
 @singleton()
 export class GoogleChatAdapter implements IChatAdapter {
-  private openai: OpenAI
-  private logger = new Logger('wabot:google-chat-adapter')
+  private ai: GoogleGenAI
+  private readonly logger = new Logger('wabot:google-chat-adapter-v2')
 
-  constructor(private env: Env) {
-    const apiKey = this.env.requireString('GOOGLE_API_KEY')
-    this.openai = new OpenAI({
-      apiKey,
-      baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
-    })
+  constructor(env: Env) {
+    this.ai = new GoogleGenAI({ apiKey: env.requireString('GOOGLE_API_KEY') })
   }
 
   async nextItems(req: IChatAdapterNextItemsReq): Promise<IChatAdapterNextItemsRes> {
-    const messages: OpenAI.Chat.ChatCompletionMessageParam[] = []
+    const contents: Content[] = []
+    contents.push({ role: 'user', parts: [{ text: req.systemPrompt }] })
+    contents.push(...this.mapChatItems(req.prevItems))
 
-    messages.push({ role: 'system', content: req.systemPrompt })
+    const functionDeclarations = req.tools.map((x) => this.mapTool(x))
 
-    messages.push(...this.mapChatItems(req.prevItems))
-
-    const tools = req.tools.map((x) => this.mapTool(x))
-
-    const request = {
+    const response = await this.ai.models.generateContent({
       model: req.model,
-      messages,
-      tools,
-    }
+      contents,
+      config: { tools: [{ functionDeclarations }] },
+    })
 
-    const response = await this.openai.chat.completions.create(request)
     return this.mapResponse(response)
   }
 
-  private mapChatItems(chatItems: IChatItem[]): OpenAI.Chat.ChatCompletionMessageParam[] {
-    const messages: OpenAI.Chat.ChatCompletionMessageParam[] = []
-
+  private mapChatItems(chatItems: IChatItem[]): Content[] {
+    const contents: Content[] = []
     for (const chatItem of chatItems) {
       switch (chatItem.type) {
         case 'humanMessage':
-          messages.push(this.mapHumanMessage(chatItem.humanMessage))
+          contents.push(this.mapHumanMessage(chatItem.humanMessage))
           break
         case 'botMessage':
-          messages.push(this.mapBotMessage(chatItem.botMessage))
+          contents.push(this.mapBotMessage(chatItem.botMessage))
           break
         case 'functionCall':
-          messages.push(...this.mapFunctionCall(chatItem.functionCall))
+          contents.push(...this.mapFunctionCall(chatItem.functionCall))
           break
       }
     }
-
-    return messages
+    return contents
   }
 
-  private mapHumanMessage(item: IChatMessage): OpenAI.Chat.ChatCompletionMessageParam {
+  private mapHumanMessage(item: IChatMessage): Content {
     if (!item.text) {
       throw new Error('User message content is empty')
     }
-    return { role: 'user', content: item.text }
+    return { role: 'user', parts: [{ text: item.text }] }
   }
 
-  private mapBotMessage(item: IChatMessage): OpenAI.Chat.ChatCompletionMessageParam {
+  private mapBotMessage(item: IChatMessage): Content {
     if (!item.text) {
       throw new Error('Bot message content is empty')
     }
-    return { role: 'assistant', content: item.text }
+    return { role: 'model', parts: [{ text: item.text }] }
   }
 
-  private mapFunctionCall(item: IFunctionCall): OpenAI.Chat.ChatCompletionMessageParam[] {
+  private mapFunctionCall(item: IFunctionCall): Content[] {
     return [
       {
+        role: 'model',
+        parts: [
+          {
+            functionCall: {
+              id: item.id,
+              name: item.name,
+              args: JSON.parse(item.arguments ?? '{}'),
+            },
+          },
+        ],
+      },
+      {
         role: 'function',
-        name: item.id,
-        content: item.result ?? 'No result',
+        parts: [
+          {
+            functionResponse: {
+              id: item.id,
+              name: item.name,
+              response: { output: item.result ?? '' },
+            },
+          },
+        ],
       },
     ]
   }
 
-  private mapTool(tool: IMindsetTool) {
+  private mapTool(tool: IMindsetTool): FunctionDeclaration {
     return {
-      type: 'function',
-      function: {
-        name: tool.name,
-        description: tool.description,
-        parameters: {
-          type: 'object',
-          properties: tool.parameters.reduce(
-            (prev, param) => ({
-              ...prev,
-              [param.name]: { 
-                type: param.type, 
-                description: param.description,
-              },
-            }),
-            {}
-          ),
-          required: tool.parameters.map((param) => param.name),
-          additionalProperties: false,
-        }
+      name: tool.name,
+      description: tool.description,
+      parametersJsonSchema: {
+        type: 'object',
+        properties: tool.parameters.reduce(
+          (prev, param) => ({
+            ...prev,
+            [param.name]: { type: param.type, description: param.description },
+          }),
+          {},
+        ),
+        required: tool.parameters.map((param) => param.name),
+        additionalProperties: false,
       },
-    } as const
+    }
   }
 
-  private mapResponse(response: OpenAI.Chat.ChatCompletion): IChatAdapterNextItemsRes {
-    let chatItem: IChatItem
-
-    const { tool_calls: responseFunctionCall, content: responseText } =
-      response.choices?.[0]?.message ?? {}
-
-    if (responseText) {
-      chatItem = { type: 'botMessage', botMessage: { text: responseText } }
-    } else if (responseFunctionCall && responseFunctionCall[0]?.type === 'function') {
-      chatItem = {
-        type: 'functionCall',
-        functionCall: {
-          id: responseFunctionCall[0].id,
-          name: responseFunctionCall[0].function.name,
-          arguments: responseFunctionCall[0].function.arguments,
-        },
-      }
-    } else {
-      throw new Error('Not supported Gemini Response')
+  private mapResponse(response: GenerateContentResponse): IChatAdapterNextItemsRes {
+    if (!response.candidates || !response.candidates.length) {
+      throw new Error('No candidates in response')
     }
 
-    let usage: ILanguageModelUsage
-    if (response.usage) {
-      usage = {
-        inputTokens: response.usage.prompt_tokens,
-        outputTokens: response.usage.completion_tokens,
-      }
-    } else {
-      throw new Error('Unable to found usage info')
+    if (
+      !response.usageMetadata ||
+      !response.usageMetadata.promptTokenCount ||
+      !response.usageMetadata.candidatesTokenCount
+    ) {
+      throw new Error('Not usage metadata')
     }
 
-    return { nextItems: [chatItem], usage }
+    const content = response.candidates.find((x) => x.content)?.content
+    if (!content) {
+      throw new Error('Candidates has no content')
+    }
+
+    const nextItems: IChatItem[] = []
+
+    for (const part of content.parts ?? []) {
+      if (part.text) {
+        nextItems.push({ type: 'botMessage', botMessage: { text: part.text } })
+      }
+      if (part.functionCall) {
+        const { id, name, args } = part.functionCall
+        if (!name) {
+          throw new Error('invalid function call')
+        }
+        nextItems.push({
+          type: 'functionCall',
+          functionCall: { id: id ?? Random.alphaNumericLowerCase(10), name, arguments: args && JSON.stringify(args) },
+        })
+      }
+    }
+
+    let usage: ILanguageModelUsage = {
+      inputTokens: response.usageMetadata.promptTokenCount,
+      outputTokens: response.usageMetadata.candidatesTokenCount,
+    }
+
+    return { usage, nextItems }
   }
 }
