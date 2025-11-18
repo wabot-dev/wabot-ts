@@ -1,4 +1,0 @@
-export * from './@param'
-export * from './IParamDecoration'
-export * from './IParamConfig'
-export * from './decoratorNames'

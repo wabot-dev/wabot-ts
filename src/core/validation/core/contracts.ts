@@ -39,6 +39,7 @@ export interface IPropertyValidatorInfo {
   propertyName: string
   validator: IValidator
   validatorOptions?: any
+  typeDescriptor?: string
 }
 
 export type IModelValidatorsInfo<V> = {

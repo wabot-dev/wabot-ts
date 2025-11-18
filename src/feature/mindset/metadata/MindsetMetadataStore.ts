@@ -1,169 +1,89 @@
 import { singleton } from '@/core/injection'
-import { type IMindsetFunctionDecoration } from './functions/IMindsetFunctionDecoration'
 
-import {
-  type IMindsetFunctionMetadata,
-  type IMindsetFunctionParamMetadata,
-  type IMindsetMetadata,
-  type IMindsetModuleMetadata,
-} from './IMindsetMetadata'
-import { type IMindsetModuleDecoration } from './modules/IMindsetModuleDecoration'
-import { type IParamDecoration } from './params/IParamDecoration'
+import { type IMindsetModuleMetadata } from './modules/IMindsetModuleMetadata'
 
-import { MINDSET_FUNCTION_DECORATION_FUNCTION } from './functions/decoratorNames'
-import { type IMindsetDecoration } from './mindsets/IMindsetDecoration'
-import { MINDSET_DECORATION_MINDSET } from './mindsets/decoratorNames'
-import { MINDSET_MODULE_DECORATION_MODULE } from './modules/decoratorNames'
+import { type IMindsetMetadata } from './mindsets/IMindsetMetadata'
+import { DescriptionMetadataStore } from '@/core/description'
+import { IConstructor } from '@/core/generics'
+import { ValidationMetadataStore } from '@/core/validation'
+import { IMindset } from '../IMindset'
 
 @singleton()
 export class MindsetMetadataStore {
-  private readonly paramsDecorations = new Map<Function, Map<string, IParamDecoration[]>>()
-  private readonly functionsDecorations = new Map<
-    Function,
-    Map<string, IMindsetFunctionDecoration[]>
-  >()
-  private readonly modulesDecorations = new Map<Function, IMindsetModuleDecoration[]>()
-  private readonly mindsetsDecorations = new Map<Function, IMindsetDecoration[]>()
+  private readonly modules = new Map<Function, IMindsetModuleMetadata>()
+  private readonly mindsets = new Map<Function, IMindsetMetadata>()
 
-  public saveParamDecoration(paramDecoration: IParamDecoration): void {
-    let paramsMap = this.paramsDecorations.get(paramDecoration.constructor)
-    if (!paramsMap) {
-      paramsMap = new Map<string, IParamDecoration[]>()
-      this.paramsDecorations.set(paramDecoration.constructor, paramsMap)
-    }
-    let decorations = paramsMap.get(paramDecoration.paramName)
-    if (!decorations) {
-      decorations = []
-      paramsMap.set(paramDecoration.paramName, decorations)
-    }
-    decorations.push(paramDecoration)
+  constructor(
+    private descriptionMetadataStore: DescriptionMetadataStore,
+    private validationMetadataStore: ValidationMetadataStore,
+  ) {}
+
+  public saveModuleMetadata(metadata: IMindsetModuleMetadata): void {
+    this.modules.set(metadata.constructor, metadata)
   }
 
-  public saveFunctionDecoration(functionDecoration: IMindsetFunctionDecoration) {
-    let functionsMap = this.functionsDecorations.get(functionDecoration.constructor)
-    if (!functionsMap) {
-      functionsMap = new Map<string, IMindsetFunctionDecoration[]>()
-      this.functionsDecorations.set(functionDecoration.constructor, functionsMap)
-    }
-    let decorations = functionsMap.get(functionDecoration.functionName)
-    if (!decorations) {
-      decorations = []
-      functionsMap.set(functionDecoration.functionName, decorations)
-    }
-    decorations.push(functionDecoration)
+  public saveMindsetMetadata(metadata: IMindsetMetadata): void {
+    this.mindsets.set(metadata.constructor, metadata)
   }
 
-  public saveModuleDecoration(moduleDecoration: IMindsetModuleDecoration): void {
-    let modulesDecorations = this.modulesDecorations.get(moduleDecoration.constructor)
-    if (!modulesDecorations) {
-      modulesDecorations = []
-      this.modulesDecorations.set(moduleDecoration.constructor, modulesDecorations)
-    }
-    modulesDecorations.push(moduleDecoration)
-  }
-
-  public saveMindsetDecoration(mindsetDecoration: IMindsetDecoration): void {
-    let mindsetsDecorations = this.mindsetsDecorations.get(mindsetDecoration.constructor)
-    if (!mindsetsDecorations) {
-      mindsetsDecorations = []
-      this.mindsetsDecorations.set(mindsetDecoration.constructor, mindsetsDecorations)
-    }
-    mindsetsDecorations.push(mindsetDecoration)
-  }
-
-  public getRequestParamsMetadata(requestConstructor: Function): IMindsetFunctionParamMetadata[] {
-    const paramsMap = this.paramsDecorations.get(requestConstructor)
-    if (!paramsMap) {
-      return []
+  public getModuleInfo(moduleCtor: IConstructor<any>) {
+    const module = this.modules.get(moduleCtor)
+    if (!module) {
+      throw new Error(`not found mindsetModule info for ${moduleCtor.name}`)
     }
 
-    const paramsMetadata: IMindsetFunctionParamMetadata[] = []
-    paramsMap.forEach((decorations, paramName) => {
-      const paramMainDecoration = decorations.find((decoration) => decoration.decorationConfig)
-      if (!paramMainDecoration) {
-        return
-      }
-
-      paramsMetadata.push({
-        config: paramMainDecoration.decorationConfig!,
-        name: paramName,
-        type: paramMainDecoration.paramType,
-      })
-      // TODO: add support for validation decorators
-    })
-
-    return paramsMetadata
-  }
-
-  public getFunctionsMetadata(moduleConstructor: Function): IMindsetFunctionMetadata[] {
-    const functionsMap = this.functionsDecorations.get(moduleConstructor)
-    if (!functionsMap) {
-      return []
-    }
-
-    const functionsMetadata: IMindsetFunctionMetadata[] = []
-    functionsMap.forEach((decorations) => {
-      const mainDecoration = decorations.find(
-        (decoration) => decoration.decorationName === MINDSET_FUNCTION_DECORATION_FUNCTION,
-      )
-      if (!mainDecoration) {
-        return
-      }
-
-      functionsMetadata.push({
-        moduleConstructor: mainDecoration.constructor,
-        config: mainDecoration.decorationConfig,
-        name: mainDecoration.functionName,
-        requestConstructor: mainDecoration.paramsTypes[0],
-        params: mainDecoration.paramsTypes[0]
-          ? this.getRequestParamsMetadata(mainDecoration.paramsTypes[0])
-          : [],
-      })
-    })
-    return functionsMetadata
-  }
-
-  public getModuleMetadata(moduleConstructor: Function): IMindsetModuleMetadata {
-    const decorations = this.modulesDecorations.get(moduleConstructor)
-    if (!decorations) {
-      throw new Error(`Module ${moduleConstructor.name} not found`)
-    }
-
-    const mainDecoration = decorations.find(
-      (decoration) => decoration.decorationName === MINDSET_MODULE_DECORATION_MODULE,
-    )
-    if (!mainDecoration) {
-      throw new Error(`Module ${moduleConstructor.name} not found`)
-    }
+    const descriptions = this.descriptionMetadataStore.getModelDescriptions(moduleCtor)
+    const functions = descriptions.filter((x) => x.propertyType === Function)
 
     return {
-      constructor: moduleConstructor,
-      config: mainDecoration.decorationConfig,
-      functions: this.getFunctionsMetadata(moduleConstructor),
-    }
-  }
-
-  public getMindsetMetadata(ctor: Function): IMindsetMetadata {
-    const decorations = this.mindsetsDecorations.get(ctor)
-    if (!decorations) {
-      throw new Error(`Mindset ${ctor.name} not found`)
-    }
-
-    const mainDecoration = decorations.find(
-      (decoration) => decoration.decorationName === MINDSET_DECORATION_MINDSET,
-    )
-    if (!mainDecoration) {
-      throw new Error(`Mindset ${ctor.name} not found`)
-    }
-
-    return {
-      constructor: ctor as any,
-      config: mainDecoration.decorationConfig,
-      modules: mainDecoration.decorationConfig.modules
-        ? mainDecoration.decorationConfig.modules.map((module: Function) =>
-            this.getModuleMetadata(module),
+      config: module.config,
+      functions: functions.map((x) => {
+        if (x.functionArgsTypes && x.functionArgsTypes.length > 1) {
+          throw new Error(
+            `invalid mindset function ${x.propertyName}, should have none or one object parámeter`,
           )
-        : [],
+        }
+
+        const functionArgsModel =
+          x.functionArgsTypes && x.functionArgsTypes.length === 1 ? x.functionArgsTypes[0] : null
+
+        const argsDescriptions =
+          (functionArgsModel &&
+            this.descriptionMetadataStore.getModelDescriptions(functionArgsModel as any)) ??
+          []
+
+        const argsValidatorsInfo =
+          functionArgsModel &&
+          this.validationMetadataStore.getModelValidatorsInfo(functionArgsModel as any)
+
+
+        const argsValidators = argsValidatorsInfo?.properties ?? {}
+
+        if(argsDescriptions.length !== Object.keys(argsValidators).length) {
+
+        }
+
+        for 
+
+        return {
+          function: x,
+          name: x.propertyName,
+          description: x.description,
+          argsDescriptions,
+          argsValidatorsInfo,
+        }
+      }),
+    }
+  }
+
+  public getMindsetInfo(mindsetCtor: IConstructor<IMindset>) {
+    const mindset = this.mindsets.get(mindsetCtor)
+    if (!mindset) {
+      throw new Error(`not found mindset info for ${mindsetCtor.name}`)
+    }
+    return {
+      config: mindset.config,
+      modules: mindset.config?.modules?.map((x) => this.getModuleInfo(x)) ?? [],
     }
   }
 }

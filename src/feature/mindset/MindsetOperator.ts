@@ -1,24 +1,21 @@
 import { Container, injectable } from '@/core/injection'
 import { type IMindset, type IMindsetIdentity, IMindsetLlm, Mindset } from './IMindset'
-import {
-  IMindsetModuleMetadata,
-  type IMindsetFunctionMetadata,
-  type IMindsetFunctionParamMetadata,
-  type IMindsetMetadata,
-} from './metadata/IMindsetMetadata'
+
 import { MindsetMetadataStore } from './metadata/MindsetMetadataStore'
-import { IMindsetTool, IMindsetToolParameter } from './IMindsetTool'
+import { IMindsetMetadata } from './metadata'
+import { description } from '@/core/description'
+
 
 @injectable()
 export class MindsetOperator implements IMindset {
-  private metadata: IMindsetMetadata
+  private metadata: ReturnType<MindsetMetadataStore['getMindsetInfo']>
 
   constructor(
     private mindset: Mindset,
     private container: Container,
-    metadataStore: MindsetMetadataStore,
+    private metadataStore: MindsetMetadataStore,
   ) {
-    this.metadata = metadataStore.getMindsetMetadata(this.mindset.constructor)
+    this.metadata = metadataStore.getMindsetInfo(this.mindset.constructor as any)
   }
 
   identity(): Promise<IMindsetIdentity> {
@@ -84,8 +81,17 @@ export class MindsetOperator implements IMindset {
   }
 
   tools(): IMindsetTool[] {
+    
     return this.metadata.modules
-      .map((module) => module.functions.map((fn) => this.tool(fn, module)))
+      .map((module) => module.functions.map((fn) => {
+        return {
+          name: fn.name,
+          description: fn.description,
+          language: module.config?.language ?? 'english',
+          parameters: fn.functionArgValidationInfo?.properties.
+        }
+
+      }))
       .flat()
   }
 

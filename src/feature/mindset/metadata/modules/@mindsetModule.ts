@@ -7,7 +7,7 @@ import { type IMindsetModuleConfig } from './IMindsetModuleConfig'
 export function mindsetModule<A>(config: IMindsetModuleConfig) {
   return function (target: IConstructor<A>) {
     const store = container.resolve(MindsetMetadataStore)
-    store.saveModuleDecoration({
+    store.saveModuleMetadata({
       decorationName: MINDSET_MODULE_DECORATION_MODULE,
       constructor: target,
       decorationConfig: config,

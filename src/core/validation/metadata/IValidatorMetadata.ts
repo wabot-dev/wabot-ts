@@ -6,4 +6,5 @@ export interface IValidatorMetadata {
   propertyName: string
   validator: IValidator
   validatorOptions?: any
+  typeDescriptor?: string
 }
