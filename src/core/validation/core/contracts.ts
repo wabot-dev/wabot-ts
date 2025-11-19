@@ -43,6 +43,7 @@ export interface IPropertyValidatorInfo {
 
 export type IModelValidatorsInfo<V> = {
   modelConstructor: IConstructor<V>
+  modelHierarchy: IConstructor<any>[]
   properties: {
     [prop: string]: { isOptional?: boolean; validators?: IPropertyValidatorInfo[] } | undefined
   }
