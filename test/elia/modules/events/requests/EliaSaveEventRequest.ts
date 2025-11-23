@@ -1,24 +1,19 @@
-import { isDate, isNotEmpty, isNumber, isString, max, min, param } from '@'
+import { isDate, isNotEmpty, isNumber, isString, max, min } from '@'
+import { description } from '@/core/description'
 
 export class EliaSaveEventRequest {
-  @param({
-    description: 'Fecha y hora de inicio del evento',
-  })
   @isDate()
+  @description('Fecha y hora de inicio del evento')
   dateTime: Date = new Date(NaN)
 
-  @param({
-    description: 'Duración del evento en minutos',
-  })
   @isNumber()
   @min(10)
   @max(240)
+  @description('Duración del evento en minutos')
   durationInMinutes: number = 20
 
-  @param({
-    description: 'Titulo del evento',
-  })
   @isString()
   @isNotEmpty()
+  @description('Titulo del evento')
   title: string = ''
 }

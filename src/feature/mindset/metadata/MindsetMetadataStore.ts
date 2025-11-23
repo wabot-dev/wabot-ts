@@ -56,20 +56,32 @@ export class MindsetMetadataStore {
           functionArgsModel &&
           this.validationMetadataStore.getModelValidatorsInfo(functionArgsModel as any)
 
-
         const argsValidators = argsValidatorsInfo?.properties ?? {}
 
-        if(argsDescriptions.length !== Object.keys(argsValidators).length) {
+        const argsDescriptionsWithTypes = argsDescriptions.map((argDescription) => {
+          const argValidator = argsValidators[argDescription.propertyName]
+          const typeValidator = argValidator?.validators?.find((x) => x.typeDescriptor)
+          const typeDescriptor = typeValidator?.typeDescriptor
 
+          if (!typeDescriptor) {
+            throw new Error(
+              `the property '${argDescription.constructor.name}.${argDescription.propertyName}' should have a type validator`,
+            )
+          }
+
+          return { ...argDescription, typeDescriptor }
+        })
+
+        if (argsDescriptions.length !== Object.keys(argsValidators).length) {
+          throw new Error(`the model '${moduleCtor.name}' have properties without descriptions`)
         }
 
-        for 
-
         return {
+          moduleConstructor: moduleCtor,
           function: x,
           name: x.propertyName,
           description: x.description,
-          argsDescriptions,
+          argsDescriptions: argsDescriptionsWithTypes,
           argsValidatorsInfo,
         }
       }),

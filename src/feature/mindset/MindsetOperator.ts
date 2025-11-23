@@ -2,9 +2,7 @@ import { Container, injectable } from '@/core/injection'
 import { type IMindset, type IMindsetIdentity, IMindsetLlm, Mindset } from './IMindset'
 
 import { MindsetMetadataStore } from './metadata/MindsetMetadataStore'
-import { IMindsetMetadata } from './metadata'
-import { description } from '@/core/description'
-
+import { IMindsetTool } from './IMindsetTool'
 
 @injectable()
 export class MindsetOperator implements IMindset {
@@ -13,7 +11,7 @@ export class MindsetOperator implements IMindset {
   constructor(
     private mindset: Mindset,
     private container: Container,
-    private metadataStore: MindsetMetadataStore,
+    metadataStore: MindsetMetadataStore,
   ) {
     this.metadata = metadataStore.getMindsetInfo(this.mindset.constructor as any)
   }
@@ -81,53 +79,42 @@ export class MindsetOperator implements IMindset {
   }
 
   tools(): IMindsetTool[] {
-    
     return this.metadata.modules
-      .map((module) => module.functions.map((fn) => {
-        return {
-          name: fn.name,
-          description: fn.description,
-          language: module.config?.language ?? 'english',
-          parameters: fn.functionArgValidationInfo?.properties.
-        }
-
-      }))
+      .map((module) =>
+        module.functions.map((fn) => {
+          return {
+            language: module.config?.language ?? 'english',
+            name: fn.name,
+            description: fn.description,
+            parameters: fn.argsDescriptions.map((x) => ({
+              type: this.paramType(x.typeDescriptor),
+              name: x.propertyName,
+              description: this.paramDescription(x.description, x.typeDescriptor),
+            })),
+          }
+        }),
+      )
       .flat()
   }
 
-  protected tool(fn: IMindsetFunctionMetadata, module: IMindsetModuleMetadata): IMindsetTool {
-    const description = fn.config.description.replaceAll('#', ' ')
-    return {
-      language: module.config.language ?? 'english',
-      name: fn.name,
-      description,
-      parameters: fn.params.map((param) => this.toolParameter(param)),
-    }
-  }
-
-  protected toolParameter(param: IMindsetFunctionParamMetadata): IMindsetToolParameter {
+  protected paramDescription(rawDescription: string, rawType: string) {
     let description = `
       ### description (in your main language)
-      ${param.config.description.replaceAll('#', ' ')}
-      `
+      ${rawDescription.replaceAll('#', ' ')}
+    `
 
-    const type = (() => {
-      if (param.type === Number) return 'number'
-      if (param.type === String) return 'string'
-      if (param.type === Date) {
-        description = `${description}
+    if (rawType === 'date') {
+      description = `${description}
           ### format: ISO 8681 - YYYY-MM-DDTHH:mm:ssZ
-        `
-        return 'string'
-      }
-      throw new Error(`Unsupported type`)
-    })()
-
-    return {
-      type,
-      name: param.name,
-      description,
+      `
     }
+
+    return description
+  }
+
+  protected paramType(rawType: string) {
+    if (rawType === 'date') return 'string'
+    return rawType
   }
 
   async callFunction(name: string, params: string): Promise<string> {

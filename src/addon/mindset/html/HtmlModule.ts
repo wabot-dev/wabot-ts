@@ -1,4 +1,5 @@
-import { mindsetFunction, mindsetModule, param } from '@/feature/mindset'
+import { description } from '@/core/description'
+import { mindsetModule } from '@/feature/mindset'
 import { convert } from 'html-to-text'
 
 function toPascalCaseFunctionName(title: string): string {
@@ -28,9 +29,7 @@ async function fetchRawHtml(url: string): Promise<string> {
 }
 
 class KeywordsReq {
-  @param({
-    description: 'Keywords separated by space',
-  })
+  @description('Keywords separated by space')
   keywords: string = ''
 }
 
@@ -43,13 +42,11 @@ export function HtmlModule(options: IHtmlModuleOptions) {
   const standaricedTitle = toPascalCaseFunctionName(options.title)
   let documentText: string | null = null
 
-  @mindsetModule({
-    description: `Search information using keywords in the document ${options.title}`,
-  })
+  @mindsetModule()
   class HtmlModuleIntern {
-    @mindsetFunction({
-      description: `Search information using keywords in the document "${options.title}". Priorize this info.`,
-    })
+    @description(
+      `Search information using keywords in the document "${options.title}". Priorize this info.`,
+    )
     async [`searchInTheDocument${standaricedTitle}`](req: KeywordsReq) {
       if (!documentText) {
         const rawHtml = await fetchRawHtml(options.url)
