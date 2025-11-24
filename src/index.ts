@@ -11,6 +11,7 @@ export * from './core/random'
 export * from './core/repository'
 export * from './core/storable'
 export * from './core/validation'
+export * from './core/description'
 
 export * from './feature/async'
 export * from './feature/chat-bot'
