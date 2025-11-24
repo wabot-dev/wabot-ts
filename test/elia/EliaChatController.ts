@@ -1,14 +1,10 @@
 import { chatBot, ChatBot, chatController, cmd, whatsApp, type IReceivedMessage } from '@'
 
-import { EliaGuardMindset } from './EliaGuardMindset'
 import { EliaMindset } from './EliaMindset'
 
 @chatController()
 export class EliaChatController {
-  constructor(
-    @chatBot(EliaMindset) private eliaBot: ChatBot,
-    @chatBot(EliaGuardMindset) private eliaGuardBot: ChatBot,
-  ) {}
+  constructor(@chatBot(EliaMindset) private eliaBot: ChatBot) {}
 
   @cmd()
   //@whatsApp('573134336124')

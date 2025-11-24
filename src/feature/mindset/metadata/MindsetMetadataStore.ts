@@ -52,11 +52,11 @@ export class MindsetMetadataStore {
             this.descriptionMetadataStore.getModelDescriptions(functionArgsModel as any)) ??
           []
 
-        const argsValidatorsInfo =
+        const functionArgsModelValidatorsInfo =
           functionArgsModel &&
           this.validationMetadataStore.getModelValidatorsInfo(functionArgsModel as any)
 
-        const argsValidators = argsValidatorsInfo?.properties ?? {}
+        const argsValidators = functionArgsModelValidatorsInfo?.properties ?? {}
 
         const argsDescriptionsWithTypes = argsDescriptions.map((argDescription) => {
           const argValidator = argsValidators[argDescription.propertyName]
@@ -82,7 +82,7 @@ export class MindsetMetadataStore {
           name: x.propertyName,
           description: x.description,
           argsDescriptions: argsDescriptionsWithTypes,
-          argsValidatorsInfo,
+          argsValidatorsInfo: functionArgsModelValidatorsInfo,
         }
       }),
     }

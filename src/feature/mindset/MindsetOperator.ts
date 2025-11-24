@@ -3,6 +3,8 @@ import { type IMindset, type IMindsetIdentity, IMindsetLlm, Mindset } from './IM
 
 import { MindsetMetadataStore } from './metadata/MindsetMetadataStore'
 import { IMindsetTool } from './IMindsetTool'
+import { validateModel } from '@/core/validation'
+import { CustomError } from '@/core/error'
 
 @injectable()
 export class MindsetOperator implements IMindset {
@@ -127,10 +129,21 @@ export class MindsetOperator implements IMindset {
       throw new Error(`Function ${name} not found`)
     }
 
-    const paramsObj = JSON.parse(params)
-    const module = this.container.resolve<any>(fnMetadata.moduleConstructor as any)
-
     try {
+      let paramsObj = JSON.parse(params)
+
+      const modelValidationInfo = fnMetadata.argsValidatorsInfo
+
+      if (modelValidationInfo) {
+        const validation = validateModel(paramsObj, modelValidationInfo)
+        if (validation.error) {
+          throw new CustomError({ message: 'IA Params Are invalid', info: validation.error })
+        }
+        paramsObj = validation.value
+      }
+
+      const module = this.container.resolve<any>(fnMetadata.moduleConstructor as any)
+
       const response = await module[name](paramsObj)
       if (!response) {
         return 'success'

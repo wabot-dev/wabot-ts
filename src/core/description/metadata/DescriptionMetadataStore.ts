@@ -1,6 +1,8 @@
 import { IConstructor } from '@/core/generics'
 import { IDescriptionMetadata } from './IDescriptionMetadata'
+import { singleton } from '@/core/injection'
 
+@singleton()
 export class DescriptionMetadataStore {
   private descriptions = new Map<Function, IDescriptionMetadata[]>()
 

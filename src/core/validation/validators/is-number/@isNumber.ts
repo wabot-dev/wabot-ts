@@ -10,6 +10,7 @@ export function isNumber() {
       modelConstructor: target.constructor as any,
       propertyName,
       validator: validateIsNumber,
+      typeDescriptor: 'number'
     })
   }
 }
