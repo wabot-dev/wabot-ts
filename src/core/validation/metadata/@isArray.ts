@@ -11,6 +11,7 @@ export function isArray(options?: IValidateArrayOptions) {
       propertyName,
       validator: validateArray,
       validatorOptions: options,
+      typeDescriptor: 'array'
     })
   }
 }
