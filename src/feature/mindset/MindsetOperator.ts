@@ -1,24 +1,21 @@
 import { Container, injectable } from '@/core/injection'
 import { type IMindset, type IMindsetIdentity, IMindsetLlm, Mindset } from './IMindset'
-import {
-  IMindsetModuleMetadata,
-  type IMindsetFunctionMetadata,
-  type IMindsetFunctionParamMetadata,
-  type IMindsetMetadata,
-} from './metadata/IMindsetMetadata'
+
 import { MindsetMetadataStore } from './metadata/MindsetMetadataStore'
-import { IMindsetTool, IMindsetToolParameter } from './IMindsetTool'
+import { IMindsetTool } from './IMindsetTool'
+import { validateModel } from '@/core/validation'
+import { CustomError } from '@/core/error'
 
 @injectable()
 export class MindsetOperator implements IMindset {
-  private metadata: IMindsetMetadata
+  private metadata: ReturnType<MindsetMetadataStore['getMindsetInfo']>
 
   constructor(
     private mindset: Mindset,
     private container: Container,
     metadataStore: MindsetMetadataStore,
   ) {
-    this.metadata = metadataStore.getMindsetMetadata(this.mindset.constructor)
+    this.metadata = metadataStore.getMindsetInfo(this.mindset.constructor as any)
   }
 
   identity(): Promise<IMindsetIdentity> {
@@ -85,43 +82,41 @@ export class MindsetOperator implements IMindset {
 
   tools(): IMindsetTool[] {
     return this.metadata.modules
-      .map((module) => module.functions.map((fn) => this.tool(fn, module)))
+      .map((module) =>
+        module.functions.map((fn) => {
+          return {
+            language: module.config?.language ?? 'english',
+            name: fn.name,
+            description: fn.description,
+            parameters: fn.argsDescriptions.map((x) => ({
+              type: this.paramType(x.typeDescriptor),
+              name: x.propertyName,
+              description: this.paramDescription(x.description, x.typeDescriptor),
+            })),
+          }
+        }),
+      )
       .flat()
   }
 
-  protected tool(fn: IMindsetFunctionMetadata, module: IMindsetModuleMetadata): IMindsetTool {
-    const description = fn.config.description.replaceAll('#', ' ')
-    return {
-      language: module.config.language ?? 'english',
-      name: fn.name,
-      description,
-      parameters: fn.params.map((param) => this.toolParameter(param)),
-    }
-  }
-
-  protected toolParameter(param: IMindsetFunctionParamMetadata): IMindsetToolParameter {
+  protected paramDescription(rawDescription: string, rawType: string) {
     let description = `
       ### description (in your main language)
-      ${param.config.description.replaceAll('#', ' ')}
-      `
+      ${rawDescription.replaceAll('#', ' ')}
+    `
 
-    const type = (() => {
-      if (param.type === Number) return 'number'
-      if (param.type === String) return 'string'
-      if (param.type === Date) {
-        description = `${description}
+    if (rawType === 'date') {
+      description = `${description}
           ### format: ISO 8681 - YYYY-MM-DDTHH:mm:ssZ
-        `
-        return 'string'
-      }
-      throw new Error(`Unsupported type`)
-    })()
-
-    return {
-      type,
-      name: param.name,
-      description,
+      `
     }
+
+    return description
+  }
+
+  protected paramType(rawType: string) {
+    if (rawType === 'date') return 'string'
+    return rawType
   }
 
   async callFunction(name: string, params: string): Promise<string> {
@@ -134,10 +129,21 @@ export class MindsetOperator implements IMindset {
       throw new Error(`Function ${name} not found`)
     }
 
-    const paramsObj = JSON.parse(params)
-    const module = this.container.resolve<any>(fnMetadata.moduleConstructor as any)
-
     try {
+      let paramsObj = JSON.parse(params)
+
+      const modelValidationInfo = fnMetadata.argsValidatorsInfo
+
+      if (modelValidationInfo) {
+        const validation = validateModel(paramsObj, modelValidationInfo)
+        if (validation.error) {
+          throw new CustomError({ message: 'IA Params Are invalid', info: validation.error })
+        }
+        paramsObj = validation.value
+      }
+
+      const module = this.container.resolve<any>(fnMetadata.moduleConstructor as any)
+
       const response = await module[name](paramsObj)
       if (!response) {
         return 'success'

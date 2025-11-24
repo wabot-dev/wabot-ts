@@ -1,3 +1,3 @@
 export * from './@mindset'
-export * from './decoratorNames'
-export * from './IMindsetDecoration'
+export * from './IMindsetConfig'
+export * from './IMindsetMetadata'

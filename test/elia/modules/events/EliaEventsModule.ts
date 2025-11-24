@@ -1,21 +1,14 @@
-import { mindsetFunction, mindsetModule } from '@'
-import { EliaEventRepository } from '../../repositories/EliaEventRepository'
+import { mindsetModule } from '@'
+import { description } from '@/core/description'
 import { EliaEvent } from '../../models/EliaEvent'
+import { EliaEventRepository } from '../../repositories/EliaEventRepository'
 import { EliaSaveEventRequest } from './requests'
 
-@mindsetModule({
-  description: `
-    Modulo para administrar eventos en el calendario.
-  `,
-})
+@mindsetModule()
 export class EliaEventsModule {
-  constructor(
-    private repository: EliaEventRepository,
-  ) {}
+  constructor(private repository: EliaEventRepository) {}
 
-  @mindsetFunction({
-    description: 'Guarda un evento en el calendario',
-  })
+  @description('Guarda un evento en el calendario')
   async saveEvent(req: EliaSaveEventRequest) {
     const newEvent = new EliaEvent({
       userId: 'unknown',

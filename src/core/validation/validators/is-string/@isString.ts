@@ -10,6 +10,7 @@ export function isString() {
       modelConstructor: target.constructor as any,
       propertyName,
       validator: validateIsString,
+      typeDescriptor: 'string'
     })
   }
 }

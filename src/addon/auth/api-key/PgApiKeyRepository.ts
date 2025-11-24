@@ -1,10 +1,10 @@
 import { IStorableData } from '@/core/storable'
 import { PgCrudRepository } from '@/feature/pg'
 import { Pool } from 'pg'
-import { singleton } from 'tsyringe'
 import { ApiKey } from './ApiKey'
 import { IApiKeyRepository, IGenerateApiKeyReq, IGenerateApiKeyRes } from './IApiKeyRepository'
 import { CustomError } from '@/core/error'
+import { singleton } from '@/core/injection'
 
 @singleton()
 export class PgApiKeyRepository<A extends IStorableData>

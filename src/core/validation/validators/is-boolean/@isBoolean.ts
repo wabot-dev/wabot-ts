@@ -10,6 +10,7 @@ export function isBoolean() {
       modelConstructor: target.constructor as any,
       propertyName,
       validator: validateIsBoolean,
+      validatorOptions: 'boolean',
     })
   }
 }

@@ -1,16 +1,14 @@
 import { container, injectable } from '@/core/injection'
 import { type IConstructor } from '@/core/generics'
 import { MindsetMetadataStore } from '../MindsetMetadataStore'
-import { MINDSET_MODULE_DECORATION_MODULE } from './decoratorNames'
 import { type IMindsetModuleConfig } from './IMindsetModuleConfig'
 
-export function mindsetModule<A>(config: IMindsetModuleConfig) {
+export function mindsetModule<A>(config?: IMindsetModuleConfig) {
   return function (target: IConstructor<A>) {
     const store = container.resolve(MindsetMetadataStore)
-    store.saveModuleDecoration({
-      decorationName: MINDSET_MODULE_DECORATION_MODULE,
+    store.saveModuleMetadata({
       constructor: target,
-      decorationConfig: config,
+      config: config,
     })
     injectable()(target)
   }

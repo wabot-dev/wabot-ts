@@ -12,6 +12,7 @@ export function isModel(model: IConstructor<any>) {
       propertyName,
       validator: validateModel,
       validatorOptions: store.getModelValidatorsInfo(model),
+      typeDescriptor: 'object'
     })
   }
 }
