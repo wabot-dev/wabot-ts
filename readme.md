@@ -1,0 +1,137 @@
+# 🤖 Wabot
+
+<div align="center">
+
+[![npm version](https://img.shields.io/npm/v/@wabot-dev/framework.svg?style=flat-square)](https://www.npmjs.com/package/@wabot-dev/framework)
+[![License](https://img.shields.io/github/license/wabot-dev/wabot-ts.svg?style=flat-square)](https://github.com/wabot-dev/wabot-ts)
+[![GitHub Stars](https://img.shields.io/github/stars/wabot-dev/wabot-ts.svg?style=flat-square)](https://github.com/wabot-dev/wabot-ts)
+[![Documentation](https://img.shields.io/badge/docs-wabot.dev-blue.svg?style=flat-square)](https://docs.wabot.dev)
+
+**Un framework moderno y flexible para crear bots con TypeScript e Inteligencia Artificial**
+
+[Documentación](https://docs.wabot.dev) • [Inicio Rápido](https://docs.wabot.dev/guides/start-new-project/) • [Repositorio](https://github.com/wabot-dev/wabot-ts)
+
+</div>
+
+---
+
+## 🌟 Introducción
+
+**Wabot** es un framework diseñado para desarrolladores que desean crear bots inteligentes de manera rápida y profesional. Con soporte nativo para TypeScript, múltiples plataformas de mensajería y los principales proveedores de IA, Wabot te permite enfocarte en la lógica de tu bot mientras nosotros nos encargamos de la infraestructura.
+
+---
+
+## ✨ Características Principales
+
+- 🔷 **Tipado estricto con TypeScript** - Desarrollo seguro y predecible
+- 🧩 **Modular y extensible** - Arquitectura flexible para escalar
+- 🔌 **Fácil integración con múltiples plataformas** - Conecta con diversos canales
+- 🤖 **Soporte para bots con IA** - Inteligencia artificial lista para usar
+- 🧠 **Múltiples proveedores de IA** - OpenAI, Google Gemini, Anthropic Claude
+- 💬 **Múltiples canales de chat** - Telegram, WhatsApp, Socket y más
+- 📖 **Documentación clara y en español** - Aprende sin barreras de idioma
+
+---
+
+## 🚀 Inicio Rápido
+
+### Requisitos previos
+
+- **Node.js** (versión 20 o superior)
+- **npm** (incluido con Node.js)
+
+### Instalación
+
+Crea un nuevo proyecto con un solo comando:
+
+```bash
+npx wabot-create <nombre-de-tu-proyecto> \
+  --db-url "https://tu-url-de-base-de-datos.com" \
+  --llm-url "https://tu-url-de-llm.com" \
+  --api-key tu-clave-de-api-secreta
+```
+
+**Parámetros:**
+- `<nombre-de-tu-proyecto>`: Nombre de tu bot
+- `--db-url`: URL de tu base de datos
+- `--llm-url`: URL del servicio de IA (LLM)
+- `--api-key`: Clave de API para autenticación
+
+📘 **[Ver guía completa de inicio →](https://docs.wabot.dev/guides/start-new-project/)**
+
+---
+
+## 💬 Plataformas Soportadas
+
+Wabot se integra nativamente con las principales plataformas de mensajería:
+
+| Plataforma | Estado |
+|------------|--------|
+| 📱 **WhatsApp** | ✅ Soportado |
+| ✈️ **Telegram** | ✅ Soportado |
+| 🔌 **Socket** | ✅ Soportado |
+
+---
+
+## 🧠 Proveedores de IA
+
+Conecta tu bot con los principales modelos de lenguaje del mercado:
+
+| Proveedor | Modelos |
+|-----------|---------|
+| 🟢 **OpenAI** | GPT-4, GPT-3.5, y más |
+| 🔵 **Google** | Gemini Pro, Gemini Ultra |
+| 🟣 **Anthropic** | Claude 3  y más |
+
+---
+
+## 📚 Documentación
+
+Explora nuestra documentación completa para dominar Wabot:
+
+- 📖 **[Introducción](https://docs.wabot.dev)** - Conoce el framework
+- 🧠 **[Mentalidad del Bot](https://docs.wabot.dev/guides/mentality-of-your-bot/)** - Diseña bots inteligentes
+- ⚙️ **[Agregar Funcionalidades](https://docs.wabot.dev/guides/add-functions-modules/)** - Extiende tu bot con módulos
+- 🔍 **[Documentación Completa](https://docs.wabot.dev)** - Explora todas las guías
+
+---
+
+## 💡 Ejemplos
+
+💡 **Ver más ejemplos en la [documentación oficial](https://docs.wabot.dev)**
+
+---
+
+## 🛠️ Desarrollo y Contribución
+
+¿Quieres contribuir al proyecto? ¡Serás bienvenido!
+
+- 📦 **Repositorio:** [github.com/wabot-dev/wabot-ts](https://github.com/wabot-dev/wabot-ts)
+- 🐛 **Reportar bugs:** [Issues](https://github.com/wabot-dev/wabot-ts/issues)
+- 💬 **Discusiones:** [Discussions](https://github.com/wabot-dev/wabot-ts/discussions)
+
+---
+
+## 📞 Soporte
+
+¿Necesitas ayuda? Estamos aquí para ti:
+
+- 📧 **Email:** [soporte@wabot.dev](mailto:soporte@wabot.dev)
+- 🐛 **Issues:** [Reportar un problema](https://github.com/wabot-dev/wabot-ts/issues)
+- 📖 **Documentación:** [docs.wabot.dev](https://docs.wabot.dev)
+
+---
+
+## 📄 Licencia
+
+Este proyecto está licenciado bajo [Licencia MIT](https://github.com/wabot-dev/wabot-ts/blob/main/LICENSE).
+
+---
+
+<div align="center">
+
+**Hecho con ❤️ por el equipo de Wabot**
+
+[Sitio Web](https://wabot.dev) • [Documentación](https://docs.wabot.dev) • [GitHub](https://github.com/wabot-dev/wabot-ts) • [npm](https://www.npmjs.com/package/@wabot-dev/framework)
+
+</div>
