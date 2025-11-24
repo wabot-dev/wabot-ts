@@ -2,12 +2,13 @@ import { CustomError } from '@/core/error'
 import { IConstructor } from '@/core/generics'
 import { container } from '@/core/injection'
 import { Logger } from '@/core/logger'
-import { validateAndTransform } from '@/core/validation'
+import { validateModel, ValidationMetadataStore } from '@/core/validation'
 import { ExpressProvider } from '@/feature/express'
 import { Request, json, urlencoded } from 'express'
 import path from 'path'
 import { EXPRESS_REQ, EXPRESS_RES } from './injection-tokens'
 import { RestControllerMetadataStore } from './metadata'
+import { RestRequest } from './RestRequest'
 
 function buildRequest(req: Request): any {
   return Object.assign({}, req.body, req.query, req.params)
@@ -17,6 +18,7 @@ export function runRestControllers(controllers: IConstructor<any>[]) {
   const logger = new Logger('wabot:rest')
   const metadataStore = container.resolve(RestControllerMetadataStore)
   const expressProvider = container.resolve(ExpressProvider)
+  const validationMetadataStore = container.resolve(ValidationMetadataStore)
 
   const expressApp = expressProvider.getExpress()
 
@@ -48,22 +50,27 @@ export function runRestControllers(controllers: IConstructor<any>[]) {
           }
 
           const controllerInstance = requestContainer.resolve(endPoint.controllerConstructor)
-          const endPointArgs = [] as any
-          let defaultArgFound = false
+          const endPointArgs: any[] = []
 
-          for (let paramIndex = 0; paramIndex < endPoint.paramsTypes.length; paramIndex++) {
-            const paramType = endPoint.paramsTypes[paramIndex]
-            if (defaultArgFound) {
-              throw new Error(`Cant determine de parameter ${paramIndex} value`)
+          if (endPoint.paramsTypes.length > 1) {
+            throw new Error(`rest controller endpoints should have zero or one parameter only`)
+          }
+
+          if (endPoint.paramsTypes.length === 1) {
+            const paramType = endPoint.paramsTypes[0]
+            if (typeof paramType !== 'function') {
+              throw new Error(`invalid rest controller endpoint parameter type`)
             }
-            defaultArgFound = true
-            if (typeof paramType === 'function') {
-              const { value, error } = validateAndTransform(buildRequest(req), paramType)
-              if (error) {
-                throw new CustomError({ httpCode: 400, message: error.description, info: error })
-              }
-              endPointArgs.push(value)
+            const paramInfo = validationMetadataStore.getModelValidatorsInfo(paramType)
+
+            const validableReq = paramInfo.modelHierarchy.includes(RestRequest)
+              ? req
+              : buildRequest(req)
+            const { value, error } = validateModel(validableReq, paramInfo)
+            if (error) {
+              throw new CustomError({ httpCode: 400, message: error.description, info: error })
             }
+            endPointArgs.push(value)
           }
 
           const response = await (controllerInstance[endPoint.functionName] as Function).apply(

@@ -5,7 +5,7 @@ import { IModelValidatorsInfo, IPropertyValidatorInfo } from '../core/contracts'
 import { _IS_OPTIONAL_DUMMY_VALIDATOR_ } from '../core/validateIsOptional'
 import { IValidateArrayOptionsWithItemsValidators, validateArray } from '../core'
 
-function getClassHierarchy(cls: Function): Function[] {
+function getClassHierarchy(cls: Function) {
   const classes: Function[] = []
   let proto = Object.getPrototypeOf(cls.prototype)
 
@@ -77,6 +77,7 @@ export class ValidationMetadataStore {
 
     const modelValidators: IModelValidatorsInfo<V> = {
       modelConstructor: modelConstructor,
+      modelHierarchy: constructors as any,
       properties: Object.assign(
         {},
         ...constructors.map((x) => this.getConstructorPropertiesValidatorsInfo(x as any)),
