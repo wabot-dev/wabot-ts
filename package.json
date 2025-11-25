@@ -1,13 +1,14 @@
 {
   "name": "@wabot-dev/framework",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Framework for IA Chat Bots",
   "type": "module",
   "main": "dist/src/index.js",
   "module": "dist/src/index.js",
   "types": "dist/src/index.d.ts",
   "files": [
-    "dist/src"
+    "dist/src",
+    "LICENSE.md"
   ],
   "scripts": {
     "build": "rollup --config rollup.config.ts --configPlugin typescript && tsup --dts-only --format esm --out-dir dist/src src/index.ts",
