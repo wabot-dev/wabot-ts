@@ -3,7 +3,7 @@
 <div align="center">
 
 [![npm version](https://img.shields.io/npm/v/@wabot-dev/framework.svg?style=flat-square)](https://www.npmjs.com/package/@wabot-dev/framework)
-[![License](https://img.shields.io/npm/l/@wabot-dev/framework.svg?style=flat-square)](https://github.com/wabot-dev/wabot-ts/blob/main/LICENSE.md)
+[![License](https://img.shields.io/npm/l/@wabot-dev/framework.svg?style=flat-square)](https://www.npmjs.com/package/@wabot-dev/framework)
 [![Documentation](https://img.shields.io/badge/docs-wabot.dev-blue.svg?style=flat-square)](https://docs.wabot.dev)
 
 
