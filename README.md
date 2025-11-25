@@ -3,9 +3,9 @@
 <div align="center">
 
 [![npm version](https://img.shields.io/npm/v/@wabot-dev/framework.svg?style=flat-square)](https://www.npmjs.com/package/@wabot-dev/framework)
-[![License](https://img.shields.io/github/license/wabot-dev/wabot-ts.svg?style=flat-square)](https://github.com/wabot-dev/wabot-ts)
-[![GitHub Stars](https://img.shields.io/github/stars/wabot-dev/wabot-ts.svg?style=flat-square)](https://github.com/wabot-dev/wabot-ts)
+[![License](https://img.shields.io/github/license/wabot-dev/wabot-ts.svg?style=flat-square)](https://github.com/wabot-dev/wabot-ts/blob/main/LICENSE.md)
 [![Documentation](https://img.shields.io/badge/docs-wabot.dev-blue.svg?style=flat-square)](https://docs.wabot.dev)
+
 
 **Un framework moderno y flexible para crear bots con TypeScript e Inteligencia Artificial**
 
@@ -35,29 +35,7 @@
 
 ## 🚀 Inicio Rápido
 
-### Requisitos previos
-
-- **Node.js** (versión 20 o superior)
-- **npm** (incluido con Node.js)
-
-### Instalación
-
-Crea un nuevo proyecto con un solo comando:
-
-```bash
-npx wabot-create <nombre-de-tu-proyecto> \
-  --db-url "https://tu-url-de-base-de-datos.com" \
-  --llm-url "https://tu-url-de-llm.com" \
-  --api-key tu-clave-de-api-secreta
-```
-
-**Parámetros:**
-- `<nombre-de-tu-proyecto>`: Nombre de tu bot
-- `--db-url`: URL de tu base de datos
-- `--llm-url`: URL del servicio de IA (LLM)
-- `--api-key`: Clave de API para autenticación
-
-📘 **[Ver guía completa de inicio →](https://docs.wabot.dev/guides/start-new-project/)**
+visita nuestra documentación 📘 **[Ver guía completa de inicio →](https://docs.wabot.dev/guides/start-new-project/)**
 
 ---
 
