@@ -1,11 +1,12 @@
 {
   "name": "@wabot-dev/framework",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Framework for IA Chat Bots",
   "type": "module",
   "main": "dist/src/index.js",
   "module": "dist/src/index.js",
   "types": "dist/src/index.d.ts",
+  "license": "MIT",
   "files": [
     "dist/src",
     "LICENSE.md"
