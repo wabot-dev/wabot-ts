@@ -9,7 +9,7 @@
 
 **Un framework moderno y flexible para crear bots con TypeScript e Inteligencia Artificial**
 
-[Documentación](https://docs.wabot.dev) • [Inicio Rápido](https://docs.wabot.dev/guides/start-new-project/) • [Repositorio](https://github.com/wabot-dev/wabot-ts)
+[Documentación](https://docs.wabot.dev) • [Inicio Rápido](https://docs.wabot.dev/guides/start-new-project/) 
 
 </div>
 
@@ -84,7 +84,6 @@ Explora nuestra documentación completa para dominar Wabot:
 
 ¿Quieres contribuir al proyecto? ¡Serás bienvenido!
 
-- 📦 **Repositorio:** [github.com/wabot-dev/wabot-ts](https://github.com/wabot-dev/wabot-ts)
 - 🐛 **Reportar bugs:** [Issues](https://github.com/wabot-dev/wabot-ts/issues)
 - 💬 **Discusiones:** [Discussions](https://github.com/wabot-dev/wabot-ts/discussions)
 
@@ -96,7 +95,6 @@ Explora nuestra documentación completa para dominar Wabot:
 
 - 📧 **Email:** [soporte@wabot.dev](mailto:soporte@wabot.dev)
 - 🐛 **Issues:** [Reportar un problema](https://github.com/wabot-dev/wabot-ts/issues)
-- 📖 **Documentación:** [docs.wabot.dev](https://docs.wabot.dev)
 
 ---
 
@@ -110,6 +108,6 @@ Este proyecto está licenciado bajo [Licencia MIT](https://github.com/wabot-dev/
 
 **Hecho con ❤️ por el equipo de Wabot**
 
-[Sitio Web](https://wabot.dev) • [Documentación](https://docs.wabot.dev) • [GitHub](https://github.com/wabot-dev/wabot-ts) • [npm](https://www.npmjs.com/package/@wabot-dev/framework)
+[Sitio Web](https://wabot.dev) • [Documentación](https://docs.wabot.dev) • [npm](https://www.npmjs.com/package/@wabot-dev/framework)
 
 </div>
