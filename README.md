@@ -53,14 +53,13 @@ Wabot se integra nativamente con las principales plataformas de mensajería:
 
 ## 🧠 Proveedores de IA
 
-Conecta tu bot con los principales modelos de lenguaje del mercado:
+Potencia tu bot con los principales proveedores de inteligencia artificial:
 
-| Proveedor | Modelos |
-|-----------|---------|
-| 🟢 **OpenAI** | GPT-4, GPT-3.5, y más |
-| 🔵 **Google** | Gemini Pro, Gemini Ultra |
-| 🟣 **Anthropic** | Claude 3  y más |
-
+| Proveedor | Soporte en Wabot |
+|-----------|------------------|
+| 🟢 **OpenAI** | ✅ Integración completa |
+| 🔵 **Google** | ✅ Integración completa |
+| 🟣 **Anthropic** | ✅ Integración completa |
 ---
 
 ## 📚 Documentación
@@ -93,7 +92,7 @@ Explora nuestra documentación completa para dominar Wabot:
 
 ¿Necesitas ayuda? Estamos aquí para ti:
 
-- 📧 **Email:** [soporte@wabot.dev](mailto:soporte@wabot.dev)
+- 📧 **Email:** [contact@wabot.dev](mailto:contact@wabot.dev)
 - 🐛 **Issues:** [Reportar un problema](https://github.com/wabot-dev/wabot-ts/issues)
 
 ---
