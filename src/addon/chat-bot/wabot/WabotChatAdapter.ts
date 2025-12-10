@@ -19,7 +19,7 @@ export class WabotChatAdapter implements IChatAdapter {
   }
 
   async nextItems(req: IChatAdapterNextItemsReq): Promise<IChatAdapterNextItemsRes> {
-    const response = await fetch(this.baseUrl + '/chat-bot/next-item', {
+    const response = await fetch(this.baseUrl + '/chat-bot/next-items', {
       method: 'post',
       headers: {
         Authorization: `Api-Key ${this.apiKey}`,
