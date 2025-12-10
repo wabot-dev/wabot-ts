@@ -9,7 +9,7 @@
 
 **Un framework moderno y flexible para crear bots con TypeScript e Inteligencia Artificial**
 
-[Documentación](https://docs.wabot.dev) • [Inicio Rápido](https://docs.wabot.dev/guides/start-new-project/) • [Repositorio](https://github.com/wabot-dev/wabot-ts)
+[Documentación](https://docs.wabot.dev) • [Inicio Rápido](https://docs.wabot.dev/guides/start-new-project/) 
 
 </div>
 
@@ -53,14 +53,13 @@ Wabot se integra nativamente con las principales plataformas de mensajería:
 
 ## 🧠 Proveedores de IA
 
-Conecta tu bot con los principales modelos de lenguaje del mercado:
+Potencia tu bot con los principales proveedores de inteligencia artificial:
 
-| Proveedor | Modelos |
-|-----------|---------|
-| 🟢 **OpenAI** | GPT-4, GPT-3.5, y más |
-| 🔵 **Google** | Gemini Pro, Gemini Ultra |
-| 🟣 **Anthropic** | Claude 3  y más |
-
+| Proveedor | Soporte en Wabot |
+|-----------|------------------|
+| 🟢 **OpenAI** | ✅ Integración completa |
+| 🔵 **Google** | ✅ Integración completa |
+| 🟣 **Anthropic** | ✅ Integración completa |
 ---
 
 ## 📚 Documentación
@@ -84,7 +83,6 @@ Explora nuestra documentación completa para dominar Wabot:
 
 ¿Quieres contribuir al proyecto? ¡Serás bienvenido!
 
-- 📦 **Repositorio:** [github.com/wabot-dev/wabot-ts](https://github.com/wabot-dev/wabot-ts)
 - 🐛 **Reportar bugs:** [Issues](https://github.com/wabot-dev/wabot-ts/issues)
 - 💬 **Discusiones:** [Discussions](https://github.com/wabot-dev/wabot-ts/discussions)
 
@@ -94,9 +92,8 @@ Explora nuestra documentación completa para dominar Wabot:
 
 ¿Necesitas ayuda? Estamos aquí para ti:
 
-- 📧 **Email:** [soporte@wabot.dev](mailto:soporte@wabot.dev)
+- 📧 **Email:** [contact@wabot.dev](mailto:contact@wabot.dev)
 - 🐛 **Issues:** [Reportar un problema](https://github.com/wabot-dev/wabot-ts/issues)
-- 📖 **Documentación:** [docs.wabot.dev](https://docs.wabot.dev)
 
 ---
 
@@ -110,6 +107,6 @@ Este proyecto está licenciado bajo [Licencia MIT](https://github.com/wabot-dev/
 
 **Hecho con ❤️ por el equipo de Wabot**
 
-[Sitio Web](https://wabot.dev) • [Documentación](https://docs.wabot.dev) • [GitHub](https://github.com/wabot-dev/wabot-ts) • [npm](https://www.npmjs.com/package/@wabot-dev/framework)
+[Sitio Web](https://wabot.dev) • [Documentación](https://docs.wabot.dev) • [npm](https://www.npmjs.com/package/@wabot-dev/framework)
 
 </div>
