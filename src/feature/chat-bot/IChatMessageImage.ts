@@ -3,13 +3,13 @@ import { IStorableData } from "@/core/storable"
 export interface IChatMessagesPublicImage extends IStorableData {
   name?: string
   publicUrl: string
-  base64Url: undefined
+  base64Url?: undefined
   mimeType: string
 }
 
 export interface IChatMessagesPrivateImage extends IStorableData {
   name?: string
-  publicUrl: undefined
+  publicUrl?: undefined
   base64Url: string
   mimeType: string
 }

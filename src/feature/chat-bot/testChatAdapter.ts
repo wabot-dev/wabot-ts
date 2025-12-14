@@ -170,4 +170,54 @@ export function testChatAdapter({ adapter, model }: ItestChatAdapterReq) {
     assert(nextItems.length === 1, 'nexItems length should be 1')
     assert(nextItems[0].type === 'botMessage', 'next item should have botMessage type')
   })
+
+  test('consume public image', async () => {
+    const { nextItems } = await adapter.nextItems({
+      model,
+      tools: [],
+      systemPrompt: 'Act as a Bot',
+      prevItems: [
+        {
+          type: 'humanMessage',
+          humanMessage: {
+            images: [
+              {
+                mimeType: 'image/jpeg',
+                publicUrl: 'https://www.shutterstock.com/shutterstock/photos/2499249955/display_1500/stock-photo-baby-anaconda-at-the-rainforest-cuyabeno-amazonas-in-ecuador-2499249955.jpg',
+              }
+            ]
+          },
+        },
+      ],
+    })
+
+    assert(Array.isArray(nextItems), 'nextItems is not array')
+    assert(nextItems.length === 1, 'nexItems length should be 1')
+    assert(nextItems[0].type === 'botMessage', 'next item should have botMessage type')
+  })
+
+  test('consume private image', async () => {
+    const { nextItems } = await adapter.nextItems({
+      model,
+      tools: [],
+      systemPrompt: 'Act as a Bot',
+      prevItems: [
+        {
+          type: 'humanMessage',
+          humanMessage: {
+            images: [
+              {
+                mimeType: 'image/png',
+                base64Url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA AAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO 9TXL0Y4OHwAAAABJRU5ErkJggg==',
+              }
+            ]
+          },
+        },
+      ],
+    })
+
+    assert(Array.isArray(nextItems), 'nextItems is not array')
+    assert(nextItems.length === 1, 'nexItems length should be 1')
+    assert(nextItems[0].type === 'botMessage', 'next item should have botMessage type')
+  })
 }

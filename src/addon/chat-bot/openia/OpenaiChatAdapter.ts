@@ -52,8 +52,6 @@ export class OpenaiChatAdapter implements IChatAdapter {
   }
 
   private mapConectionMessage(item: IChatMessage) {
-    if (!item.text && !item.images?.length) {
-    }
     const content: OpenAI.Responses.ResponseInputContent[] = []
     if (item.text) content.push({ type: 'input_text', text: item.text })
     if (item.images) {
