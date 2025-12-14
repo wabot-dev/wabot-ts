@@ -56,7 +56,7 @@
     "grammy": "^1.36.0",
     "html-to-text": "^9.0.5",
     "jsonwebtoken": "^9.0.2",
-    "openai": "^4.93.0",
+    "openai": "^6.10.0",
     "pg": "^8.15.6",
     "reflect-metadata": "^0.2.2",
     "short-uuid": "^5.2.0",

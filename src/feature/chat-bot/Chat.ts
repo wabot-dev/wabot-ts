@@ -20,6 +20,10 @@ export class Chat extends Entity<IChatData> {
     return this.data.type === 'GROUP'
   }
 
+  get connections() {
+    return this.data.connections
+  }
+
   hasConnection(connection: IChatConnection) {
     for (const con of this.data.connections) {
       if (con.channelName === connection.channelName && con.id === connection.id) {

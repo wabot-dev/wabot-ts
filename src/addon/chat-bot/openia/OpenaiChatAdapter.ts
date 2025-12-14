@@ -52,10 +52,25 @@ export class OpenaiChatAdapter implements IChatAdapter {
   }
 
   private mapConectionMessage(item: IChatMessage) {
-    if (!item.text) {
-      throw new Error('System message content is empty')
+    if (!item.text && !item.images?.length) {
     }
-    return { role: 'user', content: item.text } as const
+    const content: OpenAI.Responses.ResponseInputContent[] = []
+    if (item.text) content.push({ type: 'input_text', text: item.text })
+    if (item.images) {
+      for (const image of item.images) {
+        content.push({
+          type: 'input_image',
+          image_url: image.publicUrl ?? image.base64Url,
+          detail: 'auto',
+        })
+      }
+    }
+
+    if (content.length === 0) {
+      throw new Error('message content is empty')
+    }
+
+    return { role: 'user', content } as const
   }
 
   private mapBotMessage(item: IChatMessage) {
