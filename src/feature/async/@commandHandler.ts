@@ -12,7 +12,7 @@ export interface ICommandHandlerConfig<C extends Command<any>> {
 export function commandHandler<C extends Command<any>>(config: ICommandHandlerConfig<C>) {
   return function (target: IConstructor<ICommandHandler<C>>) {
     const handlerContainer = container.resolve(CommandMetadataStore)
-    handlerContainer.registerHandler(config.command, target)
+    handlerContainer.registerCommandHandler(config.command, target)
     injectable()(target)
   }
 }
