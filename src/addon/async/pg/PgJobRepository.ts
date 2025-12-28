@@ -13,4 +13,33 @@ export class PgJobRepository extends PgCrudRepository<Job> implements IJobReposi
       constructor: Job,
     })
   }
+
+  async findScheduledBefore(date?: Date): Promise<Job[]> {
+    const target = date ? date.getTime() : Date.now()
+
+    const sql = `
+      SELECT ${this.columns}
+      FROM ${this.table}
+      WHERE data ? 'scheduledAt'
+        AND (data->>'scheduledAt')::bigint <= $1
+      ORDER BY (data->>'scheduledAt')::bigint ASC
+    `
+
+    const items = await this.query(sql, [target])
+    return items
+  }
+
+  async findRunningJobs(): Promise<Job[]> {
+    const sql = `
+      SELECT ${this.columns}
+      FROM ${this.table}
+      WHERE data ? 'startedAt'
+        AND data->>'startedAt' IS NOT NULL
+        AND data->>'successAt' IS NULL
+        AND data->>'failedAt' IS NULL
+    `
+
+    const items = await this.query(sql, [])
+    return items
+  }
 }
