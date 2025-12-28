@@ -15,6 +15,12 @@
       "name": "Test:Int",
       "request": "launch",
       "command": "nvm use && npm run test:integration"
+    },
+    {
+      "type": "node-terminal",
+      "name": "Test:Unit",
+      "request": "launch",
+      "command": "nvm use && npm run test:units"
     }
   ]
 }
