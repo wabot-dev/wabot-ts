@@ -16,15 +16,13 @@ export class PgJobRepository extends PgCrudRepository<Job> implements IJobReposi
 
   async findScheduledBefore(date?: Date): Promise<Job[]> {
     const target = date ? date.getTime() : Date.now()
-
     const sql = `
       SELECT ${this.columns}
       FROM ${this.table}
       WHERE data ? 'scheduledAt'
-        AND (data->>'scheduledAt')::bigint <= $1
-      ORDER BY (data->>'scheduledAt')::bigint ASC
+        AND data->>'scheduledAt' <= $1
+      ORDER BY data->>'scheduledAt' ASC
     `
-
     const items = await this.query(sql, [target])
     return items
   }
