@@ -10,6 +10,12 @@
       "request": "launch",
       "command": "nvm use && npm run elia:dev"
     },
+        {
+      "type": "node-terminal",
+      "name": "Test:MP",
+      "request": "launch",
+      "command": "nvm use && npm run test:multiprocess"
+    },
     {
       "type": "node-terminal",
       "name": "Test:Int",
