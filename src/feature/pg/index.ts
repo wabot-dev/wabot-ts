@@ -1,3 +1,6 @@
 export * from './PgCrudRepository'
 export * from './IPgRepositoryConfig'
 export * from './PgRepositoryBase'
+export * from './pgStorage'
+export * from './withPgClient'
+export * from './withPgTransaction'
