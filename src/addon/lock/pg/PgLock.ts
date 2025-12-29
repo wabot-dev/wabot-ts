@@ -1,38 +1,69 @@
+import { singleton } from '@/core/injection'
 import { Lock, LockKey } from '@/core/lock'
+import { Logger } from '@/core/logger'
 import { Pool, PoolClient } from 'pg'
 
+@singleton()
 export class PgLock extends Lock {
-  private readonly pool: Pool
-
-  constructor(pool: Pool) {
+  private logger = new Logger('wabot:pg-lock')
+  constructor(private readonly pool: Pool) {
     super()
-    this.pool = pool
   }
 
-  async withKey<T>(key: LockKey, fn: () => Promise<T>): Promise<T> {
-    const client: PoolClient = await this.pool.connect()
+  async withKey<T>(key: LockKey, fn: (client: PoolClient) => Promise<T>): Promise<T> {
+    const client = await this.pool.connect()
+    let locked = false
+
     try {
       await client.query('SELECT pg_advisory_lock($1)', [key.value])
-      return await fn()
+      locked = true
+
+      return await fn(client)
     } finally {
-      await client.query('SELECT pg_advisory_unlock($1)', [key.value])
+      if (locked) {
+        const res = await client.query<{ unlocked: boolean }>(
+          'SELECT pg_advisory_unlock($1) AS unlocked',
+          [key.value],
+        )
+
+        if (!res.rows[0]?.unlocked) {
+          this.logger.error('error - no unlock')
+        }
+      }
+
       client.release()
     }
   }
 
-  async tryWithKey<T>(key: LockKey, fn: () => Promise<T>): Promise<T | undefined> {
-    const client: PoolClient = await this.pool.connect()
+  async tryWithKey<T>(
+    key: LockKey,
+    fn: (client: PoolClient) => Promise<T>,
+  ): Promise<T | undefined> {
+    const client = await this.pool.connect()
+    let locked = false
+
     try {
       const result = await client.query<{ locked: boolean }>(
         'SELECT pg_try_advisory_lock($1) AS locked',
         [key.value],
       )
 
-      if (!result.rows[0].locked) return undefined
+      locked = result.rows[0]?.locked === true
+      if (!locked) return undefined
 
-      return await fn()
+      return await fn(client)
     } finally {
-      await client.query('SELECT pg_advisory_unlock($1)', [key.value])
+      if (locked) {
+        const res = await client.query<{ unlocked: boolean }>(
+          'SELECT pg_advisory_unlock($1) AS unlocked',
+          [key.value],
+        )
+
+        if (!res.rows[0]?.unlocked) {
+          this.logger.error('error - no unlock')
+        }
+      }
+
       client.release()
     }
   }
