@@ -14,16 +14,19 @@ export class PgJobRepository extends PgCrudRepository<Job> implements IJobReposi
     })
   }
 
-  async findScheduledBefore(date?: Date): Promise<Job[]> {
-    const target = date ? date.getTime() : Date.now()
+  async findPendingForRunFrom(date: Date, limit: number): Promise<Job[]> {
     const sql = `
       SELECT ${this.columns}
       FROM ${this.table}
       WHERE data ? 'scheduledAt'
         AND data->>'scheduledAt' <= $1
+        AND data->>'startedAt' IS NULL
+        AND data->>'successAt' IS NULL
+        AND data->>'failedAt' IS NULL 
       ORDER BY data->>'scheduledAt' ASC
+      LIMIT $2
     `
-    const items = await this.query(sql, [target])
+    const items = await this.query(sql, [date.getTime(), limit])
     return items
   }
 

@@ -76,7 +76,7 @@ export class JobManager {
     if (!this.isRunning) return
 
     this.recoveryTimeout = setTimeout(
-      () => this.recoverStuckJobs().catch((e) => this.logger.error(e)),
+      () => this.recoverLoop().catch((e) => this.logger.error(e)),
       this.RECOVERY_INTERVAL_SECONDS * 1000,
     )
   }
@@ -84,17 +84,27 @@ export class JobManager {
   private async loop(): Promise<void> {
     this.logger.debug('loop start')
     try {
-      const jobs = await this.jobRepository.findScheduledBefore(new Date())
+      const loopLockKey = new LockKey('wabot-job-manager-loop')
 
-      await Promise.allSettled(
-        jobs.map((job) => this.manageJob(job).catch((e) => this.logger.error(e))),
-      )
+      await this.lock.withKey(loopLockKey, async () => {
+        const pendingForRunJobs = await this.jobRepository.findPendingForRunFrom(
+          new Date(),
+          this.remainingSlots(),
+        )
+        const jobsToRun = pendingForRunJobs.filter((x) => x.isScheduleReady())
+        jobsToRun.forEach((x) => this.manageJob(x).catch((e) => this.logger.error(e)))
+        await this.waitMs(300)
+      })
     } catch (e) {
       this.logger.error(e)
     } finally {
       this.scheduleNextTick()
+      this.logger.debug('loop end')
     }
-    this.logger.debug('loop end')
+  }
+
+  private remainingSlots() {
+    return this.MAX_CONCURRENT_JOBS - this.activeJobs
   }
 
   private tryAcquireSlot(): boolean {
@@ -110,36 +120,47 @@ export class JobManager {
   }
 
   async manageJob(job: Job) {
-    if (!this.metadataStore.isCommandHandlerActive(job.commandName)) return false
-    if (!this.tryAcquireSlot()) return false
+    if (!this.metadataStore.isCommandHandlerActive(job.commandName)) return
+    if (!this.tryAcquireSlot()) return
+
+    let lockAdquired = false
+    const jobLockKey = new LockKey(`wabot-job-${job.id}`)
 
     try {
-      const jobLockKey = new LockKey(`wabot-job-${job.id}`)
-
       this.logger.debug(`try adquire lock with ${jobLockKey}`)
 
-      await this.lock.withKey(jobLockKey, async () => {
+      return await this.lock.tryWithKey(jobLockKey, async () => {
+        lockAdquired = true
         this.logger.debug(`lock adquired with ${jobLockKey}`)
 
-        if (!job.isScheduleReady()) return
-        this.logger.debug(`job ${job.id} is schedule ready`)
+        const locketJob = await this.jobRepository.findOrThrow(job.id)
+        if (!locketJob.isScheduleReady()) return
 
-        await this.jobRunner.run(job)
+        this.logger.debug(`job ${locketJob.id} is schedule ready`)
+        await this.jobRunner.run(locketJob)
+        return locketJob
       })
-
-      this.logger.debug(`realesed lock with ${jobLockKey}`)
     } catch (e) {
       this.logger.error(e)
     } finally {
       this.releaseSlot()
+      if (lockAdquired) {
+        this.logger.debug(`realesed lock with ${jobLockKey}`)
+      }
     }
   }
 
-  private async recoverStuckJobs() {
-    const recoveryLockKey = new LockKey('wabot-job-recovery')
+  async waitMs(timeoutMs = 100) {
+    await new Promise((r) => setTimeout(r, timeoutMs))
+  }
+
+  private async recoverLoop() {
+    this.logger.debug('recovery loop start')
+
+    const recoveryLoopLockKey = new LockKey('wabot-job-manager-recovery-loop')
 
     try {
-      await this.lock.withKey(recoveryLockKey, async () => {
+      await this.lock.withKey(recoveryLoopLockKey, async () => {
         const jobs = await this.jobRepository.findRunningJobs()
         for (const job of jobs) {
           if (!job.isStuck()) continue
@@ -157,6 +178,7 @@ export class JobManager {
       this.logger.error('Recovery process failed', e)
     } finally {
       this.scheduleRecoveryTick()
+      this.logger.debug('recovery loop end')
     }
   }
 }

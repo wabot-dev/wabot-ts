@@ -125,6 +125,7 @@ export class Job extends Entity<IJobData> {
       this.data.failedAt = now
     } else {
       this.data.scheduledAt = now + currentReintentDelay * 1000
+      this.data.startedAt = undefined
     }
   }
 
@@ -139,6 +140,7 @@ export class Job extends Entity<IJobData> {
 
     if (this.data.intentNumber <= configuredAttempts) {
       this.data.scheduledAt = now
+      this.data.startedAt = undefined
     } else {
       this.data.failedAt = now
       this.data.error = { time: now, message: 'Job stuck and exceeded maximum retries' }

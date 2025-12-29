@@ -82,7 +82,7 @@ function runWorkers(workerPath: string, n = 3) {
     DATABASE_URL: process.env.DATABASE_URL,
     DEBUG: process.env.DEBUG,
     WABOT_JOB_MANAGER_LOOP_INTERVAL_SECONDS: '1',
-    WABOT_JOB_MANAGER_RECOVERY_INTERVAL_SECONDS: '2',
+    WABOT_JOB_MANAGER_RECOVERY_INTERVAL_SECONDS: '1',
     WABOT_JOB_MANAGER_MAX_CONCURRENT_JOBS: '2',
   }
 
@@ -92,8 +92,6 @@ function runWorkers(workerPath: string, n = 3) {
     spawn(process.execPath, nodeArgs, { env, stdio: 'inherit' }),
     spawn(process.execPath, nodeArgs, { env, stdio: 'inherit' }),
     spawn(process.execPath, nodeArgs, { env, stdio: 'inherit' }),
-    // spawn(process.execPath, nodeArgs, { env, stdio: 'inherit' }),
-    // spawn(process.execPath, nodeArgs, { env, stdio: 'inherit' }),
   ]
   return workers
 }
@@ -114,7 +112,7 @@ export function testRunCommmand({ workerPath }: ItestRunCommandReq) {
 
     let job = await async.runCommand(new SaveTag({ value: tagValue }))
 
-    await waitUntil(() => jobRepository.findOrThrow(job.id).then((job) => job.hasFinished()), 5000)
+    await waitUntil(() => jobRepository.findOrThrow(job.id).then((job) => job.hasFinished()), 10000)
 
     await wait(2000)
 

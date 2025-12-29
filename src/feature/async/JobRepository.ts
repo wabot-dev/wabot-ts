@@ -7,7 +7,7 @@ export class JobRepository implements IJobRepository {
   findRunningJobs(): Promise<Job[]> {
     throw new Error('Method not implemented.')
   }
-  findScheduledBefore(date?: Date): Promise<Job[]> {
+  findPendingForRunFrom(date: Date, limit: number): Promise<Job[]> {
     throw new Error('Method not implemented.')
   }
   find(id: string): Promise<Job | null> {

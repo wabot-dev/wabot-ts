@@ -87,7 +87,13 @@ export class PgCrudRepository<P extends Entity<IEntityData>>
          SET ${this.updates}
       WHERE id = $${this.columnsList.length + 1}
     `
-    await this.exec(sql, [...this.values(item), item.id])
+    // Use connect to get the client
+    const client = await this.connect()
+    const result = await client.query(sql, [...this.values(item), item.id])
+
+    if (result.rowCount === 0) {
+      throw new Error(`Update failed: no affected rows'`)
+    }
   }
 
   async delete(item: P): Promise<void> {
