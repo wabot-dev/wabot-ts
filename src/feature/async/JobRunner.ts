@@ -27,12 +27,15 @@ export class JobRunner {
       if (!commandConstructor) {
         throw new Error(`Not found class for command name '${commandName}'`)
       }
-
+      
       job.setAsStarted()
       await this.jobRepository.update(job)
 
       const command = new commandConstructor(commandData)
+      this.logger.debug(`start running command ${commandName}`)
       await handler.handle(command)
+      this.logger.debug(`command ${commandName} run successfull`)
+
       job.setAsSuccess()
     } catch (e) {
       this.logger.error(e)
