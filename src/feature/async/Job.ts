@@ -12,6 +12,7 @@ export interface IJobData extends IEntityData {
   reintentsDelaysInSeconds?: number[]
   intentNumber?: number
   error?: {
+    time: number
     message: string
     stack?: string
     info?: any
@@ -48,76 +49,89 @@ export class Job extends Entity<IJobData> {
     return this.data.intentNumber ?? 0
   }
 
-  isScheduleReady() {
-    return this.data.scheduledAt != null && this.data.scheduledAt <= new Date().getTime()
+  wasSuccess() {
+    return this.successAt != null
   }
 
-  hasStarted() {
-    return this.data.startedAt != null && !this.hasFinished()
+  wasFailed() {
+    return this.data.failedAt != null
+  }
+
+  hasFinished() {
+    return this.wasSuccess() || this.wasFailed()
   }
 
   isRunning() {
-    return this.data.startedAt != null && this.data.successAt == null && this.data.failedAt == null
+    return (
+      !this.hasFinished() &&
+      this.data.scheduledAt != null &&
+      this.data.startedAt != null &&
+      this.data.startedAt >= this.data.scheduledAt &&
+      this.data.startedAt <= new Date().getTime() &&
+      this.data.intentNumber != null
+    )
+  }
+
+  isScheduleReady() {
+    return (
+      !this.hasFinished() &&
+      !this.isRunning() &&
+      this.data.scheduledAt != null &&
+      this.data.scheduledAt <= new Date().getTime()
+    )
   }
 
   isStuck() {
     return this.runningSeconds > (this.data.aceptableRunningTimeSeconds ?? 900)
   }
 
-  hasFinished() {
-    return (
-      this.data.successAt != null || (this.data.failedAt != null && this.data.scheduledAt == null)
-    )
-  }
-
   setAsStarted() {
-    const now = new Date().getTime()
-    if (!this.data.scheduledAt) throw new Error(`job ${this.id} can't be started without schedule`)
-    if (this.data.scheduledAt < now)
-      throw new Error(`job ${this.id} can't be started before schedule`)
+    if (!this.isScheduleReady())
+      throw new Error(`job ${this.id} can't be started without ready schedule`)
 
-    this.data.startedAt = now
-    this.data.successAt = undefined
-    this.data.failedAt = undefined
+    this.data.startedAt = new Date().getTime()
     this.data.intentNumber = this.data.intentNumber == null ? 0 : this.data.intentNumber + 1
   }
 
   setAsSuccess() {
-    const now = new Date().getTime()
-
-    this.data.successAt = now
-    this.data.failedAt = undefined
-    this.data.scheduledAt = undefined
+    if (this.hasFinished())
+      throw new Error(`job ${this.id} Can't be set as success because has be finished previously`)
+    if (!this.isRunning())
+      throw new Error(`job ${this.id} can't be set as success because is no running`)
+    this.data.successAt = new Date().getTime()
   }
 
   setAsFailed(error: Error) {
+    if (this.hasFinished())
+      throw new Error(`job ${this.id} Can't be set as failed because has be finished previously`)
+    if (!this.isRunning())
+      throw new Error(`job ${this.id} can't be set as failed because is no running`)
+
     const now = new Date().getTime()
-    this.data.failedAt = now
+
     this.data.error = {
+      time: now,
       message: error.message,
       stack: error.stack,
       info: error instanceof CustomError ? error.info : undefined,
     }
 
-    this.data.scheduledAt = undefined
+    if (this.data.intentNumber == null) throw new Error('Invalid intent number')
+    const currentReintentDelay = (this.data.reintentsDelaysInSeconds ?? []).at(
+      this.data.intentNumber,
+    )
 
-    if (this.data.intentNumber == null) return
-    if (!this.data.reintentsDelaysInSeconds) return
-
-    const currentReintentDelay = this.data.reintentsDelaysInSeconds[this.data.intentNumber]
-    this.data.scheduledAt = now + currentReintentDelay * 1000
+    if (currentReintentDelay == null) {
+      this.data.failedAt = now
+    } else {
+      this.data.scheduledAt = now + currentReintentDelay * 1000
+    }
   }
 
   recover() {
+    if (!this.isStuck()) throw new Error(`job ${this.id} Can't be recovered because is not stuck`)
+
     const now = Date.now()
-
-    if (!this.isRunning()) return
-    if (!this.isStuck()) return
-
-    this.data.startedAt = undefined
-    this.data.successAt = undefined
-    this.data.failedAt = undefined
-    this.data.error = undefined
 
     this.data.intentNumber = (this.data.intentNumber ?? 0) + 1
 
@@ -127,7 +141,7 @@ export class Job extends Entity<IJobData> {
       this.data.scheduledAt = now
     } else {
       this.data.failedAt = now
-      this.data.error = { message: 'Job stuck and exceeded maximum retries' }
+      this.data.error = { time: now, message: 'Job stuck and exceeded maximum retries' }
     }
   }
 }

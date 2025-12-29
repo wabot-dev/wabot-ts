@@ -14,6 +14,8 @@ test.describe('Job', () => {
     })
 
     assert.equal(job.isScheduleReady(), true)
+    assert.equal(job.isRunning(), false)
+    assert.equal(job.hasFinished(), false)
   })
 
   test('setAsStarted()', () => {
@@ -28,8 +30,9 @@ test.describe('Job', () => {
 
     job.setAsStarted()
 
-    assert.equal(job.hasStarted(), true)
+    assert.equal(job.isScheduleReady(), false)
     assert.equal(job.isRunning(), true)
+    assert.equal(job.hasFinished(), false)
     assert.equal(job.intentNumber, 0)
   })
 
@@ -40,12 +43,15 @@ test.describe('Job', () => {
       commandData: {},
       scheduledAt: Date.now(),
       startedAt: Date.now(),
+      intentNumber: 0,
     })
 
     job.setAsSuccess()
 
+    assert.equal(job.isScheduleReady(), false)
+    assert.equal(job.isRunning(), false)
     assert.equal(job.hasFinished(), true)
-    assert.ok(job.successAt)
+    assert.equal(job.wasSuccess(), true)
   })
 
   test('failure schedules retry', () => {
@@ -63,8 +69,29 @@ test.describe('Job', () => {
 
     job.setAsFailed(new Error('boom'))
 
-    assert.ok(job.failedAt)
-    assert.ok(job.scheduledAt && job.scheduledAt.getTime() > now)
+    assert.ok(job.scheduledAt && job.scheduledAt.getTime() >= now, 'job scheduledAt should be set')
+    assert.equal(job.isRunning(), false, 'job is already running')
+    assert.equal(job.wasFailed(), false, 'job was failed')
+  })
+
+  test('failure without retry', () => {
+    const now = Date.now()
+
+    const job = new Job({
+      id: '1',
+      commandName: 'test',
+      commandData: {},
+      scheduledAt: now,
+      startedAt: now,
+      intentNumber: 0,
+    })
+
+    job.setAsFailed(new Error('boom'))
+
+    assert.equal(job.isScheduleReady(), false)
+    assert.equal(job.isRunning(), false)
+    assert.equal(job.wasFailed(), true)
+    assert.equal(job.hasFinished(), true)
   })
 
   test('recover stuck job', () => {
@@ -72,6 +99,7 @@ test.describe('Job', () => {
       id: '1',
       commandName: 'test',
       commandData: {},
+      scheduledAt: Date.now() - 2500,
       startedAt: Date.now() - 2000,
       aceptableRunningTimeSeconds: 1,
       intentNumber: 0,
@@ -80,7 +108,9 @@ test.describe('Job', () => {
 
     job.recover()
 
+    assert.equal(job.isScheduleReady(), true)
     assert.equal(job.isRunning(), false)
-    assert.ok(job.scheduledAt) // rescheduled
+    assert.equal(job.wasFailed(), false)
+    assert.equal(job.hasFinished(), false)
   })
 })
