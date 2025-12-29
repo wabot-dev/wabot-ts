@@ -1,6 +1,7 @@
-import type { Pool } from 'pg'
+import type { Pool, PoolClient } from 'pg'
 import type { IPgRepositoryConfig } from './IPgRepositoryConfig'
 import { Entity, IEntityData } from '@/core/entity'
+import { withPgClient } from './withPgClient'
 
 export class PgRepositoryBase<P extends Entity<IEntityData>> {
   private tableIsCreated = false
@@ -66,11 +67,13 @@ export class PgRepositoryBase<P extends Entity<IEntityData>> {
   }
 
   protected async connect() {
-    await this.ensureTable()
-    return this.pool
+    return withPgClient(this.pool, async (client) => {
+      await this.ensureTable(client)
+      return client
+    })
   }
 
-  protected async ensureTable() {
+  protected async ensureTable(client: PoolClient) {
     if (this.tableIsCreated) {
       return
     }
@@ -84,13 +87,13 @@ export class PgRepositoryBase<P extends Entity<IEntityData>> {
       ${this.columnsAndTypes}
       )
     `
-    await this.pool.query(schemaQuery)
-    await this.pool.query(tableQuery)
-    await this.ensureColumns()
+    await client.query(schemaQuery)
+    await client.query(tableQuery)
+    await this.ensureColumns(client)
   }
 
-  protected async ensureColumns(): Promise<void> {
-    const { rows: existing } = await this.pool.query<{
+  protected async ensureColumns(client: PoolClient): Promise<void> {
+    const { rows: existing } = await client.query<{
       column_name: string
     }>(
       `
@@ -109,7 +112,7 @@ export class PgRepositoryBase<P extends Entity<IEntityData>> {
       if (!existingColumns.has(col)) {
         const alterSql = `ALTER TABLE ${this.table} ADD COLUMN ${columnAndType}`
         console.log(`[INFO] Adding column: ${alterSql}`)
-        await this.pool.query(alterSql)
+        await client.query(alterSql)
       }
     }
   }
