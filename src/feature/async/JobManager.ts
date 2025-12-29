@@ -5,13 +5,14 @@ import { Job } from './Job'
 import { JobRunner } from './JobRunner'
 import { Logger } from '@/core/logger'
 import { CommandMetadataStore } from './CommandMetadataStore'
+import { Env } from '@/core/env'
 
 @singleton()
 export class JobManager {
-  static LOOP_INTERVAL_SECONDS = 30
-  static RECOVERY_INTERVAL_SECONDS = 300
+  private LOOP_INTERVAL_SECONDS
+  private RECOVERY_INTERVAL_SECONDS
 
-  private static readonly MAX_CONCURRENT_JOBS = 5
+  private MAX_CONCURRENT_JOBS
   private logger = new Logger('wabot:job-manager')
 
   private isRunning = false
@@ -24,7 +25,21 @@ export class JobManager {
     private jobRepository: JobRepository,
     private jobRunner: JobRunner,
     private metadataStore: CommandMetadataStore,
-  ) {}
+    private env: Env,
+  ) {
+    this.LOOP_INTERVAL_SECONDS = this.env.requireNumber('WABOT_JOB_MANAGER_LOOP_INTERVAL_SECONDS', {
+      default: 15,
+    })
+    this.RECOVERY_INTERVAL_SECONDS = this.env.requireNumber(
+      'WABOT_JOB_MANAGER_RECOVERY_INTERVAL_SECONDS',
+      {
+        default: 300,
+      },
+    )
+    this.MAX_CONCURRENT_JOBS = this.env.requireNumber('WABOT_JOB_MANAGER_MAX_CONCURRENT_JOBS', {
+      default: 5,
+    })
+  }
 
   run() {
     if (this.isRunning) return
@@ -53,7 +68,7 @@ export class JobManager {
         this.loop().catch((e) => {
           this.logger.error(e)
         }),
-      JobManager.LOOP_INTERVAL_SECONDS * 1000,
+      this.LOOP_INTERVAL_SECONDS * 1000,
     )
   }
 
@@ -62,11 +77,12 @@ export class JobManager {
 
     this.recoveryTimeout = setTimeout(
       () => this.recoverStuckJobs().catch((e) => this.logger.error(e)),
-      JobManager.RECOVERY_INTERVAL_SECONDS * 1000,
+      this.RECOVERY_INTERVAL_SECONDS * 1000,
     )
   }
 
   private async loop(): Promise<void> {
+    this.logger.debug('loop start')
     try {
       const jobs = await this.jobRepository.findScheduledBefore(new Date())
 
@@ -78,10 +94,11 @@ export class JobManager {
     } finally {
       this.scheduleNextTick()
     }
+    this.logger.debug('loop end')
   }
 
   private tryAcquireSlot(): boolean {
-    if (this.activeJobs >= JobManager.MAX_CONCURRENT_JOBS) {
+    if (this.activeJobs >= this.MAX_CONCURRENT_JOBS) {
       return false
     }
     this.activeJobs++
@@ -93,30 +110,28 @@ export class JobManager {
   }
 
   async manageJob(job: Job) {
-    let slotAcquired = false
+    if (!this.metadataStore.isCommandHandlerActive(job.commandName)) return false
+    if (!this.tryAcquireSlot()) return false
 
     try {
-      const mustRun = await this.lock.withKey(new LockKey(`wabot-job-${job.id}`), async () => {
-        if (!this.metadataStore.isCommandHandlerActive(job.commandName)) return false
-        if (!job.isScheduleReady()) return false
-        if (job.hasStarted()) return false
-        if (!this.tryAcquireSlot()) return false
-        slotAcquired = true
+      const jobLockKey = new LockKey(`wabot-job-${job.id}`)
 
-        job.setAsStarted()
-        await this.jobRepository.update(job)
-        return true
+      this.logger.debug(`try adquire lock with ${jobLockKey}`)
+
+      await this.lock.withKey(jobLockKey, async () => {
+        this.logger.debug(`lock adquired with ${jobLockKey}`)
+
+        if (!job.isScheduleReady()) return
+        this.logger.debug(`job ${job.id} is schedule ready`)
+
+        await this.jobRunner.run(job)
       })
 
-      if (!mustRun) return
-
-      await this.jobRunner.run(job)
+      this.logger.debug(`realesed lock with ${jobLockKey}`)
     } catch (e) {
       this.logger.error(e)
     } finally {
-      if (slotAcquired) {
-        this.releaseSlot()
-      }
+      this.releaseSlot()
     }
   }
 
@@ -124,10 +139,7 @@ export class JobManager {
     const recoveryLockKey = new LockKey('wabot-job-recovery')
 
     try {
-      // Only one process can enter this block at a time
       await this.lock.withKey(recoveryLockKey, async () => {
-        this.logger.debug('Recovery lock acquired')
-
         const jobs = await this.jobRepository.findRunningJobs()
         for (const job of jobs) {
           if (!job.isStuck()) continue
