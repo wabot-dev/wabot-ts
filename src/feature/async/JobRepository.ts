@@ -31,4 +31,7 @@ export class JobRepository implements IJobRepository {
   delete(item: Job): Promise<void> {
     throw new Error('Method not implemented.')
   }
+  countRunningByCommand(commandName: string): Promise<number> {
+    throw new Error('Method not implemented.')
+  }
 }
