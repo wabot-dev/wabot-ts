@@ -81,9 +81,9 @@ function runWorkers(workerPath: string, n = 3) {
   const env = {
     DATABASE_URL: process.env.DATABASE_URL,
     DEBUG: process.env.DEBUG,
-    WABOT_JOB_MANAGER_LOOP_INTERVAL_SECONDS: '1',
-    WABOT_JOB_MANAGER_RECOVERY_INTERVAL_SECONDS: '1',
-    WABOT_JOB_MANAGER_MAX_CONCURRENT_JOBS: '2',
+    WABOT_JOB_SCHEDULER_INTERVAL_SECONDS: '1',
+    WABOT_JOB_WATCHDOG_INTERVAL_SECONDS: '1',
+    WABOT_JOB_EXECUTOR_MAX_CONCURRENT_JOBS: '2',
   }
 
   const nodeArgs = [...process.execArgv, workerPath]
