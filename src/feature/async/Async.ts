@@ -4,14 +4,14 @@ import { Command } from './Command'
 import { CommandMetadataStore } from './CommandMetadataStore'
 import { Job } from './Job'
 import { JobRepository } from './JobRepository'
-import { JobManager } from './JobManager'
+import { JobScheduler } from './JobScheduler'
 
 @singleton()
 export class Async {
   constructor(
     private jobRepository: JobRepository,
     private metadataStore: CommandMetadataStore,
-    private jobManager: JobManager,
+    private jobScheduler: JobScheduler,
   ) {}
 
   async runCommand<T extends IStorableData>(command: Command<T>): Promise<Job> {
@@ -27,7 +27,7 @@ export class Async {
     })
 
     await this.jobRepository.create(job)
-    this.jobManager.manageJob(job)
+    this.jobScheduler.tryExecuteNow(job)
     return job
   }
 }

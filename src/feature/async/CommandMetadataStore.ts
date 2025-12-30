@@ -9,7 +9,6 @@ export class CommandMetadataStore {
   private handlersInverseMap = new Map<IConstructor<ICommandHandler<any>>, string>()
   private commandsMap = new Map<string, IConstructor<Command<any>>>()
   private commandsInverseMap = new Map<IConstructor<Command<any>>, string>()
-  private activatedCommandsForHandle = new Set<string>()
 
   registerCommand(command: IConstructor<Command<any>>, commandName: string) {
     this.commandsMap.set(commandName, command)
@@ -28,17 +27,6 @@ export class CommandMetadataStore {
 
     this.handlersMap.set(commandName, handlerConstructor)
     this.handlersInverseMap.set(handlerConstructor, commandName)
-  }
-
-  isCommandHandlerActive(commandName: string) {
-    return this.activatedCommandsForHandle.has(commandName)
-  }
-
-  activateCommandHandler(handlerConstructor: IConstructor<ICommandHandler<any>>) {
-    const commandName = this.getCommandNameForHandler(handlerConstructor)
-    if (!commandName)
-      throw new Error(`Can't activate handler ${handlerConstructor.name} because is not registered`)
-    this.activatedCommandsForHandle.add(commandName)
   }
 
   getHandlerForCommandName(commandName: string): IConstructor<ICommandHandler<any>> | null {
