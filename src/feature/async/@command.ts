@@ -8,7 +8,7 @@ export interface ICommandConfig {
 
 export function command(config: ICommandConfig | string) {
   return function (target: IConstructor<any>) {
-    const handlerContainer = container.resolve(CommandMetadataStore)
-    handlerContainer.registerCommand(target, typeof config === 'string' ? config : config.name)
+    const metadataStore = container.resolve(CommandMetadataStore)
+    metadataStore.registerCommand(target, typeof config === 'string' ? config : config.name)
   }
 }
