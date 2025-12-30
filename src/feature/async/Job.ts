@@ -26,6 +26,22 @@ export class Job extends Entity<IJobData> {
     return this.data.commandName
   }
 
+  get commandData() {
+    return this.data.commandData
+  }
+
+  get reintentsDelaysInSeconds() {
+    return this.data.reintentsDelaysInSeconds
+  }
+
+  get aceptableRunningTimeSeconds() {
+    return this.data.aceptableRunningTimeSeconds
+  }
+
+  get stuckRetryAttempts() {
+    return this.data.stuckRetryAttempts
+  }
+
   get runningSeconds() {
     if (!this.isRunning()) return -1
 
