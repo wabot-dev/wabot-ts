@@ -1,10 +1,10 @@
 import { singleton } from '@/core/injection'
-import { IStorableData } from '@/core/storable'
-import { Command } from './Command'
 import { CommandMetadataStore } from './CommandMetadataStore'
 import { Job } from './Job'
 import { JobRepository } from './JobRepository'
 import { JobScheduler } from './JobScheduler'
+import { IValidateInputShape, validateAndTransform } from '@/core/validation'
+import { IConstructor } from '@/core/generics'
 
 @singleton()
 export class Async {
@@ -14,15 +14,21 @@ export class Async {
     private jobScheduler: JobScheduler,
   ) {}
 
-  async runCommand<T extends IStorableData>(command: Command<T>): Promise<Job> {
-    const commandName = this.metadataStore.getCommandName(command.constructor as any)
+  async runCommand<T>(ctor: IConstructor<T>, data: IValidateInputShape<T>): Promise<Job> {
+    const commandName = this.metadataStore.getCommandName(ctor)
     if (!commandName) {
-      throw new Error(`${command.constructor.name} is not registered as command`)
+      throw new Error(`${ctor.name} is not registered as command`)
+    }
+
+    const { error, value: commandData } = validateAndTransform(data, ctor)
+
+    if (!commandData) {
+      throw new Error('Invalid command data')
     }
 
     const job = new Job({
       commandName,
-      commandData: command['data'],
+      commandData,
       scheduledAt: new Date().getTime(),
     })
 

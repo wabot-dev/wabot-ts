@@ -1,6 +1,3 @@
-import { Command } from "./Command";
-
-
-export interface ICommandHandler<C extends Command<any>> {
+export interface ICommandHandler<C extends object> {
   handle(command: C): void | Promise<void>
 }

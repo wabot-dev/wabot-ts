@@ -1,8 +1,8 @@
-import { IStorableData } from '@/core/storable'
+import { IStorableType } from '@/core/storable/IStorableType'
 import { ApiKey } from './ApiKey'
 import { IApiKeyRepository, IGenerateApiKeyReq, IGenerateApiKeyRes } from './IApiKeyRepository'
 
-export class ApiKeyRepository<A extends IStorableData> implements IApiKeyRepository<A> {
+export class ApiKeyRepository<A extends object> implements IApiKeyRepository<A> {
   find(id: string): Promise<ApiKey<A> | null> {
     throw new Error('Method not implemented.')
   }
@@ -21,7 +21,7 @@ export class ApiKeyRepository<A extends IStorableData> implements IApiKeyReposit
   findBySecret(secret: string): Promise<ApiKey<A> | null> {
     throw new Error('Method not implemented.')
   }
-  findAndValidate(secret: string): Promise<A> {
+  findAndValidate(secret: string): Promise<IStorableType<A>> {
     throw new Error('Method not implemented.')
   }
 }

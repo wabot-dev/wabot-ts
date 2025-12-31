@@ -22,12 +22,12 @@ async function prepareChatContainer(
   const chatMemory = await chatRepository.findMemory(messageContext.chat.id)
 
   if (!chatMemory) {
-    throw new Error('Not found Chat Memory for Chat with Id=' + messageContext.chat.id)
+    throw new Error('Not found Chaqt Memory for Chat with Id=' + messageContext.chat.id)
   }
   chatContainer.registerInstance(ChatMemory, chatMemory)
 
   if (messageContext.authInfo) {
-    const auth = chatContainer.resolve(Auth)
+    const auth = chatContainer.resolve(Auth) as Auth<object>
     auth.assign(messageContext.authInfo)
   }
 

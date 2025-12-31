@@ -4,8 +4,8 @@ import { JwtTokenDto } from './JwtTokenDto'
 
 import { injectable } from '@/core/injection'
 import { Mapper } from '@/core/mapper'
-import { IStorableData } from '@/core/storable'
 import { JwtRefreshToken } from './JwtRefreshToken'
+import { IStorableType } from '@/core/storable/IStorableType'
 
 @injectable()
 export class JwtSigner {
@@ -14,8 +14,8 @@ export class JwtSigner {
     private mapper: Mapper,
   ) {}
 
-  async signAccessToken<D extends IStorableData>(
-    info: D | JwtRefreshToken<any>,
+  async signAccessToken<D extends object>(
+    info: IStorableType<D> | JwtRefreshToken<any>,
   ): Promise<JwtTokenDto> {
     const _authInfo =
       info instanceof JwtRefreshToken

@@ -56,6 +56,7 @@ export class WhatsAppReceiverByWabotProxy extends WhatsAppReceiver {
         this.loger.trace(`success receive message from '${data.from}' to '${data.to}'`)
         request.listener({
           chatConnection: {
+            chatType: 'PRIVATE',
             channelName: 'WhatsAppChannel',
             id: data.from,
           },

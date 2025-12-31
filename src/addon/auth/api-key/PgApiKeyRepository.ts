@@ -1,13 +1,13 @@
-import { IStorableData } from '@/core/storable'
 import { PgCrudRepository } from '@/feature/pg'
 import { Pool } from 'pg'
 import { ApiKey } from './ApiKey'
 import { IApiKeyRepository, IGenerateApiKeyReq, IGenerateApiKeyRes } from './IApiKeyRepository'
 import { CustomError } from '@/core/error'
 import { singleton } from '@/core/injection'
+import { IStorableType } from '@/core/storable/IStorableType'
 
 @singleton()
-export class PgApiKeyRepository<A extends IStorableData>
+export class PgApiKeyRepository<A extends object>
   extends PgCrudRepository<ApiKey<A>>
   implements IApiKeyRepository<A>
 {
@@ -19,7 +19,7 @@ export class PgApiKeyRepository<A extends IStorableData>
     })
   }
 
-  async findAndValidate(secret: string): Promise<A> {
+  async findAndValidate(secret: string): Promise<IStorableType<A>> {
     const apiKey = await this.findBySecret(secret)
     if (!apiKey) {
       throw new CustomError({ message: 'Invalid Api Key', httpCode: 401 })

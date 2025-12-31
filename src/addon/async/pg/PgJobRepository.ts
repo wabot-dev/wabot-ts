@@ -43,4 +43,8 @@ export class PgJobRepository extends PgCrudRepository<Job> implements IJobReposi
     const items = await this.query(sql, [])
     return items
   }
+
+  countRunningByCommand(commandName: string): Promise<number> {
+    throw new Error('Not implemented')
+  }
 }

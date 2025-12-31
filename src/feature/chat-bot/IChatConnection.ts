@@ -1,6 +1,6 @@
-import { IStorableData } from "@/core/storable"
 
-export interface IChatConnection extends IStorableData {
+export interface IChatConnection {
+  chatType: 'GROUP' | 'PRIVATE'
   channelName: string
   id: string
 }

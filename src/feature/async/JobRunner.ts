@@ -3,6 +3,7 @@ import { JobRepository } from './JobRepository'
 import { Job } from './Job'
 import { container, singleton } from '@/core/injection'
 import { Logger } from '@/core/logger'
+import { validateAndTransform } from '@/core/validation'
 
 @singleton()
 export class JobRunner {
@@ -27,11 +28,17 @@ export class JobRunner {
       if (!commandConstructor) {
         throw new Error(`Not found class for command name '${commandName}'`)
       }
-      
+
       job.setAsStarted()
       await this.jobRepository.update(job)
 
-      const command = new commandConstructor(commandData)
+      const validationResult = validateAndTransform(commandData, commandConstructor)
+
+      if (!validationResult.value) {
+        throw new Error('Invalid command data')
+      }
+
+      const command = validationResult.value
       this.logger.debug(`start running command ${commandName}`)
       await handler.handle(command)
       this.logger.debug(`command ${commandName} run successfull`)

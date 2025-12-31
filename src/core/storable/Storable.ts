@@ -1,9 +1,5 @@
-export type IPrimitive = null | number | string | boolean | undefined
+import { IStorableData } from './IStorableData'
 
-export type IStorableData = {
-  [key: string]: IPrimitive | IPrimitive[] | IStorableData | IStorableData[]
-}
-
-export class Storable<D extends IStorableData> {
-  constructor(protected data: D) {}
+export class Storable<D extends object> {
+  constructor(protected data: IStorableData<D>) {}
 }

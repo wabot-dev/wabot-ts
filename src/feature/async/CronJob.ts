@@ -1,11 +1,10 @@
 import { CronExpressionParser } from 'cron-parser'
 import { Entity, IEntityData } from '@/core/entity'
 import { Job } from './Job'
-import { IStorableData } from '@/core/storable'
 
 export interface ICronJobData extends IEntityData {
   commandName: string
-  commandData: IStorableData
+  commandData: object
 
   cron: string
 

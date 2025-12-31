@@ -1,14 +1,12 @@
-import { IStorableData } from '@/core/storable'
+import { IStorableType } from '@/core/storable/IStorableType'
 import { IJwtRefreshTokenRepository } from './IJwtRefreshTokenRepository'
 import { JwtRefreshToken } from './JwtRefreshToken'
 
-export class JwtRefreshTokenRepository<D extends IStorableData>
-  implements IJwtRefreshTokenRepository<D>
-{
+export class JwtRefreshTokenRepository<D extends object> implements IJwtRefreshTokenRepository<D> {
   findByMetadata(metadata: Record<string, string>): Promise<JwtRefreshToken<D>[]> {
     throw new Error('Method not implemented.')
   }
-  findAndValidate(secret: string): Promise<D> {
+  findAndValidate(secret: string): Promise<IStorableType<D>> {
     throw new Error('Method not implemented.')
   }
   find(id: string): Promise<JwtRefreshToken<D> | null> {

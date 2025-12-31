@@ -1,9 +1,9 @@
-import { IStorableData, Storable } from '@/core/storable'
+import { Storable } from '@/core/storable'
 import { Big } from 'big.js'
 
 Big.strict = true
 
-export interface IMoneyData extends IStorableData {
+export interface IMoneyData {
   amount: string
   currency: string
 }

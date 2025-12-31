@@ -1,7 +1,6 @@
 export * from './@command'
 export * from './@commandHandler'
 export * from './Async'
-export * from './Command'
 export * from './CommandMetadataStore'
 export * from './ICommandHandler'
 export * from './Job'

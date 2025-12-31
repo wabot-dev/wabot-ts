@@ -7,5 +7,5 @@ import './pg-async-test-injection'
 const workerPath = fileURLToPath(new URL('./pg-async-test-worker.ts', import.meta.url))
 
 describe('Pg-Async', () => {
-  testRunCommmand({ workerPath })
+  testRunCommmand({ workerPath, numberOfWorkers: 4, localRun: false })
 })

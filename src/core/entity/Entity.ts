@@ -1,6 +1,6 @@
-import { IStorableData, Storable } from '@/core/storable'
+import { Storable } from '../storable'
 
-export interface IEntityData extends IStorableData {
+export interface IEntityData {
   id?: string
   createdAt?: number | null
   discardedAt?: number | null

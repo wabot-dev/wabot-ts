@@ -14,3 +14,13 @@ export function runAsyncCommandHandlers(handlers: IConstructor<ICommandHandler<a
   jobScheduler.start(commands)
   jobWatchdog.start(commands)
 }
+
+export function stopAsyncCommandHandlers(handlers: IConstructor<ICommandHandler<any>>[]) {
+  const jobScheduler = container.resolve(JobScheduler)
+  const jobWatchdog = container.resolve(JobWatchdog)
+  const metadataStore = container.resolve(CommandMetadataStore)
+
+  const commands = handlers.map((x) => metadataStore.requireCommandNameForHandler(x))
+  jobScheduler.stop(commands)
+  jobWatchdog.stop(commands)
+}

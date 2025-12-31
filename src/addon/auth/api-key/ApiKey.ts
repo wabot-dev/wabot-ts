@@ -1,16 +1,16 @@
 import { Entity, IEntityData } from '@/core/entity'
 import { CustomError } from '@/core/error'
-import { IStorableData } from '@/core/storable'
+import { IStorableType } from '@/core/storable/IStorableType'
 import crypto from 'node:crypto'
 
-export interface IApiKeyData<A extends IStorableData> extends IEntityData {
+export interface IApiKeyData<A extends object> extends IEntityData {
   secretHash?: string
   metadata?: Record<string, string>
   authInfo: A
   name: string
 }
 
-export class ApiKey<A extends IStorableData> extends Entity<IApiKeyData<A>> {
+export class ApiKey<A extends object> extends Entity<IApiKeyData<A>> {
   static PREFIX = 'sk_'
 
   static hashSecret(secret: string) {
@@ -29,7 +29,7 @@ export class ApiKey<A extends IStorableData> extends Entity<IApiKeyData<A>> {
     return this.data.name
   }
 
-  setAuthInfo(authInfo: A) {
+  setAuthInfo(authInfo: IStorableType<A>) {
     this.data.authInfo = authInfo
   }
 

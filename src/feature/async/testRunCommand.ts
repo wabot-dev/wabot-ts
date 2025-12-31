@@ -1,16 +1,16 @@
-import { IStorableData } from '@/core/storable'
 import { command } from './@command'
-import { Command } from './Command'
 import { commandHandler } from './@commandHandler'
-import { runAsyncCommandHandlers } from './runCommandHandlers'
-import test, { after } from 'node:test'
+import { runAsyncCommandHandlers, stopAsyncCommandHandlers } from './runCommandHandlers'
+import test, { after, before } from 'node:test'
 import { container } from '@/core/injection'
 import { JobRepository } from './JobRepository'
 import { Async } from './Async'
-import { spawn } from 'node:child_process'
+import { ChildProcess, spawn } from 'node:child_process'
 import { Entity, IEntityData } from '@/core/entity'
 import { Random } from '@/core/random'
 import assert from 'node:assert'
+
+import { isString } from '@/core/validation'
 
 //----------------------- Repositories ------------------------
 interface ITagData extends IEntityData {
@@ -37,28 +37,34 @@ export class TagRepository implements ITagRepository {
   }
 }
 
-//-----------------------  Commands ---------------------------
-interface ISaveTagCommandData extends IStorableData {
-  value: string
-}
+//-----------------------  Commands ----------------------
 
 @command('save-tag')
-class SaveTag extends Command<ISaveTagCommandData> {}
+class SaveTag {
+  @isString()
+  value!: string
+}
 
-@commandHandler({ command: SaveTag })
+@commandHandler(SaveTag)
 class SaveTagHandler {
   constructor(private tagRepository: TagRepository) {}
 
-  async handle(command: SaveTag) {
-    const { value } = command.getData()
+  async handle({ value }: SaveTag) {
     const tag = new Tag({ value })
     await this.tagRepository.create(tag)
   }
 }
 
 //-----------------------  Workers ---------------------------
+
+const commandHandlers = [SaveTagHandler]
+
 export function runCommandsWorker() {
-  runAsyncCommandHandlers([SaveTagHandler])
+  runAsyncCommandHandlers(commandHandlers)
+}
+
+export function stopCommandsWorker() {
+  stopAsyncCommandHandlers(commandHandlers)
 }
 
 //--------------------------- Helpers --------------------------
@@ -77,7 +83,16 @@ async function wait(timeoutMs = 5000) {
   await new Promise((r) => setTimeout(r, timeoutMs))
 }
 
-function runWorkers(workerPath: string, n = 3) {
+interface IrunWorkersReq {
+  workerPath: string
+  numberOfWorkers: number
+  localRun?: boolean
+}
+
+let workers: ChildProcess[] = []
+let localWorkerRunning = false
+
+function runWorkers({ workerPath, numberOfWorkers, localRun }: IrunWorkersReq) {
   const env = {
     DATABASE_URL: process.env.DATABASE_URL,
     DEBUG: process.env.DEBUG,
@@ -88,29 +103,47 @@ function runWorkers(workerPath: string, n = 3) {
 
   const nodeArgs = [...process.execArgv, workerPath]
 
-  const workers = [
-    spawn(process.execPath, nodeArgs, { env, stdio: 'inherit' }),
-    spawn(process.execPath, nodeArgs, { env, stdio: 'inherit' }),
-    spawn(process.execPath, nodeArgs, { env, stdio: 'inherit' }),
-  ]
-  return workers
+  for (let i = workers.length; i < numberOfWorkers; i++) {
+    workers.push(spawn(process.execPath, nodeArgs, { env, stdio: 'inherit' }))
+  }
+
+  if (localRun) {
+    localWorkerRunning = true
+    runCommandsWorker()
+  }
+}
+
+function stopWorkers() {
+  for (let i = 0; i < workers.length; i++) {
+    workers[i].kill()
+  }
+  workers = []
+  if (localWorkerRunning) {
+    stopCommandsWorker()
+    localWorkerRunning = false
+  }
 }
 
 //--------------------------- Test --------------------------
 export interface ItestRunCommandReq {
   workerPath: string
+  numberOfWorkers: number
+  localRun?: boolean
 }
 
-export function testRunCommmand({ workerPath }: ItestRunCommandReq) {
-  const async = container.resolve(Async)
-  const tagRepository = container.resolve(TagRepository)
-  const jobRepository = container.resolve(JobRepository)
-  const workers = runWorkers(workerPath, 3)
+export function testRunCommmand(req: ItestRunCommandReq) {
+  before(() => {
+    runWorkers(req)
+  })
 
   test('command executes only once', async () => {
+    const async = container.resolve(Async)
+    const tagRepository = container.resolve(TagRepository)
+    const jobRepository = container.resolve(JobRepository)
+
     const tagValue = Random.alphaNumeric(128)
 
-    let job = await async.runCommand(new SaveTag({ value: tagValue }))
+    let job = await async.runCommand(SaveTag, { value: tagValue })
 
     await waitUntil(() => jobRepository.findOrThrow(job.id).then((job) => job.hasFinished()), 10000)
 
@@ -121,6 +154,6 @@ export function testRunCommmand({ workerPath }: ItestRunCommandReq) {
   })
 
   after(() => {
-    workers.forEach((w) => w.kill())
+    stopWorkers()
   })
 }

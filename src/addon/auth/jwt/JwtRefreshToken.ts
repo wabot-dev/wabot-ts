@@ -1,9 +1,8 @@
 import { Entity, IEntityData } from '@/core/entity'
 import { CustomError } from '@/core/error'
-import { IStorableData } from '@/core/storable'
 import crypto from 'node:crypto'
 
-export interface IJwtRefreshTokenData<A extends IStorableData> extends IEntityData {
+export interface IJwtRefreshTokenData<A extends object> extends IEntityData {
   secretHash?: string
   metadata?: Record<string, string>
   authInfo: A
@@ -11,7 +10,7 @@ export interface IJwtRefreshTokenData<A extends IStorableData> extends IEntityDa
   revokedAt?: number
 }
 
-export class JwtRefreshToken<A extends IStorableData> extends Entity<IJwtRefreshTokenData<A>> {
+export class JwtRefreshToken<A extends object> extends Entity<IJwtRefreshTokenData<A>> {
   static PREFIX = 'rt_'
 
   static hashSecret(secret: string) {
