@@ -3,15 +3,16 @@ import { Entity, IEntityData } from '@/core/entity'
 import { Job } from './Job'
 
 export interface ICronJobData extends IEntityData {
+  name: string
   commandName: string
-  commandData: object
+  commandData?: object
 
   cron: string
 
   enabled: boolean
 
   lastRunAt?: number
-  nextRunAt: number
+  nextRunAt?: number
 
   maxRunningJobs?: number
   misfirePolicy?: 'RUN_ONCE' | 'RUN_ALL' | 'SKIP'
@@ -22,7 +23,7 @@ export interface ICronJobData extends IEntityData {
 
 export class CronJob extends Entity<ICronJobData> {
   get nextRunAt() {
-    return new Date(this.data.nextRunAt)
+    return this.data.nextRunAt ? new Date(this.data.nextRunAt) : null
   }
 
   get lastRunAt() {
@@ -41,8 +42,13 @@ export class CronJob extends Entity<ICronJobData> {
     return this.data.commandName
   }
 
+  get name() {
+    return this.data.name
+  }
+
   isDue(now: Date) {
-    return this.data.enabled && this.data.nextRunAt <= now.getTime()
+    if (!this.data.nextRunAt) this.computeNextRun(now)
+    return this.data.enabled && this.data.nextRunAt! <= now.getTime()
   }
 
   computeNextRun(from: Date) {

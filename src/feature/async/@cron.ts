@@ -1,6 +1,6 @@
 import { IConstructor } from '@/core/generics'
-import { CommandMetadataStore } from './CommandMetadataStore'
-import { container } from '@/core/injection'
+import { AsyncMetadataStore } from './AsyncMetadataStore'
+import { container, singleton } from '@/core/injection'
 import { ICronHandler } from './ICronHandler'
 
 export interface ICronConfig {
@@ -11,6 +11,13 @@ export interface ICronConfig {
 
 export function cron(config: ICronConfig) {
   return function (target: IConstructor<ICronHandler>) {
-    const metadataStore = container.resolve(CommandMetadataStore)
+    const metadataStore = container.resolve(AsyncMetadataStore)
+    metadataStore.registerCron(target, {
+      name: config.name,
+      commandName: `cron:${config.name}`,
+      cron: config.cron,
+      enabled: !config.disabled,
+    })
+    singleton()(target)
   }
 }

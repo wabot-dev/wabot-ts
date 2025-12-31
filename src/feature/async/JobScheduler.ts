@@ -11,6 +11,7 @@ export class JobScheduler {
   private timeout?: NodeJS.Timeout
   private logger = new Logger('wabot:job-scheduler')
   private commands = new Set<string>()
+  private running = false
 
   constructor(
     private lock: Lock,
@@ -21,12 +22,17 @@ export class JobScheduler {
 
   start(commands: string[]) {
     commands.forEach((x) => this.commands.add(x))
-    if (this.commands.size > 0) this.tick()
+    if (this.commands.size > 0 && !this.running) this.tick()
   }
 
   stop(command: string[]) {
     command.forEach((x) => this.commands.delete(x))
-    if (this.commands.size === 0 && this.timeout) clearTimeout(this.timeout)
+    if (this.commands.size === 0) {
+      this.running = false
+      if (this.timeout) {
+        clearTimeout(this.timeout)
+      }
+    }
   }
 
   tryExecuteNow(job: Job) {
@@ -35,6 +41,7 @@ export class JobScheduler {
   }
 
   private async tick() {
+    if (!this.running) return
     const interval = this.env.requireNumber('WABOT_JOB_SCHEDULER_INTERVAL_SECONDS', {
       default: 10,
     })

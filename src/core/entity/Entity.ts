@@ -35,7 +35,7 @@ export class Entity<D extends IEntityData> extends Storable<D> {
     return this.createdAt
   }
 
-  update(newData: Omit<D, 'id' | 'createdAt' | 'discardedAt'>) {
+  update(newData: Partial<Omit<D, 'id' | 'createdAt' | 'discardedAt'>>) {
     this.data = { ...this.data, ...newData, updatedAt: new Date().getTime() }
   }
 

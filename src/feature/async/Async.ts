@@ -1,5 +1,5 @@
 import { singleton } from '@/core/injection'
-import { CommandMetadataStore } from './CommandMetadataStore'
+import { AsyncMetadataStore } from './AsyncMetadataStore'
 import { Job } from './Job'
 import { JobRepository } from './JobRepository'
 import { JobScheduler } from './JobScheduler'
@@ -10,7 +10,7 @@ import { IConstructor } from '@/core/generics'
 export class Async {
   constructor(
     private jobRepository: JobRepository,
-    private metadataStore: CommandMetadataStore,
+    private metadataStore: AsyncMetadataStore,
     private jobScheduler: JobScheduler,
   ) {}
 

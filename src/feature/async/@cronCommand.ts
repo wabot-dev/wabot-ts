@@ -1,5 +1,5 @@
 import { IConstructor } from '@/core/generics'
-import { CommandMetadataStore } from './CommandMetadataStore'
+import { AsyncMetadataStore } from './AsyncMetadataStore'
 import { container } from '@/core/injection'
 import { ICommandHandler } from './ICommandHandler'
 
@@ -12,6 +12,6 @@ export interface ICronCommandConfig<C extends object> {
 
 export function cronCommand<C extends object>(config: ICronCommandConfig<C>) {
   return function (target: IConstructor<ICommandHandler<C>>) {
-    const metadataStore = container.resolve(CommandMetadataStore)
+    const metadataStore = container.resolve(AsyncMetadataStore)
   }
 }

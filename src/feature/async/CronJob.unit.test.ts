@@ -7,7 +7,7 @@ test.describe('CronJob', () => {
     const now = new Date()
 
     const cron = new CronJob({
-      id: 'cron-1',
+      name: 'cron-1',
       commandName: 'test',
       commandData: {},
       cron: '* * * * *',
@@ -22,7 +22,7 @@ test.describe('CronJob', () => {
     const now = new Date()
 
     const cron = new CronJob({
-      id: 'cron-1',
+      name: 'cron-1',
       commandName: 'test',
       commandData: {},
       cron: '* * * * *',
@@ -37,7 +37,7 @@ test.describe('CronJob', () => {
     const now = new Date()
 
     const cron = new CronJob({
-      id: 'cron-1',
+      name: 'cron-1',
       commandName: 'test',
       commandData: {},
       cron: '* * * * *',
@@ -47,6 +47,7 @@ test.describe('CronJob', () => {
 
     cron.computeNextRun(now)
 
+    assert.ok(cron.nextRunAt, 'nextRunAt should be in the future')
     assert.ok(cron.nextRunAt.getTime() > now.getTime(), 'nextRunAt should be in the future')
   })
 
@@ -54,7 +55,7 @@ test.describe('CronJob', () => {
     const now = new Date()
 
     const cron = new CronJob({
-      id: 'cron-1',
+      name: 'cron-1',
       commandName: 'test',
       commandData: {},
       cron: '* * * * *',
@@ -65,6 +66,7 @@ test.describe('CronJob', () => {
     cron.markAsExecuted(now)
 
     assert.equal(cron.lastRunAt?.getTime(), now.getTime())
+    assert.ok(cron.nextRunAt, 'nextRunAt should advance after execution')
     assert.ok(cron.nextRunAt.getTime() > now.getTime(), 'nextRunAt should advance after execution')
   })
 
@@ -72,7 +74,7 @@ test.describe('CronJob', () => {
     const now = Date.now()
 
     const cron = new CronJob({
-      id: 'cron-1',
+      name: 'cron-1',
       commandName: 'test',
       commandData: { a: 1 },
       cron: '* * * * *',
@@ -101,8 +103,8 @@ test.describe('CronJob', () => {
 
   test('default maxConcurrency and misfirePolicy', () => {
     const cron = new CronJob({
-      id: 'cron-1',
-      commandName: 'test',
+      name: 'cron-1',
+      commandName: 'cron:test',
       commandData: {},
       cron: '* * * * *',
       enabled: true,

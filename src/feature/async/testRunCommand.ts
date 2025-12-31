@@ -1,6 +1,6 @@
 import { command } from './@command'
 import { commandHandler } from './@commandHandler'
-import { runAsyncCommandHandlers, stopAsyncCommandHandlers } from './runCommandHandlers'
+import { runCommandHandlers, stopCommandHandlers } from './runCommandHandlers'
 import test, { after, before } from 'node:test'
 import { container } from '@/core/injection'
 import { JobRepository } from './JobRepository'
@@ -60,11 +60,11 @@ class SaveTagHandler {
 const commandHandlers = [SaveTagHandler]
 
 export function runCommandsWorker() {
-  runAsyncCommandHandlers(commandHandlers)
+  runCommandHandlers(commandHandlers)
 }
 
 export function stopCommandsWorker() {
-  stopAsyncCommandHandlers(commandHandlers)
+  stopCommandHandlers(commandHandlers)
 }
 
 //--------------------------- Helpers --------------------------

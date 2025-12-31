@@ -7,7 +7,7 @@ import test, { after } from 'node:test'
 import { cron } from './@cron'
 import { Async } from './Async'
 import { JobRepository } from './JobRepository'
-import { runAsyncCommandHandlers } from './runCommandHandlers'
+import { runCommandHandlers } from './runCommandHandlers'
 
 //----------------------- Repositories ------------------------
 interface ITagData extends IEntityData {
@@ -51,7 +51,7 @@ class CronHandler {
 
 //-----------------------  Workers ---------------------------
 export function runCommandsWorker() {
-  runAsyncCommandHandlers([CronHandler])
+  runCommandHandlers([CronHandler])
 }
 
 //--------------------------- Helpers --------------------------
