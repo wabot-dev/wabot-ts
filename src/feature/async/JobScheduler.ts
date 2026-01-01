@@ -22,7 +22,10 @@ export class JobScheduler {
 
   start(commands: string[]) {
     commands.forEach((x) => this.commands.add(x))
-    if (this.commands.size > 0 && !this.running) this.tick()
+    if (this.commands.size > 0 && !this.running) {
+      this.running = true
+      this.tick()
+    }
   }
 
   stop(command: string[]) {
