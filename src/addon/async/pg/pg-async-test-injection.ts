@@ -1,24 +1,25 @@
-import { Env } from "@/core/env"
-import { container, singleton } from "@/core/injection"
-import { JobRepository } from "@/feature/async"
-import { Pool } from "pg"
-import { PgJobRepository } from "./PgJobRepository"
-import { PgLock } from "@/addon/lock/pg"
-import { Lock } from "@/core/lock"
-import { PgCrudRepository } from "@/feature/pg"
-import { ITagRepository, Tag, TagRepository } from "@/feature/async/testRunCommand"
+import { Env } from '@/core/env'
+import { container, singleton } from '@/core/injection'
+import { JobRepository } from '@/feature/async'
+import { Pool } from 'pg'
+import { PgJobRepository } from './PgJobRepository'
+import { PgCrudRepository, PgLocker } from '@/feature/pg'
+import { ITestTagRepository, TestTag, TestTagRepository } from '@/feature/async/testAsyncHelpers'
+import { CronJobRepository } from '@/feature/async/CronJobRepository'
+import { PgCronJobRepository } from './PgCronJobRepository'
+import { Locker } from '@/core/lock'
 
 @singleton()
-class PgTagRepository extends PgCrudRepository<Tag> implements ITagRepository {
+class PgTestTagRepository extends PgCrudRepository<TestTag> implements ITestTagRepository {
   constructor(pool: Pool) {
     super(pool, {
       table: 'tag',
       schema: 'wabot_test',
-      constructor: Tag,
+      constructor: TestTag,
     })
   }
 
-  async findByValue(value: string): Promise<Tag[]> {
+  async findByValue(value: string): Promise<TestTag[]> {
     const sql = `
       SELECT ${this.columns}
       FROM ${this.table} 
@@ -30,7 +31,11 @@ class PgTagRepository extends PgCrudRepository<Tag> implements ITagRepository {
 }
 
 const env = container.resolve(Env)
-container.registerInstance(Pool, new Pool({ connectionString: env.requireString('DATABASE_URL') }))
+container.registerInstance(
+  Pool,
+  new Pool({ connectionString: env.requireString('DATABASE_URL'), max: 2 }),
+)
 container.registerType(JobRepository, PgJobRepository)
-container.registerType(TagRepository, PgTagRepository)
-container.registerType(Lock, PgLock)
+container.registerType(CronJobRepository, PgCronJobRepository)
+container.registerType(TestTagRepository, PgTestTagRepository)
+container.registerType(Locker, PgLocker)

@@ -1,10 +1,10 @@
 import { singleton } from '@/core/injection'
-import { Lock, LockKey } from '@/core/lock'
 import { JobRunner } from './JobRunner'
 import { JobRepository } from './JobRepository'
 import { Env } from '@/core/env'
 import { Logger } from '@/core/logger'
 import { Job } from './Job'
+import { Locker } from '@/core/lock'
 
 @singleton()
 export class JobExecutor {
@@ -12,7 +12,7 @@ export class JobExecutor {
   private logger = new Logger('wabot:job-executor')
 
   constructor(
-    private lock: Lock,
+    private locker: Locker,
     private runner: JobRunner,
     private repo: JobRepository,
     private env: Env,
@@ -26,10 +26,8 @@ export class JobExecutor {
   async execute(job: Job) {
     if (!this.tryAcquire()) return
 
-    const key = new LockKey(`wabot-job-${job.id}`)
-
     try {
-      await this.lock.tryWithKey(key, async () => {
+      await this.locker.withKey(`wabot-job-${job.id}`).tryRun(async () => {
         const fresh = await this.repo.findOrThrow(job.id)
         if (!fresh.isScheduleReady()) return
 

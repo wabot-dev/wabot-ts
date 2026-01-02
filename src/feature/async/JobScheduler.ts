@@ -2,9 +2,9 @@ import { singleton } from '@/core/injection'
 import { JobRepository } from './JobRepository'
 import { Env } from '@/core/env'
 import { Logger } from '@/core/logger'
-import { Lock, LockKey } from '@/core/lock'
 import { JobExecutor } from './JobExecutor'
 import { Job } from './Job'
+import { Locker } from '@/core/lock'
 
 @singleton()
 export class JobScheduler {
@@ -14,22 +14,26 @@ export class JobScheduler {
   private running = false
 
   constructor(
-    private lock: Lock,
+    private locker: Locker,
     private repo: JobRepository,
     private executor: JobExecutor,
     private env: Env,
   ) {}
 
   start(commands: string[]) {
+    this.logger.info(`starting handlers for commands ${commands}`)
     commands.forEach((x) => this.commands.add(x))
+    this.logger.info(`starting job handlers for commands ${commands.join(', ')}`)
+
     if (this.commands.size > 0 && !this.running) {
       this.running = true
       this.tick()
     }
   }
 
-  stop(command: string[]) {
-    command.forEach((x) => this.commands.delete(x))
+  stop(commands: string[]) {
+    this.logger.info(`stoping handlers for commands ${commands}`)
+    commands.forEach((x) => this.commands.delete(x))
     if (this.commands.size === 0) {
       this.running = false
       if (this.timeout) {
@@ -53,7 +57,7 @@ export class JobScheduler {
       const remainingSlots = this.executor.remainingSlots()
       if (remainingSlots === 0) return
 
-      await this.lock.withKey(new LockKey('wabot-scheduler-loop'), async () => {
+      await this.locker.withKey('wabot-job-scheduler-loop').run(async () => {
         const jobs = await this.repo.findPendingForRunFrom(
           new Date(),
           this.executor.remainingSlots(),

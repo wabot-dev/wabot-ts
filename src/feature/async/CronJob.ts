@@ -22,6 +22,13 @@ export interface ICronJobData extends IEntityData {
 }
 
 export class CronJob extends Entity<ICronJobData> {
+  constructor(data: ICronJobData) {
+    super(data)
+    if (!data.nextRunAt) {
+      this.computeNextRun(new Date())
+    }
+  }
+
   get nextRunAt() {
     return this.data.nextRunAt ? new Date(this.data.nextRunAt) : null
   }
@@ -47,8 +54,9 @@ export class CronJob extends Entity<ICronJobData> {
   }
 
   isDue(now: Date) {
-    if (!this.data.nextRunAt) this.computeNextRun(now)
-    return this.data.enabled && this.data.nextRunAt! <= now.getTime()
+    if (!this.data.nextRunAt)
+      throw new Error(`CronJon with id = '${this.data.id}' nextRunAt is invalid`)
+    return this.data.enabled && this.data.nextRunAt <= now.getTime()
   }
 
   computeNextRun(from: Date) {
@@ -75,5 +83,18 @@ export class CronJob extends Entity<ICronJobData> {
       aceptableRunningTimeSeconds: this.data.aceptableRunningTimeSeconds,
       stuckRetryAttempts: this.data.stuckRetryAttempts,
     })
+  }
+
+  override validate(): void {
+    try {
+      CronExpressionParser.parse(this.data.cron)
+    } catch (err) {
+      throw new Error(
+        `CronJob with id = '${this.data.id}' has invalid cron expression: ${this.data.cron}`,
+      )
+    }
+
+    if (!this.data.nextRunAt)
+      throw new Error(`CronJon with id = '${this.data.id}' nextRunAt is invalid`)
   }
 }

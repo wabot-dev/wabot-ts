@@ -1,7 +1,7 @@
 import { Pool } from 'pg'
 
 import { singleton } from '@/core/injection'
-import { PgCrudRepository } from '@/feature/pg'
+import { PgCrudRepository, withPgClient } from '@/feature/pg'
 import { IJobRepository, Job } from '@/feature/async'
 
 @singleton()
@@ -19,11 +19,11 @@ export class PgJobRepository extends PgCrudRepository<Job> implements IJobReposi
       SELECT ${this.columns}
       FROM ${this.table}
       WHERE data ? 'scheduledAt'
-        AND data->>'scheduledAt' <= $1
+        AND (data->>'scheduledAt')::bigint <= $1
         AND data->>'startedAt' IS NULL
         AND data->>'successAt' IS NULL
         AND data->>'failedAt' IS NULL 
-      ORDER BY data->>'scheduledAt' ASC
+      ORDER BY (data->>'scheduledAt')::bigint ASC
       LIMIT $2
     `
     const items = await this.query(sql, [date.getTime(), limit])
@@ -44,7 +44,20 @@ export class PgJobRepository extends PgCrudRepository<Job> implements IJobReposi
     return items
   }
 
-  countRunningByCommand(commandName: string): Promise<number> {
-    throw new Error('Not implemented')
+  async countRunningByCommand(commandName: string): Promise<number> {
+    const sql = `
+      SELECT COUNT(*)::int AS count
+      FROM ${this.table}
+      WHERE data ? 'startedAt'
+        AND data->>'startedAt' IS NOT NULL
+        AND data->>'successAt' IS NULL
+        AND data->>'failedAt' IS NULL
+        AND data->>'commandName' = $1
+    `
+
+    return withPgClient(this.pool, async (client) => {
+      const result = await client.query<{ count: number }>(sql, [commandName])
+      return result.rows[0]?.count ?? 0
+    })
   }
 }

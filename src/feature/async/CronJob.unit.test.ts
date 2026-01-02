@@ -114,4 +114,19 @@ test.describe('CronJob', () => {
     assert.equal(cron.maxConcurrency, 1)
     assert.equal(cron.misfirePolicy, 'RUN_ONCE')
   })
+
+  test('validate() throws on invalid cron string', () => {
+    const cron = new CronJob({
+      name: 'cron-invalid',
+      commandName: 'test',
+      cron: 'invalid cron expression',
+      enabled: true,
+      nextRunAt: Date.now(),
+    })
+
+    assert.throws(
+      () => cron.validate(),
+      'Expected validate() to throw for an invalid cron expression',
+    )
+  })
 })

@@ -1,5 +1,5 @@
-import { runCommandsWorker } from '@/feature/async/testRunCommand'
+import { runAsyncHandlers } from '@/feature/async/testAsync'
 
 import './pg-async-test-injection'
 
-runCommandsWorker()
+runAsyncHandlers()

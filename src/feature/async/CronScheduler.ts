@@ -1,24 +1,28 @@
 import { singleton } from '@/core/injection'
 import { JobRepository } from './JobRepository'
 import { Logger } from '@/core/logger'
-import { Lock, LockKey } from '@/core/lock'
 import { CronJob } from './CronJob'
 import { CronJobRepository } from './CronJobRepository'
 import { JobScheduler } from './JobScheduler'
 import { ICronJobScheduleConfig } from './ICronJobScheduleConfig'
+import { Locker } from '@/core/lock'
+import { Env } from '@/core/env'
+import { JobWatchdog } from './JobWatchdog'
 
 @singleton()
 export class CronScheduler {
   private running = false
   private timeout?: NodeJS.Timeout
   private configuredCrons = new Map<string, ICronJobScheduleConfig & { reconciliated?: boolean }>()
+  private logger = new Logger('wabot:cron-scheduler')
 
   constructor(
-    private lock: Lock,
+    private locker: Locker,
     private cronRepo: CronJobRepository,
     private jobRepo: JobRepository,
-    private logger: Logger,
     private jobScheduler: JobScheduler,
+    private jobWatchdog: JobWatchdog,
+    private env: Env,
   ) {}
 
   start(crons: ICronJobScheduleConfig[]) {
@@ -31,7 +35,18 @@ export class CronScheduler {
   }
 
   stop(crons: ICronJobScheduleConfig[]) {
-    crons.forEach((x) => this.configuredCrons.delete(x.name))
+    crons.forEach((x) => {
+      const configured = this.configuredCrons.get(x.name)
+      if (!configured) {
+        return
+      }
+      if (configured.reconciliated) {
+        this.jobScheduler.stop([configured.commandName])
+        this.jobWatchdog.stop([configured.commandName])
+      }
+      this.configuredCrons.delete(x.name)
+    })
+
     if (this.configuredCrons.size === 0) {
       this.running = false
       if (this.timeout) clearTimeout(this.timeout)
@@ -50,7 +65,11 @@ export class CronScheduler {
       const cronJobs = await Promise.all(
         configToReconciliate.map((x) => this.reconciliateConfig(x)),
       )
+      this.logger.info(
+        `success reconciliation of reconciliation of crons ${configToReconciliate.map((x) => x.name).join(', ')}`,
+      )
       this.jobScheduler.start(cronJobs.map((x) => x.commandName))
+      this.jobWatchdog.start(cronJobs.map((x) => x.commandName))
     } catch (e) {
       this.logger.error(e)
       this.stop(configToReconciliate)
@@ -62,10 +81,12 @@ export class CronScheduler {
   }
 
   private async tick() {
-    const lockKey = new LockKey('wabot-cron-scheduler')
-
+    if (!this.running) return
+    const interval = this.env.requireNumber('WABOT_CRON_SCHEDULER_INTERVAL_SECONDS', {
+      default: 30,
+    })
     try {
-      await this.lock.withKey(lockKey, async () => {
+      await this.locker.withKey('wabot-cron-scheduler').run(async () => {
         const now = new Date()
         const dueCrons = await this.cronRepo.findDue(now)
 
@@ -80,14 +101,12 @@ export class CronScheduler {
     } catch (e) {
       this.logger.error(e)
     } finally {
-      this.timeout = setTimeout(() => this.tick(), 10_000)
+      this.timeout = setTimeout(() => this.tick(), interval * 1000)
     }
   }
 
   private async spawnJobs(cron: CronJob) {
-    const cronLockKey = new LockKey(`wabot-cron-${cron.id}`)
-
-    await this.lock.tryWithKey(cronLockKey, async () => {
+    await this.locker.withKey(`wabot-cron-${cron.id}`).run(async () => {
       let now = new Date()
       const fresh = await this.cronRepo.findOrThrow(cron.id)
       if (!fresh.isDue(now)) return
@@ -132,13 +151,13 @@ export class CronScheduler {
   }
 
   private async reconciliateConfig(config: ICronJobScheduleConfig & { reconciliated?: boolean }) {
-    const configLockKey = new LockKey(`wabot-cron-config-${config.name}`)
-
-    return await this.lock.withKey(configLockKey, async () => {
+    return await this.locker.withKey(`wabot-cron-config-${config.name}`).run(async () => {
       let cronJob = await this.cronRepo.findByName(config.name)
       if (cronJob) {
+        this.logger.debug(`found cron job for name='${config.name}'`)
         cronJob.update({ cron: config.cron, enabled: config.enabled })
         await this.cronRepo.update(cronJob)
+        this.logger.debug(`cron job for name='${config.name}' updated`)
       } else {
         cronJob = new CronJob({
           name: config.name,

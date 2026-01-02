@@ -2,16 +2,19 @@ import type { Pool, PoolClient } from 'pg'
 import type { IPgRepositoryConfig } from './IPgRepositoryConfig'
 import { Entity, IEntityData } from '@/core/entity'
 import { withPgClient } from './withPgClient'
+import { Logger } from '@/core/logger'
+import { PgLocker } from './PgLock'
 
 export class PgRepositoryBase<P extends Entity<IEntityData>> {
-  private tableIsCreated = false
+  private tableIsReady = false
   protected schema: string
   protected table: string
   protected columnsList: string[]
-  protected columnsAndTypes: string
+  protected columnsAndTypes: string[]
   protected columns: string
   protected vars: string
   protected updates: string
+  private logger = new Logger('wabot:pg-repository-base')
 
   public addColumns: {
     [columns: string]: {
@@ -39,7 +42,7 @@ export class PgRepositoryBase<P extends Entity<IEntityData>> {
       '"created_at" TIMESTAMP',
       '"data" JSONB',
       ...this.columnsList.slice(3).map((x) => `${x} ${this.addColumns[x].type}`),
-    ].join(', ')
+    ]
 
     this.columns = this.columnsList.map((x) => `"${x}"`).join(', ')
     this.vars = this.columnsList.map((_, i) => `$${i + 1}`).join(', ')
@@ -56,40 +59,45 @@ export class PgRepositoryBase<P extends Entity<IEntityData>> {
   }
 
   protected async exec(sql: string, values: any[]) {
-    const conn = await this.connect()
-    await conn.query(sql, values)
+    return withPgClient(this.pool, async (client) => {
+      await this.ensureTable(client)
+      await client.query(sql, values)
+    })
   }
 
   protected async query(sql: string, values: any[]): Promise<P[]> {
-    const conn = await this.connect()
-    const { rows } = await conn.query(sql, values)
-    return rows.map((row) => new this.config.constructor(row.data))
-  }
-
-  protected async connect() {
     return withPgClient(this.pool, async (client) => {
       await this.ensureTable(client)
-      return client
+      const { rows } = await client.query(sql, values)
+      return rows.map((row) => new this.config.constructor(row.data))
     })
   }
 
   protected async ensureTable(client: PoolClient) {
-    if (this.tableIsCreated) {
+    if (this.tableIsReady) {
       return
     }
+    const locker = new PgLocker(this.pool)
+    await locker.withKey(`wabot-pgrepo-ensure-table-${this.table}`).run(async () => {
+      if (this.tableIsReady) {
+        return
+      }
+      this.logger.debug(`running  schema sync for ${this.table}`)
 
-    const schemaQuery = `
-      CREATE SCHEMA IF NOT EXISTS ${this.schema}
-    `
+      const schemaQuery = `
+        CREATE SCHEMA IF NOT EXISTS ${this.schema}
+      `
 
-    const tableQuery = `
-      CREATE TABLE IF NOT EXISTS ${this.table} (
-      ${this.columnsAndTypes}
-      )
-    `
-    await client.query(schemaQuery)
-    await client.query(tableQuery)
-    await this.ensureColumns(client)
+      const tableQuery = `
+        CREATE TABLE IF NOT EXISTS ${this.table} (
+          ${this.columnsAndTypes.join(', ')}
+        )
+      `
+      await client.query(schemaQuery)
+      await client.query(tableQuery)
+      await this.ensureColumns(client)
+      this.tableIsReady = true
+    })
   }
 
   protected async ensureColumns(client: PoolClient): Promise<void> {

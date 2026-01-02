@@ -1,2 +1,2 @@
-export * from './Lock'
-export * from './LockKey'
+export * from './ILockKey'
+export * from './Locker'
