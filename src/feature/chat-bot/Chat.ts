@@ -2,9 +2,15 @@ import { Entity, type IEntityData } from '@/core/entity'
 import { IChatConnection } from './IChatConnection'
 import { IChatType } from './IChatType'
 
+export interface IChatAssociation {
+  type: string
+  id: string
+}
+
 export interface IChatData extends IEntityData {
   type: IChatType
   connections: IChatConnection[]
+  associations?: IChatAssociation[]
 }
 
 export class Chat extends Entity<IChatData> {
@@ -24,6 +30,10 @@ export class Chat extends Entity<IChatData> {
     return this.data.connections
   }
 
+  get associations() {
+    return this.data.associations ?? []
+  }
+
   hasConnection(connection: IChatConnection) {
     for (const con of this.data.connections) {
       if (con.channelName === connection.channelName && con.id === connection.id) {
@@ -31,6 +41,22 @@ export class Chat extends Entity<IChatData> {
       }
     }
     return false
+  }
+
+  hasAssociation(type: string, id: string) {
+    return this.data.associations?.some((a) => a.type === type && a.id === id) ?? false
+  }
+
+  getAssociationsByType(type: string) {
+    return this.data.associations?.filter((a) => a.type === type) ?? []
+  }
+
+  addAssociation(association: IChatAssociation) {
+    if (this.hasAssociation(association.type, association.id)) {
+      throw new Error('Association already exists')
+    }
+    if (!this.data.associations) this.data.associations = []
+    this.data.associations.push(association)
   }
 
   private validatePrivateChat() {
