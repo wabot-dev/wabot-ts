@@ -1,12 +1,11 @@
 import { Entity, type IEntityData } from '@/core/entity'
-import { IStorableData } from '@/core/storable'
 
-export interface IWhatsAppBusinessNumber extends IStorableData {
+export interface IWhatsAppBusinessNumber {
   id: string
   number: string
 }
 
-export interface IWhatsAppBusinessAccount extends IStorableData {
+export interface IWhatsAppBusinessAccount {
   id: string
 }
 

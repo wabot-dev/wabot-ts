@@ -10,11 +10,23 @@
       "request": "launch",
       "command": "nvm use && npm run elia:dev"
     },
+        {
+      "type": "node-terminal",
+      "name": "Test:MP",
+      "request": "launch",
+      "command": "nvm use && npm run test:multiprocess"
+    },
     {
       "type": "node-terminal",
       "name": "Test:Int",
       "request": "launch",
       "command": "nvm use && npm run test:integration"
+    },
+    {
+      "type": "node-terminal",
+      "name": "Test:Unit",
+      "request": "launch",
+      "command": "nvm use && npm run test:units"
     }
   ]
 }

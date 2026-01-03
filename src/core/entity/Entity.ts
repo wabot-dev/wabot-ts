@@ -1,6 +1,6 @@
-import { IStorableData, Storable } from '@/core/storable'
+import { Storable } from '../storable'
 
-export interface IEntityData extends IStorableData {
+export interface IEntityData {
   id?: string
   createdAt?: number | null
   discardedAt?: number | null
@@ -35,7 +35,7 @@ export class Entity<D extends IEntityData> extends Storable<D> {
     return this.createdAt
   }
 
-  update(newData: Omit<D, 'id' | 'createdAt' | 'discardedAt'>) {
+  update(newData: Partial<Omit<D, 'id' | 'createdAt' | 'discardedAt'>>) {
     this.data = { ...this.data, ...newData, updatedAt: new Date().getTime() }
   }
 

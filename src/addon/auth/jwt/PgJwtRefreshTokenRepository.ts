@@ -1,14 +1,14 @@
 import { singleton } from '@/core/injection'
 
-import { Pool } from 'pg'
-import { IStorableData } from '@/core/storable'
-import { PgCrudRepository } from '@/feature/pg'
-import { JwtRefreshToken } from './JwtRefreshToken'
-import { IJwtRefreshTokenRepository } from './IJwtRefreshTokenRepository'
 import { CustomError } from '@/core/error'
+import { IStorableType } from '@/core/storable/IStorableType'
+import { PgCrudRepository } from '@/feature/pg'
+import { Pool } from 'pg'
+import { IJwtRefreshTokenRepository } from './IJwtRefreshTokenRepository'
+import { JwtRefreshToken } from './JwtRefreshToken'
 
 @singleton()
-export class PgJwtRefreshTokenRepository<D extends IStorableData>
+export class PgJwtRefreshTokenRepository<D extends object>
   extends PgCrudRepository<JwtRefreshToken<D>>
   implements IJwtRefreshTokenRepository<D>
 {
@@ -20,7 +20,7 @@ export class PgJwtRefreshTokenRepository<D extends IStorableData>
     })
   }
 
-  async findAndValidate(secret: string): Promise<D> {
+  async findAndValidate(secret: string): Promise<IStorableType<D>> {
     const apiKey = await this.findBySecret(secret)
     if (!apiKey) {
       throw new CustomError({ message: 'Invalid Token', httpCode: 401 })

@@ -60,7 +60,7 @@ export class SocketChannel implements IChatChannel {
 
         const chatConnection = {
           id: message.chatId,
-          chatType: 'PRIVATE',
+          chatType: 'PRIVATE' as const,
           channelName: SocketChannel.name,
         }
 

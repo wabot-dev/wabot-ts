@@ -1,9 +1,9 @@
 import { ICrudRepository } from '@/core/repository'
-import { IStorableData } from '@/core/storable'
 import { JwtRefreshToken } from './JwtRefreshToken'
+import { IStorableType } from '@/core/storable/IStorableType'
 
-export interface IJwtRefreshTokenRepository<D extends IStorableData>
+export interface IJwtRefreshTokenRepository<D extends object>
   extends ICrudRepository<JwtRefreshToken<D>> {
-  findAndValidate(secret: string): Promise<D>
+  findAndValidate(secret: string): Promise<IStorableType<D>>
   findByMetadata(metadata: Record<string, string>): Promise<JwtRefreshToken<D>[]>
 }

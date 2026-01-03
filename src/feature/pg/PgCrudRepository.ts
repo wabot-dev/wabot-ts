@@ -6,6 +6,7 @@ import { ICrudRepository } from '@/core/repository'
 import { type IPgRepositoryConfig } from './IPgRepositoryConfig'
 import { PgRepositoryBase } from './PgRepositoryBase'
 import { CustomError } from '@/core/error'
+import { withPgClient } from './withPgClient'
 
 export class PgCrudRepository<P extends Entity<IEntityData>>
   extends PgRepositoryBase<P>
@@ -87,7 +88,13 @@ export class PgCrudRepository<P extends Entity<IEntityData>>
          SET ${this.updates}
       WHERE id = $${this.columnsList.length + 1}
     `
-    await this.exec(sql, [...this.values(item), item.id])
+    const result = await withPgClient(this.pool, async (client) => {
+      return await client.query(sql, [...this.values(item), item.id])
+    })
+
+    if (result.rowCount === 0) {
+      throw new Error(`Update failed: no affected rows'`)
+    }
   }
 
   async delete(item: P): Promise<void> {

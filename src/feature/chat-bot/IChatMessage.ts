@@ -1,7 +1,6 @@
-import { IStorableData } from "@/core/storable"
-import { IChatMessageImage } from "./IChatMessageImage"
+import { IChatMessageImage } from './IChatMessageImage'
 
-export interface IChatMessage extends IStorableData {
+export interface IChatMessage {
   senderId?: string
   senderName?: string
   text?: string

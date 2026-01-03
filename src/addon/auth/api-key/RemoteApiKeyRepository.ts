@@ -1,21 +1,21 @@
-import { IStorableData } from '@/core/storable'
-import { IApiKeyRepository, IGenerateApiKeyReq, IGenerateApiKeyRes } from './IApiKeyRepository'
-import { ApiKey } from './ApiKey'
 import { CustomError } from '@/core/error'
+import { IStorableType } from '@/core/storable/IStorableType'
+import { ApiKey } from './ApiKey'
+import { IApiKeyRepository, IGenerateApiKeyReq, IGenerateApiKeyRes } from './IApiKeyRepository'
 
-export interface IRemoteApiKeyFetcher<A extends IStorableData> {
-  fetchAuthInfoBySecret: (secret: string) => Promise<A | null>
+export interface IRemoteApiKeyFetcher<A extends object> {
+  fetchAuthInfoBySecret: (secret: string) => Promise<IStorableType<A> | null>
 }
 
-export class RemoteApiKeyRepository<A extends IStorableData> implements IApiKeyRepository<A> {
-  private cacheBySecret = new Map<string, { value: A | null; expiresAt: number }>()
+export class RemoteApiKeyRepository<A extends object> implements IApiKeyRepository<A> {
+  private cacheBySecret = new Map<string, { value: IStorableType<A> | null; expiresAt: number }>()
 
   constructor(
     private fetcher: IRemoteApiKeyFetcher<A>,
     private cacheSeconds: number,
   ) {}
 
-  async findAndValidate(secret: string): Promise<A> {
+  async findAndValidate(secret: string): Promise<IStorableType<A>> {
     const now = Date.now()
 
     const cached = this.cacheBySecret.get(secret)

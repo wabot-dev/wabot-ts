@@ -1,6 +1,4 @@
-import { IStorableData } from "@/core/storable"
-
-export interface IFunctionCall extends IStorableData {
+export interface IFunctionCall {
   id: string
   name: string
   arguments?: string

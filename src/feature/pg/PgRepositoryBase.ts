@@ -1,16 +1,20 @@
-import type { Pool } from 'pg'
+import type { Pool, PoolClient } from 'pg'
 import type { IPgRepositoryConfig } from './IPgRepositoryConfig'
 import { Entity, IEntityData } from '@/core/entity'
+import { withPgClient } from './withPgClient'
+import { Logger } from '@/core/logger'
+import { PgLocker } from './PgLock'
 
 export class PgRepositoryBase<P extends Entity<IEntityData>> {
-  private tableIsCreated = false
+  private tableIsReady = false
   protected schema: string
   protected table: string
   protected columnsList: string[]
-  protected columnsAndTypes: string
+  protected columnsAndTypes: string[]
   protected columns: string
   protected vars: string
   protected updates: string
+  private logger = new Logger('wabot:pg-repository-base')
 
   public addColumns: {
     [columns: string]: {
@@ -38,7 +42,7 @@ export class PgRepositoryBase<P extends Entity<IEntityData>> {
       '"created_at" TIMESTAMP',
       '"data" JSONB',
       ...this.columnsList.slice(3).map((x) => `${x} ${this.addColumns[x].type}`),
-    ].join(', ')
+    ]
 
     this.columns = this.columnsList.map((x) => `"${x}"`).join(', ')
     this.vars = this.columnsList.map((_, i) => `$${i + 1}`).join(', ')
@@ -55,42 +59,49 @@ export class PgRepositoryBase<P extends Entity<IEntityData>> {
   }
 
   protected async exec(sql: string, values: any[]) {
-    const conn = await this.connect()
-    await conn.query(sql, values)
+    return withPgClient(this.pool, async (client) => {
+      await this.ensureTable(client)
+      await client.query(sql, values)
+    })
   }
 
   protected async query(sql: string, values: any[]): Promise<P[]> {
-    const conn = await this.connect()
-    const { rows } = await conn.query(sql, values)
-    return rows.map((row) => new this.config.constructor(row.data))
+    return withPgClient(this.pool, async (client) => {
+      await this.ensureTable(client)
+      const { rows } = await client.query(sql, values)
+      return rows.map((row) => new this.config.constructor(row.data))
+    })
   }
 
-  protected async connect() {
-    await this.ensureTable()
-    return this.pool
-  }
-
-  protected async ensureTable() {
-    if (this.tableIsCreated) {
+  protected async ensureTable(client: PoolClient) {
+    if (this.tableIsReady) {
       return
     }
+    const locker = new PgLocker(this.pool)
+    await locker.withKey(`wabot-pgrepo-ensure-table-${this.table}`).run(async () => {
+      if (this.tableIsReady) {
+        return
+      }
+      this.logger.debug(`running  schema sync for ${this.table}`)
 
-    const schemaQuery = `
-      CREATE SCHEMA IF NOT EXISTS ${this.schema}
-    `
+      const schemaQuery = `
+        CREATE SCHEMA IF NOT EXISTS ${this.schema}
+      `
 
-    const tableQuery = `
-      CREATE TABLE IF NOT EXISTS ${this.table} (
-      ${this.columnsAndTypes}
-      )
-    `
-    await this.pool.query(schemaQuery)
-    await this.pool.query(tableQuery)
-    await this.ensureColumns()
+      const tableQuery = `
+        CREATE TABLE IF NOT EXISTS ${this.table} (
+          ${this.columnsAndTypes.join(', ')}
+        )
+      `
+      await client.query(schemaQuery)
+      await client.query(tableQuery)
+      await this.ensureColumns(client)
+      this.tableIsReady = true
+    })
   }
 
-  protected async ensureColumns(): Promise<void> {
-    const { rows: existing } = await this.pool.query<{
+  protected async ensureColumns(client: PoolClient): Promise<void> {
+    const { rows: existing } = await client.query<{
       column_name: string
     }>(
       `
@@ -109,7 +120,7 @@ export class PgRepositoryBase<P extends Entity<IEntityData>> {
       if (!existingColumns.has(col)) {
         const alterSql = `ALTER TABLE ${this.table} ADD COLUMN ${columnAndType}`
         console.log(`[INFO] Adding column: ${alterSql}`)
-        await this.pool.query(alterSql)
+        await client.query(alterSql)
       }
     }
   }

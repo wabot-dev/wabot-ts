@@ -1,18 +1,22 @@
-
 import { IConstructor } from '@/core/generics'
-import { Command } from './Command'
-import { CommandMetadataStore } from './CommandMetadataStore'
+import { AsyncMetadataStore } from './AsyncMetadataStore'
 import { ICommandHandler } from './ICommandHandler'
 import { container, injectable } from '@/core/injection'
+import { IStorableData } from '@/core/storable'
 
-export interface ICommandHandlerConfig<C extends Command<any>> {
-  command: IConstructor<C>
+export interface ICommandHandlerConfig<C extends object> {
+  command: IConstructor<IStorableData<C>>
 }
 
-export function commandHandler<C extends Command<any>>(config: ICommandHandlerConfig<C>) {
+export function commandHandler<C extends object>(
+  config: ICommandHandlerConfig<C> | IConstructor<IStorableData<C>>,
+) {
   return function (target: IConstructor<ICommandHandler<C>>) {
-    const handlerContainer = container.resolve(CommandMetadataStore)
-    handlerContainer.registerHandler(config.command, target)
+    const metadataStore = container.resolve(AsyncMetadataStore)
+    metadataStore.registerCommandHandler(
+      typeof config === 'function' ? config : config.command,
+      target,
+    )
     injectable()(target)
   }
 }

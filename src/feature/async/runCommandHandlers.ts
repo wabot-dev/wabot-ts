@@ -1,30 +1,26 @@
 import { ICommandHandler } from './ICommandHandler'
-import { JobsEventsHub } from './JobsEventsHub'
-import { JobRunner } from './JobRunner'
-import { CommandMetadataStore } from './CommandMetadataStore'
-import { JobRepository } from './JobRepository'
+import { AsyncMetadataStore } from './AsyncMetadataStore'
 import { IConstructor } from '@/core/generics'
 import { container } from '@/core/injection'
+import { JobScheduler } from './JobScheduler'
+import { JobWatchdog } from './JobWatchdog'
 
-export function runAsyncCommandHandlers(handlers: IConstructor<ICommandHandler<any>>[]) {
-  const eventsHub = container.resolve(JobsEventsHub)
-  const jobRunner = container.resolve(JobRunner)
-  const jobRepository = container.resolve(JobRepository)
-  const commandsHandlersContainer = container.resolve(CommandMetadataStore)
+export function runCommandHandlers(handlers: IConstructor<ICommandHandler<any>>[]) {
+  const jobScheduler = container.resolve(JobScheduler)
+  const jobWatchdog = container.resolve(JobWatchdog)
+  const metadataStore = container.resolve(AsyncMetadataStore)
 
-  const handledCommands = handlers
-    .map((x) => commandsHandlersContainer.getCommandNameForHandler(x))
-    .filter((x) => x)
-    .map((x) => x!)
+  const commands = handlers.map((x) => metadataStore.requireCommandNameForHandler(x))
+  jobScheduler.start(commands)
+  jobWatchdog.start(commands)
+}
 
-  eventsHub.listenJobsEvents(async (event) => {
-    try {
-      const job = await jobRepository.findOrThrow(event.jobId)
-      if (handledCommands.includes(job.commandName)) {
-        jobRunner.run(job)
-      }
-    } catch (e) {
-      console.error(e)
-    }
-  })
+export function stopCommandHandlers(handlers: IConstructor<ICommandHandler<any>>[]) {
+  const jobScheduler = container.resolve(JobScheduler)
+  const jobWatchdog = container.resolve(JobWatchdog)
+  const metadataStore = container.resolve(AsyncMetadataStore)
+
+  const commands = handlers.map((x) => metadataStore.requireCommandNameForHandler(x))
+  jobScheduler.stop(commands)
+  jobWatchdog.stop(commands)
 }

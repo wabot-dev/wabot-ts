@@ -4,7 +4,12 @@ import { IJobRepository } from './IJobRepository'
 
 @singleton()
 export class JobRepository implements IJobRepository {
-  
+  findRunningJobs(): Promise<Job[]> {
+    throw new Error('Method not implemented.')
+  }
+  findPendingForRunFrom(date: Date, limit: number): Promise<Job[]> {
+    throw new Error('Method not implemented.')
+  }
   find(id: string): Promise<Job | null> {
     throw new Error('Method not implemented.')
   }
@@ -24,6 +29,9 @@ export class JobRepository implements IJobRepository {
     throw new Error('Method not implemented.')
   }
   delete(item: Job): Promise<void> {
+    throw new Error('Method not implemented.')
+  }
+  countRunningByCommand(commandName: string): Promise<number> {
     throw new Error('Method not implemented.')
   }
 }
