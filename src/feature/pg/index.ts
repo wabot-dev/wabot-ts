@@ -1,6 +1,6 @@
 export * from './IPgRepositoryConfig'
 export * from './PgCrudRepository'
-export * from './PgLock'
+export * from './PgLocker'
 export * from './PgLockKey'
 export * from './PgRepositoryBase'
 export * from './pgStorage'

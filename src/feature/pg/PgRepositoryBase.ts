@@ -3,7 +3,7 @@ import type { IPgRepositoryConfig } from './IPgRepositoryConfig'
 import { Entity, IEntityData } from '@/core/entity'
 import { withPgClient } from './withPgClient'
 import { Logger } from '@/core/logger'
-import { PgLocker } from './PgLock'
+import { PgLocker } from './PgLocker'
 
 export class PgRepositoryBase<P extends Entity<IEntityData>> {
   private tableIsReady = false

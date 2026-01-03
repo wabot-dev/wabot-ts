@@ -98,7 +98,7 @@ export class Job extends Entity<IJobData> {
   }
 
   isStuck() {
-    return this.runningSeconds > (this.data.aceptableRunningTimeSeconds ?? 900)
+    return this.runningSeconds > (this.data.aceptableRunningTimeSeconds ?? 15)
   }
 
   setAsStarted() {
