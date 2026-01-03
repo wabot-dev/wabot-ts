@@ -1,5 +1,6 @@
 import { Entity, IEntityData } from '@/core/entity'
 import { ChildProcess, spawn } from 'node:child_process'
+import { CronExpressionParser } from 'cron-parser'
 
 //----------------------- Repositories ------------------------
 interface ITestTagData extends IEntityData {
@@ -21,7 +22,10 @@ export class TestTagRepository implements ITestTagRepository {
   create(item: TestTag): Promise<void> {
     throw new Error('Method not implemented.')
   }
-  findByValue(value: string): Promise<TestTag[]> {
+  findByValue(
+    value: string,
+    options?: { limit: number; order: 'asc' | 'desc' },
+  ): Promise<TestTag[]> {
     throw new Error('Method not implemented.')
   }
 }
@@ -76,4 +80,44 @@ export function stopAsyncWorkers() {
     workers[i].kill()
   }
   workers = []
+}
+
+export interface ICronValidationOptions {
+  timezone?: string
+  toleranceMs?: number // allowed drift in milliseconds
+}
+
+export function isValidCronSequence(
+  cronExpression: string,
+  dates: Date[],
+  options: ICronValidationOptions = {},
+): boolean {
+  if (dates.length < 2) return false
+
+  const {
+    timezone = 'UTC',
+    toleranceMs = 1000, // default 1 second tolerance
+  } = options
+
+  try {
+    const interval = CronExpressionParser.parse(cronExpression, {
+      currentDate: dates[0],
+      tz: timezone,
+    })
+
+    for (let i = 1; i < dates.length; i++) {
+      const expected = interval.next().toDate()
+      const actual = dates[i]
+
+      const diff = Math.abs(expected.getTime() - actual.getTime())
+
+      if (diff > toleranceMs) {
+        return false
+      }
+    }
+
+    return true
+  } catch {
+    return false
+  }
 }
