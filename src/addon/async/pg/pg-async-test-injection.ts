@@ -19,13 +19,28 @@ class PgTestTagRepository extends PgCrudRepository<TestTag> implements ITestTagR
     })
   }
 
-  async findByValue(value: string): Promise<TestTag[]> {
-    const sql = `
+  async findByValue(
+    value: string,
+    options?: { limit?: number; order?: 'asc' | 'desc' },
+  ): Promise<TestTag[]> {
+    if (options?.order && options.order !== 'asc' && options.order !== 'desc') {
+      throw new Error('Invalid order')
+    }
+
+    let sql = `
       SELECT ${this.columns}
       FROM ${this.table} 
       WHERE data @> $1::jsonb
     `
-    const items = await this.query(sql, [JSON.stringify({ value })])
+    const queryArgs = [JSON.stringify({ value })]
+
+    if (options?.order) sql = sql + ` ORDER BY created_at ${options.order}`
+    if (options?.limit) {
+      sql = sql + ` LIMIT $2`
+      queryArgs.push(`${options.limit}`)
+    }
+
+    const items = await this.query(sql, queryArgs)
     return items
   }
 }
