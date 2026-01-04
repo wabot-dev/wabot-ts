@@ -37,7 +37,7 @@ export class WhatsAppReceiverByWabotProxy extends WhatsAppReceiver {
         !response ||
         typeof response !== 'object' ||
         !Array.isArray(response.from) ||
-        !Array.isArray(response.to)
+        typeof response.to !== 'string'
       ) {
         this.loger.error('unknown response')
         return
