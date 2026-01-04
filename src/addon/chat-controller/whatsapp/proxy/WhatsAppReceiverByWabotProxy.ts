@@ -44,7 +44,7 @@ export class WhatsAppReceiverByWabotProxy extends WhatsAppReceiver {
       }
 
       this.loger.trace(
-        `succes add whats-app proxy listener for messages from [${response.from.join(',')}] to [${response.to.join(',')}]`,
+        `succes add whats-app proxy listener for messages from [${response.from.join(',')}] to ${response.to}`,
       )
 
       socket.on(WHATSAPP_MESSAGE_EVENT, (data: IWhatsAppProxyMessageEventReq['data'], callback) => {
