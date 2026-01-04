@@ -14,6 +14,14 @@ export class RamChatRepository implements IChatRepository {
   private items: Chat[] = []
   private memories: IRamChatMemory[] = []
 
+  async update(chat: Chat): Promise<void> {
+    if (!chat.wasCreated()) {
+      throw new Error('Chat wat not created')
+    }
+
+    chat.validate()
+  }
+
   async create(chat: Chat): Promise<void> {
     if (chat.wasCreated()) {
       throw new Error('Chat already created')

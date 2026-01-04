@@ -26,7 +26,7 @@ export class WhatsAppReceiverByWabotProxy extends WhatsAppReceiver {
       const req: IWhatsAppProxyListenMessageEventReq = {
         event: 'listenMessage',
         data: {
-          to: [request.to],
+          to: request.to,
         },
       }
       const response = await socket.emitWithAck(req.event, req.data)

@@ -8,6 +8,10 @@ export class ChatRepository implements IChatRepository {
     throw new Error('Method not implemented.')
   }
 
+  update(chat: Chat): Promise<void> {
+    throw new Error('Method not implemented.')
+  }
+
   findByConnection(query: IChatConnection): Promise<Chat | null> {
     throw new Error('Method not implemented.')
   }

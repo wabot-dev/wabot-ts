@@ -16,7 +16,7 @@ export interface IWhatsAppProxyListenMessageEventReq {
 
 export interface IWhatsAppProxyListenMessageEventData {
   from?: string[]
-  to: string[]
+  to: string
 }
 
 export const WHATSAPP_MESSAGE_EVENT = 'message' as const
