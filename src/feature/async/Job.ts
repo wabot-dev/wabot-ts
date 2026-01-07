@@ -50,15 +50,15 @@ export class Job extends Entity<IJobData> {
   }
 
   get successAt() {
-    return this.data.successAt != null ? new Date(this.data.successAt) : null
+    return this.data.successAt != null ? new Date(this.data.successAt) : undefined
   }
 
   get failedAt() {
-    return this.data.failedAt != null ? new Date(this.data.failedAt) : null
+    return this.data.failedAt != null ? new Date(this.data.failedAt) : undefined
   }
 
   get scheduledAt() {
-    return this.data.scheduledAt != null ? new Date(this.data.scheduledAt) : null
+    return this.data.scheduledAt != null ? new Date(this.data.scheduledAt) : undefined
   }
 
   get intentNumber() {
