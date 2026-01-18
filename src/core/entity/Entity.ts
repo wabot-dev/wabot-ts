@@ -36,7 +36,14 @@ export class Entity<D extends IEntityData> extends Storable<D> {
   }
 
   update(newData: Partial<Omit<D, 'id' | 'createdAt' | 'discardedAt'>>) {
-    this.data = { ...this.data, ...newData, updatedAt: new Date().getTime() }
+    const protectedFields = ['id', 'createdAt', 'discardedAt']
+    const filteredData = Object.entries(newData).reduce((acc, [key, value]) => {
+      if (value !== undefined && !protectedFields.includes(key)) {
+        ;(acc as any)[key] = value
+      }
+      return acc
+    }, {} as Partial<D>)
+    this.data = { ...this.data, ...filteredData, updatedAt: new Date().getTime() }
   }
 
   wasCreated(): boolean {
