@@ -22,11 +22,11 @@ export class CmdChannel implements IChatChannel {
     output: process.stdout,
   })
 
-  private callBack: ((message: IChannelMessage) => void) | null = null
+  private callBack: ((message: IChannelMessage) => Promise<void>) | null = null
 
   constructor(private auth: Auth<any>) {}
 
-  listen(callback: (message: IChannelMessage) => void): void {
+  listen(callback: (message: IChannelMessage) => Promise<void>): void {
     this.callBack = callback
   }
 
@@ -66,12 +66,12 @@ export class CmdChannel implements IChatChannel {
         }
       }
 
-      this.callBack({
+      await this.callBack({
         chatConnection,
         message: {
           text: trimmedInput,
         },
-        reply: (message: IChatMessage) => {
+        reply: async (message: IChatMessage) => {
           console.log(`\n[${message.senderName}]: ${message.text}\n`)
           this.rl.prompt()
           if (this.auth.isAssigned()) {

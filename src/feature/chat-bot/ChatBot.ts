@@ -14,16 +14,19 @@ export class ChatBot implements IChatBot {
     private mindset: MindsetOperator,
   ) {}
 
-  public async sendMessage(message: IChatMessage, callback: (message: IChatMessage) => void) {
+  public async sendMessage(
+    message: IChatMessage,
+    callback: (message: IChatMessage) => Promise<void>,
+  ) {
     const newChatItem = new ChatItem({
       type: 'humanMessage',
       humanMessage: message,
     })
     await this.memory.create(newChatItem)
-    this.processLoop(callback)
+    await this.processLoop(callback)
   }
 
-  protected async processLoop(callback: (message: IChatMessage) => void) {
+  protected async processLoop(callback: (message: IChatMessage) => Promise<void>) {
     const prevItems = await this.memory.findLastItems(10)
     if (prevItems.length === 0) {
       return
@@ -64,13 +67,13 @@ export class ChatBot implements IChatBot {
       await this.memory.create(newChatItem)
 
       if (newItemData.type === 'botMessage') {
-        callback(newChatItem.botMessage)
+        await callback(newChatItem.botMessage)
       }
     }
 
     if (newItemsData.length == 0 || newItemsData[newItemsData.length - 1].type === 'botMessage') {
       return
     }
-    this.processLoop(callback)
+    await this.processLoop(callback)
   }
 }

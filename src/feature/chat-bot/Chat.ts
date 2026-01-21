@@ -43,6 +43,17 @@ export class Chat extends Entity<IChatData> {
     return false
   }
 
+  getConnectionByChannel(channelName: string) {
+    return this.data.connections.find((a) => a.channelName === channelName) ?? null
+  }
+
+  addConnection(connection: IChatConnection) {
+    if (this.hasConnection(connection)) {
+      throw new Error('Connection already exists')
+    }
+    this.data.connections.push(connection)
+  }
+
   hasAssociation(type: string, id: string) {
     return this.data.associations?.some((a) => a.type === type && a.id === id) ?? false
   }

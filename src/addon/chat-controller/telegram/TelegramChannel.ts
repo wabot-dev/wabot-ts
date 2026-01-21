@@ -13,7 +13,7 @@ export class TelegramChannel implements IChatChannel {
     this.bot = new Bot(this.config.botToken)
   }
 
-  listen(callback: (message: IChannelMessage) => void): void {
+  listen(callback: (message: IChannelMessage) => Promise<void>): void {
     this.bot.on('message', async (ctx) => {
       if (!ctx.message) {
         return
@@ -25,14 +25,15 @@ export class TelegramChannel implements IChatChannel {
         channelName: TelegramChannel.name,
       }
 
-      callback({
+      await callback({
         chatConnection,
         message: {
           senderName: ctx.from.first_name,
           text: ctx.message.text,
         },
-        reply: (replyMessage: IChatMessage) => {
-          replyMessage.text && ctx.reply(replyMessage.text)
+        reply: async (replyMessage: IChatMessage) => {
+          if (!replyMessage.text) return
+          await ctx.reply(replyMessage.text)
         },
       })
     })

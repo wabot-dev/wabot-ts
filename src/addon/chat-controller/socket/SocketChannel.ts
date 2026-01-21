@@ -34,7 +34,7 @@ export class SocketChannelReceivedMessage implements ISocketChannelReceivedMessa
 
 @injectable()
 export class SocketChannel implements IChatChannel {
-  private callBack: ((message: IChannelMessage) => void) | null = null
+  private callBack: ((message: IChannelMessage) => Promise<void>) | null = null
   private controller: IConstructor<any> | null = null
 
   constructor(private config: SocketChannelConfig) {
@@ -50,7 +50,7 @@ export class SocketChannel implements IChatChannel {
       constructor(private auth: Auth<any>) {}
 
       @onSocketEvent('message')
-      onMessage(message: SocketChannelReceivedMessage, socket: Socket) {
+      async onMessage(message: SocketChannelReceivedMessage, socket: Socket) {
         if (!channel.callBack) return
 
         const trimmedInput = message.text.trim()
@@ -64,13 +64,13 @@ export class SocketChannel implements IChatChannel {
           channelName: SocketChannel.name,
         }
 
-        channel.callBack({
+        await channel.callBack({
           chatConnection,
           message: {
             text: message.text,
             senderName: message.senderName,
           },
-          reply: (message) => {
+          reply: async (message) => {
             socket.emit('message', message)
           },
           injectInstances: [
@@ -83,7 +83,7 @@ export class SocketChannel implements IChatChannel {
     this.controller = SocketChannelController
   }
 
-  listen(callback: (message: IChannelMessage) => void): void {
+  listen(callback: (message: IChannelMessage) => Promise<void>): void {
     this.callBack = callback
   }
 

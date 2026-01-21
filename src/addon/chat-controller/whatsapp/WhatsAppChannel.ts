@@ -17,16 +17,16 @@ export class WhatsAppChannel implements IChatChannel {
     private receiver: WhatsAppReceiver,
   ) {}
 
-  listen(callback: (message: IChannelMessage) => void): void {
+  listen(callback: (message: IChannelMessage) => Promise<void>): void {
     this.receiver.listenMessage({
       to: this.config.number,
       listener: async (message) => {
         try {
-          callback({
+          await callback({
             chatConnection: message.chatConnection,
             message: message.message,
-            reply: (replyMessage: IChatMessage) => {
-              this.sender.sendWhatsApp({
+            reply: async (replyMessage: IChatMessage) => {
+              await this.sender.sendWhatsApp({
                 from: this.config.number,
                 to: message.chatConnection.id,
                 message: replyMessage,

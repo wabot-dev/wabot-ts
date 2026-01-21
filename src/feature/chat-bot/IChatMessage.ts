@@ -5,4 +5,6 @@ export interface IChatMessage {
   senderName?: string
   text?: string
   images?: IChatMessageImage[]
+  object?: object
+  metadata?: Record<string, string>
 }

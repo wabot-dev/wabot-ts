@@ -1,6 +1,6 @@
-import { IChatMessage } from "@/feature/chat-bot"
+import { IChatMessage } from '@/feature/chat-bot'
 
 export interface IReceivedMessage {
   message: IChatMessage
-  reply: (message: IChatMessage) => void
+  reply: (message: IChatMessage) => Promise<Record<string, string> | void>
 }
