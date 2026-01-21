@@ -27,7 +27,7 @@ export class ChatBot implements IChatBot {
   }
 
   protected async processLoop(callback: (message: IChatMessage) => Promise<void>) {
-    const prevItems = await this.memory.findLastItems(10)
+    const prevItems = await this.memory.findLastItems(16)
     if (prevItems.length === 0) {
       return
     }

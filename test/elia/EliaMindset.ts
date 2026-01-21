@@ -9,8 +9,11 @@ export class EliaMindset implements IMindset {
     return {
       name: 'Elia',
       language: 'español',
-      age: 25,
     }
+  }
+
+  async context(): Promise<string> {
+    return ``
   }
 
   async skills() {

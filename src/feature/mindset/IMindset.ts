@@ -1,7 +1,6 @@
 export interface IMindsetIdentity {
   name: string
   language: string
-  age?: number
   personality?: string
   emotions?: string
 }
@@ -12,6 +11,7 @@ export interface IMindsetLlm {
 }
 
 export interface IMindset {
+  context(): Promise<string>
   identity(): Promise<IMindsetIdentity>
   skills(): Promise<string>
   limits(): Promise<string>
@@ -20,6 +20,9 @@ export interface IMindset {
 }
 
 export class Mindset implements IMindset {
+  context(): Promise<string> {
+    throw new Error('Method not implemented.')
+  }
   identity(): Promise<IMindsetIdentity> {
     throw new Error('Method not implemented.')
   }

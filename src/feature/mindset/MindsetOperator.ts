@@ -18,6 +18,10 @@ export class MindsetOperator implements IMindset {
     this.metadata = metadataStore.getMindsetInfo(this.mindset.constructor as any)
   }
 
+  context(): Promise<string> {
+    return this.mindset.context()
+  }
+
   identity(): Promise<IMindsetIdentity> {
     return this.mindset.identity()
   }
@@ -39,7 +43,8 @@ export class MindsetOperator implements IMindset {
   }
 
   async systemPrompt(): Promise<string> {
-    let [identity, skills, limits, workflow] = await Promise.all([
+    let [context, identity, skills, limits, workflow] = await Promise.all([
+      this.context(),
       this.identity(),
       this.skills(),
       this.limits(),
@@ -48,35 +53,37 @@ export class MindsetOperator implements IMindset {
 
     const language = identity.language.replaceAll('#', ' ')
     const name = identity.name.replaceAll('#', ' ')
-    const age = identity.age ? identity.age.toString().replaceAll('#', ' ') : null
     const personality = identity.personality ? identity.personality.replaceAll('#', ' ') : null
 
+    context = context.replaceAll('#', ' ')
     skills = skills.replaceAll('#', ' ')
     limits = limits.replaceAll('#', ' ')
     workflow = workflow.replaceAll('#', ' ')
 
     const systemPrompt = `
-         # System Instructions
-         you should act as a assistant.
-         your main language is ${language}.
-         your name is ${name}.
-         ${age ? 'you are ' + age + ' years old.' : ''}
-         
-          ${personality ? '## Personality (in your main language) \n' + personality : ''}
-  
-          ## Skills (in your main language)
-          ${skills}
+      # System Instructions
+      you should act as a assistant.
+      your main language is ${language}.
+      your name is ${name}.
 
-          ## Workflow (in your main language)
-          ${workflow}
-  
-          ## System limitations (in your main language)
-          ${limits}
-  
-          ## Chat memory
-          Next you will receive a chat history,
-          you should use this information to answer the user.
-      `
+      ${personality ? '## Personality (in your main language) \n' + personality : ''}
+
+      ## Context (in your main language)
+      ${context}
+
+      ## Skills (in your main language)
+      ${skills}
+
+      ## Workflow (in your main language)
+      ${workflow}
+
+      ## System limitations (in your main language)
+      ${limits}
+
+      ## Chat memory
+      Next you will receive a chat history,
+      you should use this information to answer the user.
+    `
     return systemPrompt
   }
 
