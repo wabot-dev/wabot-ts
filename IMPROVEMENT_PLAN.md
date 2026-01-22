@@ -9,14 +9,14 @@ This document outlines the prioritized action items to improve the Wabot framewo
 | Phase | Total | Completed | Remaining |
 |-------|-------|-----------|-----------|
 | Phase 1: Critical Fixes | 7 | 7 | 0 |
-| Phase 2: Security Hardening | 4 | 0 | 4 |
+| Phase 2: Security Hardening | 4 | 4 | 0 |
 | Phase 3: Error Handling | 3 | 0 | 3 |
 | Phase 4: Type Safety | 3 | 0 | 3 |
 | Phase 5: Architecture | 3 | 0 | 3 |
 | Phase 6: Test Coverage | 6 | 0 | 6 |
 | Phase 7: Missing Features | 7 | 0 | 7 |
 | Phase 8: Code Quality | 3 | 0 | 3 |
-| **Total** | **36** | **7** | **29** |
+| **Total** | **36** | **11** | **25** |
 
 ---
 
@@ -82,27 +82,31 @@ This document outlines the prioritized action items to improve the Wabot framewo
 
 ## Phase 2: Security Hardening
 
-### 8. Add Function Call Whitelist to MindsetOperator
+### 8. ✅ Add Function Call Whitelist to MindsetOperator
 - **File:** `src/feature/mindset/MindsetOperator.ts:129-162`
 - **Action:** Validate function name against registered tools before execution
 - **Risk:** LLM prompt injection could call unintended functions
+- **Status:** COMPLETED (already implemented; improved error message to use CustomError with FUNCTION_NOT_WHITELISTED code)
 
-### 9. Fix Token Validation in Auth Middlewares
+### 9. ✅ Fix Token Validation in Auth Middlewares
 - **Files:**
   - `src/addon/auth/api-key/ApiKeyHandshakeGuardMiddleware.ts:24`
   - `src/addon/auth/jwt/JwtGuardMiddleware.ts:23-25`
 - **Action:** Use proper regex or validate array length after split
 - **Current:** `"Bearer extra parts"` passes validation incorrectly
+- **Status:** COMPLETED (validates exactly 2 parts in authorization header)
 
-### 10. Restrict CORS in Socket Server
+### 10. ✅ Restrict CORS in Socket Server
 - **File:** `src/feature/socket/SocketServerProvider.ts:27-29`
 - **Action:** Make CORS configurable, default to restrictive policy
 - **Current:** Allows `*` origin
+- **Status:** COMPLETED (added SocketServerConfig with SOCKET_CORS_ORIGIN env var; defaults to disabled)
 
-### 11. Remove Sensitive Data from Logs
+### 11. ✅ Remove Sensitive Data from Logs
 - **File:** `src/addon/chat-bot/anthropic/AnthropicChatAdapter.ts:39`
 - **Action:** Redact system prompts and user messages from debug logs
 - **Risk:** API keys, user data, system prompts exposed in logs
+- **Status:** COMPLETED (logs only model, message count, and tool count instead of full request)
 
 ---
 

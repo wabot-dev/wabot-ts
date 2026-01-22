@@ -2,13 +2,17 @@ import { singleton } from '@/core/injection'
 import { Logger } from '@/core/logger'
 import { HttpServerProvider } from '@/feature/http'
 import { Server } from 'socket.io'
+import { SocketServerConfig } from './SocketServerConfig'
 
 @singleton()
 export class SocketServerProvider {
   private socketServer: Server | null = null
   private logger = new Logger('wabot:socket')
 
-  constructor(private httpServerProvider: HttpServerProvider) {}
+  constructor(
+    private httpServerProvider: HttpServerProvider,
+    private config: SocketServerConfig,
+  ) {}
 
   getSocketServer(): Server {
     if (!this.socketServer) {
@@ -34,7 +38,7 @@ export class SocketServerProvider {
     const httpServer = this.httpServerProvider.getHttpServer()
     const socketServer = new Server(httpServer as any, {
       cors: {
-        origin: '*',
+        origin: this.config.corsOrigin,
       },
     })
 

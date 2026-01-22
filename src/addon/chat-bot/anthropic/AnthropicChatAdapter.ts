@@ -37,7 +37,9 @@ export class AnthropicChatAdapter implements IChatAdapter {
       tools: tools.length > 0 ? tools : undefined,
     }
 
-    this.logger.debug(`Call Claude API with Request: ${JSON.stringify(request)}`)
+    this.logger.debug(
+      `Call Claude API with model: ${request.model}, messages: ${request.messages.length}, tools: ${request.tools?.length ?? 0}`,
+    )
 
     const response = await this.anthropic.messages.create(request)
 

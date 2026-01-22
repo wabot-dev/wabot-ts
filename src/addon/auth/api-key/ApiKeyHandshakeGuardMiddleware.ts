@@ -21,8 +21,16 @@ export class ApiKeyHandshakeGuardMiddleware implements IHandshakeMiddleware {
         authorization = authorization[0]
       }
       if (authorization) {
-        const [prefix, token] = authorization.split(' ')
-        if (prefix.toLowerCase() !== 'api-key' || !token) {
+        const parts = authorization.split(' ')
+        if (parts.length !== 2) {
+          throw new CustomError({
+            httpCode: 401,
+            message: 'Authorization header must be: Api-Key <token>',
+          })
+        }
+
+        const [prefix, token] = parts
+        if (prefix.toLowerCase() !== 'api-key') {
           throw new CustomError({
             httpCode: 401,
             message: 'Authorization should be an Api-Key',
