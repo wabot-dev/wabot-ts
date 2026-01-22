@@ -42,4 +42,8 @@ export class TelegramChannel implements IChatChannel {
   connect(): void {
     this.bot.start()
   }
+
+  disconnect(): void {
+    this.bot.stop()
+  }
 }

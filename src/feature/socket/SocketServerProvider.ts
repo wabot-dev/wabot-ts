@@ -21,6 +21,15 @@ export class SocketServerProvider {
     this.httpServerProvider.listen()
   }
 
+  close(): void {
+    if (this.socketServer) {
+      this.socketServer.removeAllListeners()
+      this.socketServer.close()
+      this.socketServer = null
+      this.logger.info('socket server closed')
+    }
+  }
+
   private createSocketServer(): Server {
     const httpServer = this.httpServerProvider.getHttpServer()
     const socketServer = new Server(httpServer as any, {

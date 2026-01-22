@@ -31,6 +31,12 @@ export class CmdChannel implements IChatChannel {
     this.callBack = callback
   }
 
+  disconnect(): void {
+    this.rl.removeAllListeners('line')
+    this.rl.close()
+    this.callBack = null
+  }
+
   connect(): void {
     this.rl.on('line', async (input: string) => {
       const trimmedInput = input.trim()
