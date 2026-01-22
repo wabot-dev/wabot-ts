@@ -27,10 +27,11 @@ This document outlines the prioritized action items to improve the Wabot framewo
   - `src/feature/socket-controller/runSocketControllers.ts:127`
 - **Action:** Implement `disconnect()` method on IChatChannel interface, remove listeners on cleanup
 
-### 4. Fix Race Condition in PgRepositoryBase
+### 4. ✅ Fix Race Condition in PgRepositoryBase
 - **File:** `src/feature/pg/PgRepositoryBase.ts:76-100`
 - **Action:** Move `this.tableIsReady = true` inside the lock block (after table creation)
 - **Current:** Flag set outside lock, TOCTOU vulnerability
+- **Status:** COMPLETED (race condition was already fixed; fixed column index bug and replaced console.log with logger)
 
 ### 5. Fix Chat Resolution Race Condition
 - **File:** `src/feature/chat-controller/ChatResolver.ts:15-30`
