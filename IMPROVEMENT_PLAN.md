@@ -8,7 +8,7 @@ This document outlines the prioritized action items to improve the Wabot framewo
 
 | Phase | Total | Completed | Remaining |
 |-------|-------|-----------|-----------|
-| Phase 1: Critical Fixes | 7 | 3 | 4 |
+| Phase 1: Critical Fixes | 7 | 4 | 3 |
 | Phase 2: Security Hardening | 4 | 0 | 4 |
 | Phase 3: Error Handling | 3 | 0 | 3 |
 | Phase 4: Type Safety | 3 | 0 | 3 |
@@ -16,7 +16,7 @@ This document outlines the prioritized action items to improve the Wabot framewo
 | Phase 6: Test Coverage | 6 | 0 | 6 |
 | Phase 7: Missing Features | 7 | 0 | 7 |
 | Phase 8: Code Quality | 3 | 0 | 3 |
-| **Total** | **36** | **3** | **33** |
+| **Total** | **36** | **4** | **32** |
 
 ---
 
@@ -49,10 +49,11 @@ This document outlines the prioritized action items to improve the Wabot framewo
 - **Current:** Flag set outside lock, TOCTOU vulnerability
 - **Status:** COMPLETED (race condition was already fixed; fixed column index bug and replaced console.log with logger)
 
-### 5. Fix Chat Resolution Race Condition
+### 5. ✅ Fix Chat Resolution Race Condition
 - **File:** `src/feature/chat-controller/ChatResolver.ts:15-30`
-- **Action:** Use PostgreSQL UPSERT (`INSERT ... ON CONFLICT DO NOTHING RETURNING *`) or serializable transaction
+- **Action:** Use Locker to prevent concurrent chat creation for same connection
 - **Risk:** Duplicate chats created for same connection
+- **Status:** COMPLETED (uses Locker with key based on channelName:id)
 
 ### 6. Add JSON.parse Error Handling in Adapters
 - **Files:**
