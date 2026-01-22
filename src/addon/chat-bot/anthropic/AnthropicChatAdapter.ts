@@ -9,6 +9,7 @@ import {
   IChatMessage,
   IFunctionCall,
   ILanguageModelUsage,
+  safeJsonParse,
 } from '@/feature/chat-bot'
 import { IMindsetTool } from '@/feature/mindset'
 import { Anthropic } from '@anthropic-ai/sdk'
@@ -86,7 +87,7 @@ export class AnthropicChatAdapter implements IChatAdapter {
             type: 'tool_use',
             id: item.id,
             name: item.name,
-            input: JSON.parse(item.arguments || '{}'),
+            input: safeJsonParse(item.arguments, 'function call arguments'),
           },
         ],
       },
