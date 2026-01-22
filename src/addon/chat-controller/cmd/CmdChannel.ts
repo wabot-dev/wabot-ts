@@ -1,6 +1,7 @@
 import { IChannelMessage, type IChatChannel } from '@/feature/chat-controller'
 
 import { injectable } from '@/core/injection'
+import { Logger } from '@/core/logger'
 
 import { type IChatConnection, type IChatMessage } from '@/feature/chat-bot'
 import * as readline from 'readline'
@@ -91,6 +92,8 @@ export function writeJsonToFile<T>(filename: string, data: T): void {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8')
 }
 
+const fileLogger = new Logger('wabot:cmd-channel')
+
 export function readJsonFromFile<T>(filename: string): T | null {
   const filePath = path.resolve(process.cwd(), filename)
 
@@ -102,6 +105,7 @@ export function readJsonFromFile<T>(filename: string): T | null {
     const jsonData = fs.readFileSync(filePath, 'utf-8')
     return JSON.parse(jsonData) as T
   } catch (err) {
+    fileLogger.warn(`Failed to parse JSON from ${filename}:`, err)
     return null
   }
 }

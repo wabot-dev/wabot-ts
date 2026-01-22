@@ -8,7 +8,7 @@ This document outlines the prioritized action items to improve the Wabot framewo
 
 | Phase | Total | Completed | Remaining |
 |-------|-------|-----------|-----------|
-| Phase 1: Critical Fixes | 7 | 5 | 2 |
+| Phase 1: Critical Fixes | 7 | 6 | 1 |
 | Phase 2: Security Hardening | 4 | 0 | 4 |
 | Phase 3: Error Handling | 3 | 0 | 3 |
 | Phase 4: Type Safety | 3 | 0 | 3 |
@@ -16,7 +16,7 @@ This document outlines the prioritized action items to improve the Wabot framewo
 | Phase 6: Test Coverage | 6 | 0 | 6 |
 | Phase 7: Missing Features | 7 | 0 | 7 |
 | Phase 8: Code Quality | 3 | 0 | 3 |
-| **Total** | **36** | **5** | **31** |
+| **Total** | **36** | **6** | **30** |
 
 ---
 
@@ -64,11 +64,12 @@ This document outlines the prioritized action items to improve the Wabot framewo
 - **Action:** Created `safeJsonParse()` helper that throws `CustomError` with context
 - **Status:** COMPLETED
 
-### 7. Fix Silent Error Suppression
+### 7. ✅ Fix Silent Error Suppression
 - **Files:**
-  - `src/feature/async/JobScheduler.ts:47,70` - Add proper error recovery
-  - `src/addon/chat-controller/cmd/CmdChannel.ts:104-105` - Remove empty catch, handle error
+  - `src/feature/async/JobExecutor.ts` - Mark job as failed on execution errors
+  - `src/addon/chat-controller/cmd/CmdChannel.ts` - Log warning on JSON parse errors
 - **Action:** Either rethrow, recover gracefully, or mark job as failed
+- **Status:** COMPLETED (JobExecutor now marks jobs as failed, CmdChannel logs warnings)
 
 ---
 
