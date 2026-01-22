@@ -1,6 +1,7 @@
 import { Auth } from '@/core/auth'
 import { IConstructor } from '@/core/generics'
 import { container, Container, DependencyContainer } from '@/core/injection'
+import { Logger } from '@/core/logger'
 import { Chat, ChatBot, ChatBotMetadataStore, ChatMemory, ChatRepository } from '@/feature/chat-bot'
 import { IMindset, Mindset } from '@/feature/mindset'
 import { ChatResolver } from './ChatResolver'
@@ -47,6 +48,8 @@ async function prepareChatContainer(
   return chatContainer
 }
 
+const logger = new Logger('wabot:chat-controller')
+
 export function runChatControllers(controllers: IConstructor<any>[]) {
   const metadataStore = container.resolve(ControllerMetadataStore)
   const chatResolver = container.resolve(ChatResolver)
@@ -85,7 +88,14 @@ export function runChatControllers(controllers: IConstructor<any>[]) {
           reply: channelMessage.reply,
         }
 
-        chatController[channelMetadata.functionName](receivedMessage)
+        try {
+          await chatController[channelMetadata.functionName](receivedMessage)
+        } catch (error) {
+          logger.error(
+            `Error in chat controller ${channelMetadata.controllerConstructor.name}.${channelMetadata.functionName}:`,
+            error,
+          )
+        }
       })
 
       channel.connect()

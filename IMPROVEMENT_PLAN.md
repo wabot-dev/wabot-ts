@@ -13,11 +13,12 @@ This document outlines the prioritized action items to improve the Wabot framewo
 - **Status:** COMPLETED
 - **Additional:** Added `IErrorMonitor` interface to Logger for external error monitoring (Sentry, etc.)
 
-### 2. Fix Fire-and-Forget Promise in Chat Controller
-- **File:** `src/feature/chat-controller/runChatControllers.ts:88`
+### 2. ✅ Fix Fire-and-Forget Promise in Chat Controller
+- **File:** `src/feature/chat-controller/runChatControllers.ts:91`
 - **Action:** Add `await` and wrap in try-catch
 - **Current:** `chatController[channelMetadata.functionName](receivedMessage)` (no await)
-- **Fix:** `await chatController[...](receivedMessage).catch(err => logger.error(err))`
+- **Fix:** `await chatController[...](receivedMessage)` with try-catch
+- **Status:** COMPLETED
 
 ### 3. Add Event Listener Cleanup for Channels
 - **Files:**
