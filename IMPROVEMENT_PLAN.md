@@ -6,10 +6,12 @@ This document outlines the prioritized action items to improve the Wabot framewo
 
 ## Phase 1: Critical Fixes (Before Production)
 
-### 1. Add Global Unhandled Rejection Handler
-- **File:** Create `src/core/bootstrap/setupErrorHandlers.ts`
+### 1. ✅ Add Global Unhandled Rejection Handler
+- **File:** `src/core/error/setupErrorHandlers.ts`
 - **Action:** Add `process.on('unhandledRejection', ...)` and `process.on('uncaughtException', ...)`
 - **Risk:** Without this, async errors crash silently
+- **Status:** COMPLETED
+- **Additional:** Added `IErrorMonitor` interface to Logger for external error monitoring (Sentry, etc.)
 
 ### 2. Fix Fire-and-Forget Promise in Chat Controller
 - **File:** `src/feature/chat-controller/runChatControllers.ts:88`
