@@ -50,12 +50,9 @@ jobs:
       - name: Run publish
         run: |
           VERSION_TO_PUBLISH=${{ needs.check-versions.outputs.pushedVersion }}
-          NPM_TOKEN=${{ secrets.NPM_TOKEN }}
 
           npm ci
           npm run build
-
-          npm set "//registry.npmjs.org/:_authToken=$NPM_TOKEN"
 
           if [[ "$VERSION_TO_PUBLISH" == *"beta"* ]]; then
             npm publish --access=public --tag beta
