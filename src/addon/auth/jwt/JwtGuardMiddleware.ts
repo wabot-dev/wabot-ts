@@ -20,8 +20,13 @@ export class JwtGuardMiddleware implements IMiddleware {
       throw new CustomError({ httpCode: 401, message: 'Authorization header not available' })
     }
 
-    const [bearer, token] = authorization.split(' ')
-    if (bearer.toLowerCase() !== 'bearer' || !token) {
+    const parts = authorization.split(' ')
+    if (parts.length !== 2) {
+      throw new CustomError({ httpCode: 401, message: 'Authorization header must be: Bearer <token>' })
+    }
+
+    const [bearer, token] = parts
+    if (bearer.toLowerCase() !== 'bearer') {
       throw new CustomError({ httpCode: 401, message: 'Authorization should be a bearer token' })
     }
 

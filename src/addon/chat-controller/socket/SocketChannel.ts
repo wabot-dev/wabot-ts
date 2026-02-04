@@ -91,4 +91,8 @@ export class SocketChannel implements IChatChannel {
     if (!this.controller) return
     runSocketControllers([this.controller])
   }
+
+  disconnect(): void {
+    this.callBack = null
+  }
 }
