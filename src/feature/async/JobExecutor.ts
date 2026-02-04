@@ -34,7 +34,13 @@ export class JobExecutor {
         await this.runner.run(fresh)
       })
     } catch (e) {
-      this.logger.error(e)
+      this.logger.error(`Job ${job.id} execution error:`, e)
+      try {
+        job.setAsFailed(e instanceof Error ? e : new Error('Job execution error'))
+        await this.repo.update(job)
+      } catch (updateError) {
+        this.logger.error(`Failed to update job ${job.id} status:`, updateError)
+      }
     } finally {
       this.release()
     }

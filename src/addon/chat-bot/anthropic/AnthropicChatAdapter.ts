@@ -9,6 +9,7 @@ import {
   IChatMessage,
   IFunctionCall,
   ILanguageModelUsage,
+  safeJsonParse,
 } from '@/feature/chat-bot'
 import { IMindsetTool } from '@/feature/mindset'
 import { Anthropic } from '@anthropic-ai/sdk'
@@ -36,7 +37,9 @@ export class AnthropicChatAdapter implements IChatAdapter {
       tools: tools.length > 0 ? tools : undefined,
     }
 
-    this.logger.debug(`Call Claude API with Request: ${JSON.stringify(request)}`)
+    this.logger.debug(
+      `Call Claude API with model: ${request.model}, messages: ${request.messages.length}, tools: ${request.tools?.length ?? 0}`,
+    )
 
     const response = await this.anthropic.messages.create(request)
 
@@ -86,7 +89,7 @@ export class AnthropicChatAdapter implements IChatAdapter {
             type: 'tool_use',
             id: item.id,
             name: item.name,
-            input: JSON.parse(item.arguments || '{}'),
+            input: safeJsonParse(item.arguments, 'function call arguments'),
           },
         ],
       },

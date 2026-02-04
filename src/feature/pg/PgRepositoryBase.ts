@@ -116,10 +116,10 @@ export class PgRepositoryBase<P extends Entity<IEntityData>> {
 
     for (let i = 0; i < this.columnsList.length; i++) {
       const col = this.columnsList[i]
-      const columnAndType = this.columnsAndTypes[0]
+      const columnAndType = this.columnsAndTypes[i]
       if (!existingColumns.has(col)) {
         const alterSql = `ALTER TABLE ${this.table} ADD COLUMN ${columnAndType}`
-        console.log(`[INFO] Adding column: ${alterSql}`)
+        this.logger.info(`Adding column: ${alterSql}`)
         await client.query(alterSql)
       }
     }

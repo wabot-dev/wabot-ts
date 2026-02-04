@@ -10,21 +10,23 @@ export class JobRunner {
   private logger = new Logger('wabot:job-runner')
   constructor(
     private jobRepository: JobRepository,
-    private handlerContainer: AsyncMetadataStore,
+    private asyncMetadataStore: AsyncMetadataStore,
   ) {}
 
   async run(job: Job) {
+    const jobRunnerContainer = container.createChildContainer()
     try {
       const { commandName, commandData } = job
 
-      const handlerConstructor = this.handlerContainer.getHandlerForCommandName(commandName)
+      const handlerConstructor = this.asyncMetadataStore.getHandlerForCommandName(commandName)
       if (!handlerConstructor) {
         throw new Error(`Not found handler for command '${commandName}'`)
       }
 
-      const handler = container.resolve(handlerConstructor)
+      jobRunnerContainer.registerInstance(Job, job)
+      const handler = jobRunnerContainer.resolve(handlerConstructor)
 
-      const commandConstructor = this.handlerContainer.getCommandForCommandName(commandName)
+      const commandConstructor = this.asyncMetadataStore.getCommandForCommandName(commandName)
       if (commandConstructor === undefined && commandData != undefined) {
         throw new Error(`Not found class for validate data of command '${commandName}'`)
       }
@@ -52,6 +54,7 @@ export class JobRunner {
       job.setAsFailed(e instanceof Error ? e : new Error('Invalid Job error'))
     } finally {
       await this.jobRepository.update(job)
+      await jobRunnerContainer.dispose()
     }
   }
 }

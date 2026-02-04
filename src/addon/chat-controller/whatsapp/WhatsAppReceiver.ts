@@ -12,6 +12,10 @@ export class WhatsAppReceiver {
     throw new Error('Not Implemented')
   }
 
+  disconnect(): void {
+    throw new Error('Not Implemented')
+  }
+
   listenMessage(request: IListenWhatsAppMessageRequest): void {
     throw new Error('Not Implemented')
   }

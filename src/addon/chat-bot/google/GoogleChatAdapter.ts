@@ -10,6 +10,7 @@ import {
   IChatMessage,
   IFunctionCall,
   ILanguageModelUsage,
+  safeJsonParse,
 } from '@/feature/chat-bot'
 import { IMindsetTool } from '@/feature/mindset'
 import { Content, FunctionDeclaration, GenerateContentResponse, GoogleGenAI } from '@google/genai'
@@ -84,7 +85,7 @@ export class GoogleChatAdapter implements IChatAdapter {
             functionCall: {
               id: item.id,
               name: item.name,
-              args: JSON.parse(item.arguments ?? '{}'),
+              args: safeJsonParse(item.arguments, 'function call arguments'),
             },
           },
         ],

@@ -133,7 +133,11 @@ export class MindsetOperator implements IMindset {
       .find((fn) => fn.name === name)
 
     if (!fnMetadata) {
-      throw new Error(`Function ${name} not found`)
+      throw new CustomError({
+        httpCode: 400,
+        code: 'FUNCTION_NOT_WHITELISTED',
+        message: `Function '${name}' is not registered in mindset tools`,
+      })
     }
 
     try {

@@ -43,4 +43,8 @@ export class WhatsAppChannel implements IChatChannel {
   connect(): void {
     this.receiver.connect()
   }
+
+  disconnect(): void {
+    this.receiver.disconnect()
+  }
 }
