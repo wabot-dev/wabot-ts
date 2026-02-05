@@ -16,9 +16,9 @@ jobs:
       publishedVersion: ${{ steps.versions.outputs.publishedVersion }}
       pushedVersion: ${{ steps.versions.outputs.pushedVersion }}
     steps:
-      - uses: actions/checkout@v4.1.1
+      - uses: actions/checkout@v4
         name: Checkout
-      - uses: actions/setup-node@v4.4.0
+      - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
         name: Setup Node.js
