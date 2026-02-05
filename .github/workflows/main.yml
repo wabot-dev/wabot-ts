@@ -50,6 +50,7 @@ jobs:
       - uses: actions/setup-node@v4.4.0
         with:
           node-version-file: .nvmrc
+          registry-url: 'https://registry.npmjs.org'
         name: Setup Node.js
 
       - name: Run publish
