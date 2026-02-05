@@ -10,6 +10,7 @@ permissions:
 jobs:
   check-versions:
     name: Check Versions
+    environment: production
     runs-on: ubuntu-latest
     outputs:
       publishedVersion: ${{ steps.versions.outputs.publishedVersion }}
