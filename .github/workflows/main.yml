@@ -45,9 +45,9 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ needs.check-versions.outputs.publishedVersion != needs.check-versions.outputs.pushedVersion }}
     steps:
-      - uses: actions/checkout@v4.1.1
+      - uses: actions/checkout@v4
         name: Checkout
-      - uses: actions/setup-node@v4.4.0
+      - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           registry-url: 'https://registry.npmjs.org'
