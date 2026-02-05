@@ -47,11 +47,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         name: Checkout
+        
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
           registry-url: 'https://registry.npmjs.org'
         name: Setup Node.js
+
+      - uses: npm/action-setup@v4
+        with:
+          oidc: true
 
       - name: Run publish
         run: |
