@@ -6,6 +6,14 @@ import { JobScheduler } from './JobScheduler'
 import { IValidateInputShape, validateAndTransform } from '@/core/validation'
 import { IConstructor } from '@/core/generics'
 
+export type IScheduleDelay =
+  | { seconds: number }
+  | { minutes: number }
+  | { hours: number }
+  | { days: number }
+
+export type IScheduleAt = Date | IScheduleDelay
+
 @singleton()
 export class Async {
   constructor(
@@ -15,6 +23,16 @@ export class Async {
   ) {}
 
   async runCommand<T>(ctor: IConstructor<T>, data: IValidateInputShape<T>): Promise<Job> {
+    const job = await this.scheduleCommand(ctor, data, new Date())
+    this.jobScheduler.tryExecuteNow(job)
+    return job
+  }
+
+  async scheduleCommand<T>(
+    ctor: IConstructor<T>,
+    data: IValidateInputShape<T>,
+    scheduledAt: IScheduleAt,
+  ): Promise<Job> {
     const commandName = this.metadataStore.getCommandName(ctor)
     if (!commandName) {
       throw new Error(`${ctor.name} is not registered as command`)
@@ -22,18 +40,42 @@ export class Async {
 
     const { error, value: commandData } = validateAndTransform(data, ctor)
 
-    if (!commandData) {
-      throw new Error('Invalid command data')
+    if (error) {
+      throw new Error(`Validation failed: ${error.description}`)
     }
+
+    const scheduledDate = this.resolveScheduledDate(scheduledAt)
 
     const job = new Job({
       commandName,
       commandData,
-      scheduledAt: new Date().getTime(),
+      scheduledAt: scheduledDate.getTime(),
     })
 
     await this.jobRepository.create(job)
-    this.jobScheduler.tryExecuteNow(job)
     return job
+  }
+
+  private resolveScheduledDate(scheduledAt: IScheduleAt): Date {
+    if (scheduledAt instanceof Date) {
+      return scheduledAt
+    }
+
+    const now = new Date()
+
+    if ('seconds' in scheduledAt) {
+      return new Date(now.getTime() + scheduledAt.seconds * 1000)
+    }
+    if ('minutes' in scheduledAt) {
+      return new Date(now.getTime() + scheduledAt.minutes * 60 * 1000)
+    }
+    if ('hours' in scheduledAt) {
+      return new Date(now.getTime() + scheduledAt.hours * 60 * 60 * 1000)
+    }
+    if ('days' in scheduledAt) {
+      return new Date(now.getTime() + scheduledAt.days * 24 * 60 * 60 * 1000)
+    }
+
+    throw new Error('Invalid schedule delay format')
   }
 }
