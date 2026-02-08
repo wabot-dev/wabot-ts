@@ -1,5 +1,5 @@
 import { singleton } from '@/core/injection'
-import { ILocker, ILockKey } from '@/core/lock'
+import { ILocker, ILockerKey, ILockKey } from '@/core/lock'
 import { Pool } from 'pg'
 import { PgLockKey } from './PgLockKey'
 
@@ -7,7 +7,7 @@ import { PgLockKey } from './PgLockKey'
 export class PgLocker implements ILocker {
   constructor(private readonly pool: Pool) {}
 
-  withKey(key: string | number): ILockKey {
-    return new PgLockKey(key, this.pool)
+  withKey(key: string | number | ILockerKey): ILockKey {
+    return new PgLockKey(typeof key === 'object' ? key.lockerKey() : key, this.pool)
   }
 }

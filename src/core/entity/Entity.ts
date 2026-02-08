@@ -1,3 +1,4 @@
+import { ILockerKey } from '../lock'
 import { Storable } from '../storable'
 
 export interface IEntityData {
@@ -6,7 +7,7 @@ export interface IEntityData {
   discardedAt?: number | null
 }
 
-export class Entity<D extends IEntityData> extends Storable<D> {
+export class Entity<D extends IEntityData> extends Storable<D> implements ILockerKey {
   get id() {
     if (!this.data.id) {
       throw new Error('id is required')
@@ -57,6 +58,10 @@ export class Entity<D extends IEntityData> extends Storable<D> {
     if (!this.data.createdAt) {
       throw new Error('createdAt is required')
     }
+  }
+
+  lockerKey(): string | number {
+    return this.id
   }
 }
 
