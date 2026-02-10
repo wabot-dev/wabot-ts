@@ -34,7 +34,7 @@ export class WhatsAppChannel implements IChatChannel {
             },
           })
         } catch (err) {
-          this.logger.error(err)
+          this.logger.error('Failed to handle WhatsApp message', err)
         }
       },
     })

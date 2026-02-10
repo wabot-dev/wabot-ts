@@ -53,7 +53,7 @@ export class WhatsAppSenderByWabotProxy extends WhatsAppSender {
         await this.writePrivateChatMemory(request.message, request.to)
       }
     } catch (err) {
-      this.logger.error(err)
+      this.logger.error(`Failed to send WhatsApp from '${request.from}' to '${request.to}'`, err)
       throw new Error(undefined, { cause: err })
     }
   }

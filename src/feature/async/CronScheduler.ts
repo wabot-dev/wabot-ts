@@ -66,12 +66,12 @@ export class CronScheduler {
         configToReconciliate.map((x) => this.reconciliateConfig(x)),
       )
       this.logger.info(
-        `success reconciliation of reconciliation of crons ${configToReconciliate.map((x) => x.name).join(', ')}`,
+        `Cron reconciliation succeeded for ${configToReconciliate.map((x) => x.name).join(', ')}`,
       )
       this.jobScheduler.start(cronJobs.map((x) => x.commandName))
       this.jobWatchdog.start(cronJobs.map((x) => x.commandName))
     } catch (e) {
-      this.logger.error(e)
+      this.logger.error('Cron reconciliation failed', e)
       this.stop(configToReconciliate)
       this.logger.error(
         `reconciliation fail - stopped crons ${configToReconciliate.map((x) => x.name).join(', ')}`,
@@ -99,7 +99,7 @@ export class CronScheduler {
         }
       })
     } catch (e) {
-      this.logger.error(e)
+      this.logger.error('Cron tick failed', e)
     } finally {
       this.timeout = setTimeout(() => this.tick(), interval * 1000)
     }

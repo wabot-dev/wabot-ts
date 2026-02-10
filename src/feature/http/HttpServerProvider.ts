@@ -23,7 +23,7 @@ export class HttpServerProvider {
     const PORT = process.env.PORT || 3000
 
     this.server.listen(PORT, () => {
-      this.logger.info(`server listenig on port ${PORT}`)
+      this.logger.info(`Server listening on port ${PORT}`)
     })
   }
 }

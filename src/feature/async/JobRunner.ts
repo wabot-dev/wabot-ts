@@ -50,7 +50,7 @@ export class JobRunner {
 
       job.setAsSuccess()
     } catch (e) {
-      this.logger.error(e)
+      this.logger.error(`Failed to run command '${job.commandName}'`, e)
       job.setAsFailed(e instanceof Error ? e : new Error('Invalid Job error'))
     } finally {
       await this.jobRepository.update(job)

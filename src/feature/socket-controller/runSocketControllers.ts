@@ -89,7 +89,7 @@ export function runSocketControllers(controllers: IConstructor<any>[]) {
           callback(out)
         }
       } catch (err) {
-        logger.error(err)
+        logger.error(`Event '${event.config.event}' on '${namespace}' failed`, err)
         if (err instanceof Error) {
           const keys = Object.keys(err).filter((key) => !['message', 'stack'].includes(key))
           const { httpCode, ...info } = keys.reduce(
@@ -134,7 +134,7 @@ export function runSocketControllers(controllers: IConstructor<any>[]) {
           await eventListener(controllerInstance, socket, connectionEvent, null, null)
         }
       } catch (err) {
-        logger.error(err)
+        logger.error(`Connection setup on '${namespace}' failed`, err)
         socket.disconnect()
         connectionContainer.dispose()
       }

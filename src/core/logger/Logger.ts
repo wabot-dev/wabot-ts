@@ -18,6 +18,30 @@ const levelToSeverity: Partial<Record<LogLevel, ErrorSeverity>> = {
   fatal: 'fatal',
 }
 
+/**
+ * Logger with 6 severity levels. Uses the `debug` library for output.
+ *
+ * ## Level verbosity contract
+ *
+ * - **fatal** — The process cannot continue. Something is critically broken
+ *   (uncaught exceptions, unhandled rejections). Investigate immediately.
+ *
+ * - **error** — An operation failed unexpectedly. Always include: what failed,
+ *   why (the Error), and enough context to locate the problem (IDs, names).
+ *
+ * - **warn** — Something unusual happened but the system handled it gracefully.
+ *   Known limitations, safety guards triggered, recoverable issues.
+ *
+ * - **info** — Key lifecycle events the user cares about: systems starting or
+ *   stopping, configuration applied, significant state changes. Should read
+ *   like a high-level audit log.
+ *
+ * - **debug** — Internal operational details for developers troubleshooting.
+ *   Step-by-step flow, lock acquisition, query execution, reconciliation steps.
+ *
+ * - **trace** — Very fine-grained: every HTTP request, every socket event,
+ *   every message sent or received.
+ */
 export class Logger {
   private static monitor: IErrorMonitor | null = null
   private debuggers: Record<LogLevel, Debugger>
@@ -42,26 +66,32 @@ export class Logger {
     return Logger.monitor
   }
 
+  /** Very fine-grained: every HTTP request, socket event, message sent/received. */
   trace(...args: any[]) {
     this.log('trace', args)
   }
 
+  /** Internal operational details for developers: step-by-step flow, lock acquisition, queries. */
   debug(...args: any[]) {
     this.log('debug', args)
   }
 
+  /** Key lifecycle events: systems start/stop, configuration applied, significant state changes. */
   info(...args: any[]) {
     this.log('info', args)
   }
 
+  /** Something unusual happened but the system recovered. Known limitations, safety guards. */
   warn(...args: any[]) {
     this.log('warn', args)
   }
 
+  /** Operation failed unexpectedly. Always include: what failed + why (Error) + identifiers. */
   error(...args: any[]) {
     this.log('error', args)
   }
 
+  /** Process cannot continue. Uncaught exceptions, unhandled rejections. Investigate immediately. */
   fatal(...args: any[]) {
     this.log('fatal', args)
   }

@@ -19,9 +19,9 @@ export class PgLockKey implements ILockKey {
     return withPgClient(this.pool, async (client) => {
       let locked = false
       try {
-        this.logger.debug(`try to adquire ${this.key}`)
+        this.logger.debug(`try to acquire ${this.key}`)
         await client.query('SELECT pg_advisory_lock($1)', [this.value])
-        this.logger.debug(`adquired ${this.key}`)
+        this.logger.debug(`acquired ${this.key}`)
 
         locked = true
 
@@ -36,7 +36,7 @@ export class PgLockKey implements ILockKey {
           )
 
           if (!res.rows[0]?.unlocked) {
-            this.logger.error('error - no unlock')
+            this.logger.error(`Failed to release lock '${this.key}'`)
           } else {
             this.logger.debug(`released ${this.key}`)
           }
@@ -66,7 +66,7 @@ export class PgLockKey implements ILockKey {
           )
 
           if (!res.rows[0]?.unlocked) {
-            this.logger.error('error - no unlock')
+            this.logger.error(`Failed to release lock '${this.key}'`)
           }
         }
       }

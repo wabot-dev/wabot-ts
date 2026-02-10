@@ -21,9 +21,8 @@ export class JobScheduler {
   ) {}
 
   start(commands: string[]) {
-    this.logger.info(`starting handlers for commands ${commands}`)
     commands.forEach((x) => this.commands.add(x))
-    this.logger.info(`starting job handlers for commands ${commands.join(', ')}`)
+    this.logger.info(`Starting job handlers for commands ${commands.join(', ')}`)
 
     if (this.commands.size > 0 && !this.running) {
       this.running = true
@@ -32,7 +31,7 @@ export class JobScheduler {
   }
 
   stop(commands: string[]) {
-    this.logger.info(`stoping handlers for commands ${commands}`)
+    this.logger.info(`Stopping job handlers for commands ${commands.join(', ')}`)
     commands.forEach((x) => this.commands.delete(x))
     if (this.commands.size === 0) {
       this.running = false
@@ -44,7 +43,9 @@ export class JobScheduler {
 
   tryExecuteNow(job: Job) {
     if (this.commands.has(job.commandName))
-      this.executor.execute(job).catch((e) => this.logger.error(e))
+      this.executor
+        .execute(job)
+        .catch((e) => this.logger.error(`Failed to execute job ${job.id}`, e))
   }
 
   private async tick() {
@@ -67,11 +68,15 @@ export class JobScheduler {
           (job) => this.commands.has(job.commandName) && job.isScheduleReady(),
         )
 
-        readyToRunJobs.forEach((j) => this.executor.execute(j).catch((e) => this.logger.error(e)))
+        readyToRunJobs.forEach((j) =>
+          this.executor
+            .execute(j)
+            .catch((e) => this.logger.error(`Failed to execute job ${j.id}`, e)),
+        )
         await new Promise((r) => setTimeout(r, 10))
       })
     } catch (e) {
-      this.logger.error(e)
+      this.logger.error('Job scheduler tick failed', e)
     } finally {
       this.timeout = setTimeout(() => this.tick(), interval * 1000)
     }

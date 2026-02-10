@@ -154,7 +154,7 @@ export class WhatsAppSenderByCloudApi extends WhatsAppSender {
       const template = data.data[0] ?? null
       return template
     } catch (error) {
-      this.logger.error(error)
+      this.logger.error('Failed to fetch WhatsApp template', error)
       throw error
     }
   }

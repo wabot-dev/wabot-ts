@@ -79,7 +79,7 @@ export function runRestControllers(controllers: IConstructor<any>[]) {
           )
           res.status(200).json(response ?? null)
         } catch (err) {
-          logger.error(err)
+          logger.error(`${method.toUpperCase()} ${route} failed`, err)
           if (err instanceof Error) {
             const keys = Object.keys(err).filter((key) => !['message', 'stack'].includes(key))
             const { httpCode, ...info } = keys.reduce(

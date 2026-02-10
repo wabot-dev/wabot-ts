@@ -52,7 +52,7 @@ export class WhatsAppReceiverByCloudApi extends WhatsAppReceiver {
 
         res.status(200).send(challenge)
       } catch (e) {
-        this.logger.error(e)
+        this.logger.error('WhatsApp webhook verification failed', e)
         res.sendStatus(500)
         return
       }
@@ -88,7 +88,7 @@ export class WhatsAppReceiverByCloudApi extends WhatsAppReceiver {
         }
       }
     } catch (err) {
-      this.logger.error(err)
+      this.logger.error('Failed to handle WhatsApp webhook payload', err)
     }
   }
 
@@ -102,7 +102,7 @@ export class WhatsAppReceiverByCloudApi extends WhatsAppReceiver {
       return
     }
     if (message.type !== 'text') {
-      this.logger.error(`message type ${message.type} is not supported yet`)
+      this.logger.warn(`Message type '${message.type}' is not supported yet`)
       return
     }
 

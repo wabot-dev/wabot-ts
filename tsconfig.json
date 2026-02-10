@@ -10,6 +10,7 @@
     "emitDecoratorMetadata": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": false,
+    "skipLibCheck": true,
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
