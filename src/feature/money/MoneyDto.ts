@@ -1,5 +1,4 @@
-import { isNotEmpty, isString } from "@/core/validation"
-
+import { isNotEmpty, isString } from '@/core/validation'
 
 export class MoneyDto {
   @isString()

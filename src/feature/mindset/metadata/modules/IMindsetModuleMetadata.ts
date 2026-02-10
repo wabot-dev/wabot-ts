@@ -1,4 +1,4 @@
-import { IMindsetModuleConfig } from "./IMindsetModuleConfig"
+import { IMindsetModuleConfig } from './IMindsetModuleConfig'
 
 export interface IMindsetModuleMetadata {
   constructor: Function

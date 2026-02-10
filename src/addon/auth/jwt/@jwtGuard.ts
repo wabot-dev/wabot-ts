@@ -1,6 +1,5 @@
-import { middleware } from "@/feature/rest-controller"
-import { JwtGuardMiddleware } from "./JwtGuardMiddleware"
-
+import { middleware } from '@/feature/rest-controller'
+import { JwtGuardMiddleware } from './JwtGuardMiddleware'
 
 export function jwtGuard() {
   return function (target: object, propertyKey: string | symbol) {

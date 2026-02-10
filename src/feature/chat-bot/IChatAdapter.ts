@@ -14,7 +14,6 @@ export interface IChatAdapterNextItemsRes {
   usage: ILanguageModelUsage
 }
 
-
 export interface IChatAdapter {
   nextItems(req: IChatAdapterNextItemsReq): Promise<IChatAdapterNextItemsRes>
 }

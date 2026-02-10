@@ -151,8 +151,8 @@ export function testChatAdapter({ adapter, model }: ItestChatAdapterReq) {
         {
           type: 'humanMessage',
           humanMessage: {
-            text: 'What is the time in Colombia'
-          }
+            text: 'What is the time in Colombia',
+          },
         },
         {
           type: 'functionCall',
@@ -160,12 +160,12 @@ export function testChatAdapter({ adapter, model }: ItestChatAdapterReq) {
             id: 'id_erksndfooqne',
             name: 'getCountryTime',
             arguments: '{"country": "CO"}',
-            result: '2023-10-12T12:00:00.000Z'
-          }
-        }
+            result: '2023-10-12T12:00:00.000Z',
+          },
+        },
       ],
     })
-    
+
     assert(Array.isArray(nextItems), 'nextItems is not array')
     assert(nextItems.length === 1, 'nexItems length should be 1')
     assert(nextItems[0].type === 'botMessage', 'next item should have botMessage type')
@@ -183,9 +183,10 @@ export function testChatAdapter({ adapter, model }: ItestChatAdapterReq) {
             images: [
               {
                 mimeType: 'image/jpeg',
-                publicUrl: 'https://www.shutterstock.com/shutterstock/photos/2499249955/display_1500/stock-photo-baby-anaconda-at-the-rainforest-cuyabeno-amazonas-in-ecuador-2499249955.jpg',
-              }
-            ]
+                publicUrl:
+                  'https://www.shutterstock.com/shutterstock/photos/2499249955/display_1500/stock-photo-baby-anaconda-at-the-rainforest-cuyabeno-amazonas-in-ecuador-2499249955.jpg',
+              },
+            ],
           },
         },
       ],
@@ -208,9 +209,10 @@ export function testChatAdapter({ adapter, model }: ItestChatAdapterReq) {
             images: [
               {
                 mimeType: 'image/png',
-                base64Url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA AAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO 9TXL0Y4OHwAAAABJRU5ErkJggg==',
-              }
-            ]
+                base64Url:
+                  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA AAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO 9TXL0Y4OHwAAAABJRU5ErkJggg==',
+              },
+            ],
           },
         },
       ],

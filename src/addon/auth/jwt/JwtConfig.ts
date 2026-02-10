@@ -1,4 +1,3 @@
-
 import { Env } from '@/core/env'
 import { singleton } from '@/core/injection'
 import { Algorithm } from 'jsonwebtoken'

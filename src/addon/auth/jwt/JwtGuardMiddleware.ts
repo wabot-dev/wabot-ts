@@ -22,7 +22,10 @@ export class JwtGuardMiddleware implements IMiddleware {
 
     const parts = authorization.split(' ')
     if (parts.length !== 2) {
-      throw new CustomError({ httpCode: 401, message: 'Authorization header must be: Bearer <token>' })
+      throw new CustomError({
+        httpCode: 401,
+        message: 'Authorization header must be: Bearer <token>',
+      })
     }
 
     const [bearer, token] = parts

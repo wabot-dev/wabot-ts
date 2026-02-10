@@ -10,7 +10,7 @@
       "request": "launch",
       "command": "nvm use && npm run elia:dev"
     },
-        {
+    {
       "type": "node-terminal",
       "name": "Test:MP",
       "request": "launch",

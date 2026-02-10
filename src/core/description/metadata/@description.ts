@@ -13,7 +13,7 @@ export function description(description: string) {
       propertyType,
       functionArgsTypes,
       functionReturnType: undefined,
-      description
+      description,
     })
   }
 }

@@ -6,10 +6,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![Documentation](https://img.shields.io/badge/docs-wabot.dev-blue.svg?style=flat-square)](https://docs.wabot.dev)
 
-
 **Un framework moderno y flexible para crear bots con TypeScript e Inteligencia Artificial**
 
-[Documentación](https://docs.wabot.dev) • [Inicio Rápido](https://docs.wabot.dev/guides/start-new-project/) 
+[Documentación](https://docs.wabot.dev) • [Inicio Rápido](https://docs.wabot.dev/guides/start-new-project/)
 
 </div>
 
@@ -43,11 +42,11 @@ visita nuestra documentación 📘 **[Ver guía completa de inicio →](https://
 
 Wabot se integra nativamente con las principales plataformas de mensajería:
 
-| Plataforma | Estado |
-|------------|--------|
+| Plataforma      | Estado       |
+| --------------- | ------------ |
 | 📱 **WhatsApp** | ✅ Soportado |
 | ✈️ **Telegram** | ✅ Soportado |
-| 🔌 **Socket** | ✅ Soportado |
+| 🔌 **Socket**   | ✅ Soportado |
 
 ---
 
@@ -55,11 +54,12 @@ Wabot se integra nativamente con las principales plataformas de mensajería:
 
 Potencia tu bot con los principales proveedores de inteligencia artificial:
 
-| Proveedor | Soporte en Wabot |
-|-----------|------------------|
-| 🟢 **OpenAI** | ✅ Integración completa |
-| 🔵 **Google** | ✅ Integración completa |
+| Proveedor        | Soporte en Wabot        |
+| ---------------- | ----------------------- |
+| 🟢 **OpenAI**    | ✅ Integración completa |
+| 🔵 **Google**    | ✅ Integración completa |
 | 🟣 **Anthropic** | ✅ Integración completa |
+
 ---
 
 ## 📚 Documentación

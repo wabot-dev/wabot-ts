@@ -1,4 +1,4 @@
-import { IWhatsAppProxyMessageContent } from "./IWhatsAppProxyMessageContent"
+import { IWhatsAppProxyMessageContent } from './IWhatsAppProxyMessageContent'
 
 export interface IWhatsAppProxyMessage {
   from: string

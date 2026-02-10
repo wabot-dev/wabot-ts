@@ -6,23 +6,24 @@ This document outlines the prioritized action items to improve the Wabot framewo
 
 ## Progress Summary
 
-| Phase | Total | Completed | Remaining |
-|-------|-------|-----------|-----------|
-| Phase 1: Critical Fixes | 7 | 7 | 0 |
-| Phase 2: Security Hardening | 4 | 4 | 0 |
-| Phase 3: Error Handling | 3 | 0 | 3 |
-| Phase 4: Type Safety | 3 | 0 | 3 |
-| Phase 5: Architecture | 3 | 0 | 3 |
-| Phase 6: Test Coverage | 6 | 0 | 6 |
-| Phase 7: Missing Features | 7 | 0 | 7 |
-| Phase 8: Code Quality | 3 | 0 | 3 |
-| **Total** | **36** | **11** | **25** |
+| Phase                       | Total  | Completed | Remaining |
+| --------------------------- | ------ | --------- | --------- |
+| Phase 1: Critical Fixes     | 7      | 7         | 0         |
+| Phase 2: Security Hardening | 4      | 4         | 0         |
+| Phase 3: Error Handling     | 3      | 0         | 3         |
+| Phase 4: Type Safety        | 3      | 0         | 3         |
+| Phase 5: Architecture       | 3      | 0         | 3         |
+| Phase 6: Test Coverage      | 6      | 0         | 6         |
+| Phase 7: Missing Features   | 7      | 0         | 7         |
+| Phase 8: Code Quality       | 3      | 0         | 3         |
+| **Total**                   | **36** | **11**    | **25**    |
 
 ---
 
 ## Phase 1: Critical Fixes (Before Production)
 
 ### 1. ✅ Add Global Unhandled Rejection Handler
+
 - **File:** `src/core/error/setupErrorHandlers.ts`
 - **Action:** Add `process.on('unhandledRejection', ...)` and `process.on('uncaughtException', ...)`
 - **Risk:** Without this, async errors crash silently
@@ -30,6 +31,7 @@ This document outlines the prioritized action items to improve the Wabot framewo
 - **Additional:** Added `IErrorMonitor` interface to Logger for external error monitoring (Sentry, etc.)
 
 ### 2. ✅ Fix Fire-and-Forget Promise in Chat Controller
+
 - **File:** `src/feature/chat-controller/runChatControllers.ts:91`
 - **Action:** Add `await` and wrap in try-catch
 - **Current:** `chatController[channelMetadata.functionName](receivedMessage)` (no await)
@@ -37,6 +39,7 @@ This document outlines the prioritized action items to improve the Wabot framewo
 - **Status:** COMPLETED
 
 ### 3. ✅ Add Event Listener Cleanup for Channels
+
 - **Files:**
   - `src/addon/chat-controller/cmd/CmdChannel.ts:34`
   - `src/addon/chat-controller/telegram/TelegramChannel.ts:17`
@@ -51,18 +54,21 @@ This document outlines the prioritized action items to improve the Wabot framewo
   - WhatsAppChannel: Added `disconnect()` to WhatsAppReceiver (abstract)
 
 ### 4. ✅ Fix Race Condition in PgRepositoryBase
+
 - **File:** `src/feature/pg/PgRepositoryBase.ts:76-100`
 - **Action:** Move `this.tableIsReady = true` inside the lock block (after table creation)
 - **Current:** Flag set outside lock, TOCTOU vulnerability
 - **Status:** COMPLETED (race condition was already fixed; fixed column index bug and replaced console.log with logger)
 
 ### 5. ✅ Fix Chat Resolution Race Condition
+
 - **File:** `src/feature/chat-controller/ChatResolver.ts:15-30`
 - **Action:** Use Locker to prevent concurrent chat creation for same connection
 - **Risk:** Duplicate chats created for same connection
 - **Status:** COMPLETED (uses Locker with key based on channelName:id)
 
 ### 6. ✅ Add JSON.parse Error Handling in Adapters
+
 - **Files:**
   - `src/addon/chat-bot/anthropic/AnthropicChatAdapter.ts:89`
   - `src/addon/chat-bot/google/GoogleChatAdapter.ts:87`
@@ -72,6 +78,7 @@ This document outlines the prioritized action items to improve the Wabot framewo
 - **Status:** COMPLETED
 
 ### 7. ✅ Fix Silent Error Suppression
+
 - **Files:**
   - `src/feature/async/JobExecutor.ts` - Mark job as failed on execution errors
   - `src/addon/chat-controller/cmd/CmdChannel.ts` - Log warning on JSON parse errors
@@ -83,12 +90,14 @@ This document outlines the prioritized action items to improve the Wabot framewo
 ## Phase 2: Security Hardening
 
 ### 8. ✅ Add Function Call Whitelist to MindsetOperator
+
 - **File:** `src/feature/mindset/MindsetOperator.ts:129-162`
 - **Action:** Validate function name against registered tools before execution
 - **Risk:** LLM prompt injection could call unintended functions
 - **Status:** COMPLETED (already implemented; improved error message to use CustomError with FUNCTION_NOT_WHITELISTED code)
 
 ### 9. ✅ Fix Token Validation in Auth Middlewares
+
 - **Files:**
   - `src/addon/auth/api-key/ApiKeyHandshakeGuardMiddleware.ts:24`
   - `src/addon/auth/jwt/JwtGuardMiddleware.ts:23-25`
@@ -97,12 +106,14 @@ This document outlines the prioritized action items to improve the Wabot framewo
 - **Status:** COMPLETED (validates exactly 2 parts in authorization header)
 
 ### 10. ✅ Restrict CORS in Socket Server
+
 - **File:** `src/feature/socket/SocketServerProvider.ts:27-29`
 - **Action:** Make CORS configurable, default to restrictive policy
 - **Current:** Allows `*` origin
 - **Status:** COMPLETED (added SocketServerConfig with SOCKET_CORS_ORIGIN env var; defaults to disabled)
 
 ### 11. ✅ Remove Sensitive Data from Logs
+
 - **File:** `src/addon/chat-bot/anthropic/AnthropicChatAdapter.ts:39`
 - **Action:** Redact system prompts and user messages from debug logs
 - **Risk:** API keys, user data, system prompts exposed in logs
@@ -113,6 +124,7 @@ This document outlines the prioritized action items to improve the Wabot framewo
 ## Phase 3: Error Handling Standardization
 
 ### 12. Replace Generic Error with CustomError
+
 - **Files:**
   - `src/feature/chat-bot/Chat.ts:52,67,75,81`
   - `src/feature/chat-bot/ChatItem.ts:23`
@@ -121,6 +133,7 @@ This document outlines the prioritized action items to improve the Wabot framewo
 - **Action:** Use `CustomError` with proper `httpCode`, `code`, and `message`
 
 ### 13. Add Error Handling to Channel Message Callbacks
+
 - **Files:**
   - `src/addon/chat-controller/whatsapp/WhatsAppChannel.ts:36-37`
   - `src/addon/chat-controller/telegram/TelegramChannel.ts`
@@ -128,6 +141,7 @@ This document outlines the prioritized action items to improve the Wabot framewo
 - **Action:** Wrap callback execution in try-catch, log errors with context, send error response to user
 
 ### 14. Improve HTTP Error Responses
+
 - **File:** `src/addon/chat-controller/whatsapp/cloud-api/WhatsAppReceiverByCloudApi.ts:54-57`
 - **Action:** Return structured error response with error code and message
 
@@ -136,6 +150,7 @@ This document outlines the prioritized action items to improve the Wabot framewo
 ## Phase 4: Type Safety Improvements
 
 ### 15. Reduce `any` Usage in Core Files
+
 - **Files (Priority):**
   - `src/feature/mindset/MindsetOperator.ts:18,152,164,193`
   - `src/feature/pg/withPgTransaction.ts:14,17,37,48`
@@ -143,6 +158,7 @@ This document outlines the prioritized action items to improve the Wabot framewo
 - **Action:** Replace with proper generics or `unknown` with type guards
 
 ### 16. Reduce `any` Usage in Addon Files
+
 - **Files:**
   - `src/addon/chat-controller/socket/SocketChannel.ts:38`
   - `src/feature/socket-controller/metadata/@onSocketEvent.ts:8`
@@ -150,6 +166,7 @@ This document outlines the prioritized action items to improve the Wabot framewo
 - **Action:** Define proper interface types
 
 ### 17. Fix Non-null Assertions
+
 - **Files:**
   - `src/feature/rest-controller/metadata/RestControllerMetadataStore.ts:57`
   - `src/addon/chat-controller/whatsapp/WhatsAppSender.ts:100`
@@ -160,6 +177,7 @@ This document outlines the prioritized action items to improve the Wabot framewo
 ## Phase 5: Architecture Refactoring
 
 ### 18. Split MindsetOperator into Smaller Classes
+
 - **File:** `src/feature/mindset/MindsetOperator.ts`
 - **Action:** Extract into:
   - `SystemPromptBuilder` - Generates system prompts
@@ -168,11 +186,13 @@ This document outlines the prioritized action items to improve the Wabot framewo
   - `MindsetOperator` - Orchestrates the above
 
 ### 19. Make ChatBot Configuration Flexible
+
 - **File:** `src/feature/chat-bot/ChatBot.ts:29`
 - **Action:** Make `findLastItems(16)` configurable via constructor or config
 - **Current:** Hard-coded 16-item memory limit
 
 ### 20. Split IChannelMessage Interface
+
 - **File:** `src/feature/chat-controller/IChannelMessage.ts`
 - **Action:** Separate into:
   - `IChannelMessage` - Core message data
@@ -183,6 +203,7 @@ This document outlines the prioritized action items to improve the Wabot framewo
 ## Phase 6: Test Coverage
 
 ### 21. Add Unit Tests for ChatBot
+
 - **File:** Create `src/feature/chat-bot/ChatBot.unit.test.ts`
 - **Test Cases:**
   - Message processing loop
@@ -191,6 +212,7 @@ This document outlines the prioritized action items to improve the Wabot framewo
   - Error handling in process loop
 
 ### 22. Add Unit Tests for ChatResolver
+
 - **File:** Create `src/feature/chat-controller/ChatResolver.unit.test.ts`
 - **Test Cases:**
   - New chat creation
@@ -198,6 +220,7 @@ This document outlines the prioritized action items to improve the Wabot framewo
   - Concurrent resolution (race condition)
 
 ### 23. Add Unit Tests for Chat Entity
+
 - **File:** Create `src/feature/chat-bot/Chat.unit.test.ts`
 - **Test Cases:**
   - Connection management (add, has, get)
@@ -205,12 +228,14 @@ This document outlines the prioritized action items to improve the Wabot framewo
   - Validation by type (PRIVATE vs GROUP)
 
 ### 24. Add Integration Tests for Channels
+
 - **Files:** Create test files for each channel
   - `src/addon/chat-controller/telegram/TelegramChannel.integration.test.ts`
   - `src/addon/chat-controller/socket/SocketChannel.integration.test.ts`
   - `src/addon/chat-controller/cmd/CmdChannel.unit.test.ts`
 
 ### 25. Add Unit Tests for Auth Classes
+
 - **Files:**
   - `src/core/auth/Auth.unit.test.ts`
   - `src/addon/auth/jwt/JwtGuardMiddleware.unit.test.ts`
@@ -221,6 +246,7 @@ This document outlines the prioritized action items to improve the Wabot framewo
   - State transitions (assign, override)
 
 ### 26. Add Unit Tests for MindsetOperator
+
 - **File:** Create `src/feature/mindset/MindsetOperator.unit.test.ts`
 - **Test Cases:**
   - System prompt generation
@@ -233,6 +259,7 @@ This document outlines the prioritized action items to improve the Wabot framewo
 ## Phase 7: Missing Features
 
 ### 27. Implement Graceful Shutdown
+
 - **File:** Create `src/core/bootstrap/gracefulShutdown.ts`
 - **Action:**
   - Handle SIGTERM, SIGINT signals
@@ -242,6 +269,7 @@ This document outlines the prioritized action items to improve the Wabot framewo
   - Mark running jobs as interrupted
 
 ### 28. Add Rate Limiting
+
 - **File:** Create `src/feature/rate-limit/RateLimiter.ts`
 - **Action:**
   - Implement token bucket or sliding window algorithm
@@ -249,6 +277,7 @@ This document outlines the prioritized action items to improve the Wabot framewo
   - Configure per-channel limits
 
 ### 29. Add Message Deduplication
+
 - **File:** Create `src/feature/chat-controller/MessageDeduplicator.ts`
 - **Action:**
   - Store message IDs with TTL (Redis or in-memory)
@@ -256,6 +285,7 @@ This document outlines the prioritized action items to improve the Wabot framewo
   - Add idempotency key support
 
 ### 30. Add Health Check Endpoints
+
 - **File:** Create `src/feature/health/HealthController.ts`
 - **Action:**
   - `/health` - Basic liveness check
@@ -263,6 +293,7 @@ This document outlines the prioritized action items to improve the Wabot framewo
   - `/health/detailed` - Full status with component health
 
 ### 31. Add Configuration Validation at Startup
+
 - **File:** Create `src/core/config/validateConfig.ts`
 - **Action:**
   - Validate all channel configs before connecting
@@ -270,6 +301,7 @@ This document outlines the prioritized action items to improve the Wabot framewo
   - Fail fast with clear error messages
 
 ### 32. Add Retry Logic for LLM Calls
+
 - **File:** `src/feature/chat-bot/ChatBot.ts`
 - **Action:**
   - Implement exponential backoff for failed LLM calls
@@ -277,6 +309,7 @@ This document outlines the prioritized action items to improve the Wabot framewo
   - Handle rate limit responses (429)
 
 ### 33. Add Audit Logging
+
 - **File:** Create `src/core/audit/AuditLogger.ts`
 - **Action:**
   - Log authentication attempts (success/failure)
@@ -289,14 +322,17 @@ This document outlines the prioritized action items to improve the Wabot framewo
 ## Phase 8: Code Quality
 
 ### 34. Remove console.log from Production Code
+
 - **File:** `src/feature/pg/PgRepositoryBase.ts:122`
 - **Action:** Replace with Logger.debug()
 
 ### 35. Fix TODO Comments
+
 - **File:** `src/feature/rest-controller/metadata/RestControllerMetadataStore.ts:49`
 - **Action:** Implement warning log when controller has no endpoints
 
 ### 36. Standardize Null Coalescing
+
 - **Action:** Audit codebase for inconsistent `?? null` vs `?? undefined` usage
 - **Standard:** Use `?? null` for intentional null, `?? undefined` for optional
 
@@ -304,16 +340,16 @@ This document outlines the prioritized action items to improve the Wabot framewo
 
 ## Implementation Timeline
 
-| Phase | Items | Priority | Estimated Effort |
-|-------|-------|----------|------------------|
-| Phase 1 | 1-7 | 🔴 Critical | 2-3 days |
-| Phase 2 | 8-11 | 🔴 Critical | 1-2 days |
-| Phase 3 | 12-14 | 🟠 High | 1-2 days |
-| Phase 4 | 15-17 | 🟠 High | 2-3 days |
-| Phase 5 | 18-20 | 🟡 Medium | 3-4 days |
-| Phase 6 | 21-26 | 🟠 High | 4-5 days |
-| Phase 7 | 27-33 | 🟡 Medium | 5-7 days |
-| Phase 8 | 34-36 | 🟢 Low | 1 day |
+| Phase   | Items | Priority    | Estimated Effort |
+| ------- | ----- | ----------- | ---------------- |
+| Phase 1 | 1-7   | 🔴 Critical | 2-3 days         |
+| Phase 2 | 8-11  | 🔴 Critical | 1-2 days         |
+| Phase 3 | 12-14 | 🟠 High     | 1-2 days         |
+| Phase 4 | 15-17 | 🟠 High     | 2-3 days         |
+| Phase 5 | 18-20 | 🟡 Medium   | 3-4 days         |
+| Phase 6 | 21-26 | 🟠 High     | 4-5 days         |
+| Phase 7 | 27-33 | 🟡 Medium   | 5-7 days         |
+| Phase 8 | 34-36 | 🟢 Low      | 1 day            |
 
 **Total Estimated Effort:** 20-27 days
 

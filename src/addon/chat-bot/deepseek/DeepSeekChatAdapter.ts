@@ -160,6 +160,6 @@ export class DeepSeekChatAdapter implements IChatAdapter {
       throw new Error('Unable to found usage info')
     }
 
-    return { nextItems:[chatItem], usage }
+    return { nextItems: [chatItem], usage }
   }
 }

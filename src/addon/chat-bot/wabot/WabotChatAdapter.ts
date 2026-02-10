@@ -2,7 +2,11 @@ import { Env } from '@/core/env'
 import { CustomError } from '@/core/error'
 import { singleton } from '@/core/injection'
 import { Logger } from '@/core/logger'
-import { IChatAdapter, IChatAdapterNextItemsReq, IChatAdapterNextItemsRes } from '@/feature/chat-bot'
+import {
+  IChatAdapter,
+  IChatAdapterNextItemsReq,
+  IChatAdapterNextItemsRes,
+} from '@/feature/chat-bot'
 
 @singleton()
 export class WabotChatAdapter implements IChatAdapter {

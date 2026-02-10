@@ -1,4 +1,3 @@
-
 import { isModel } from '@/core/validation'
 import { JwtTokenDto } from './JwtTokenDto'
 

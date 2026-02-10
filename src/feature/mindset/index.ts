@@ -3,4 +3,3 @@ export * from './IMindset'
 export * from './MindsetOperator'
 export * from './IMindsetTool'
 export * from './IMindsetToolParameter'
-

@@ -10,7 +10,7 @@ export function isDate() {
       modelConstructor: target.constructor as any,
       propertyName,
       validator: validateIsDate,
-      typeDescriptor: 'date'
+      typeDescriptor: 'date',
     })
   }
 }

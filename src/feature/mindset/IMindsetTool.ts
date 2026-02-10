@@ -1,4 +1,4 @@
-import { IMindsetToolParameter } from "./IMindsetToolParameter"
+import { IMindsetToolParameter } from './IMindsetToolParameter'
 
 export interface IMindsetTool {
   language: string

@@ -90,6 +90,7 @@ export function myDecorator(config: IConfig) {
 ```
 
 **Key MetadataStores:**
+
 - `ValidationMetadataStore` - Property validators per model class
 - `ControllerMetadataStore` - Chat controllers and channel mappings
 - `ChatBotMetadataStore` - ChatBot instances with mindsets
@@ -105,12 +106,12 @@ Uses `tsyringe` from `@/core/injection`:
 ```typescript
 import { container, injectable, singleton, inject } from '@/core/injection'
 
-@singleton()  // App-wide single instance
+@singleton() // App-wide single instance
 @injectable() // Can be resolved by DI
 export class MyService {
   constructor(
-    private dep: OtherService,           // Auto-resolved
-    @inject('TOKEN') private val: string // Token-based injection
+    private dep: OtherService, // Auto-resolved
+    @inject('TOKEN') private val: string, // Token-based injection
   ) {}
 }
 
@@ -125,6 +126,7 @@ childContainer.registerInstance(Chat, chatInstance)
 ### 3. Entity & Storable Base Classes
 
 **Storable** - Generic data container ensuring serializability:
+
 ```typescript
 export class Storable<D extends object> {
   constructor(protected data: IStorableData<D>) {}
@@ -132,10 +134,15 @@ export class Storable<D extends object> {
 ```
 
 **Entity** - Extends Storable with id, timestamps, validation:
+
 ```typescript
 export class Entity<D extends IEntityData> extends Storable<D> {
-  get id() { return this.data.id }
-  get createdAt() { return new Date(this.data.createdAt) }
+  get id() {
+    return this.data.id
+  }
+  get createdAt() {
+    return new Date(this.data.createdAt)
+  }
 
   update(newData: Partial<Omit<D, 'id' | 'createdAt' | 'discardedAt'>>) {
     // Protected fields filtered out
@@ -148,6 +155,7 @@ export class Entity<D extends IEntityData> extends Storable<D> {
 ```
 
 **Creating a new Entity:**
+
 ```typescript
 export interface IMyData extends IEntityData {
   name: string
@@ -155,7 +163,9 @@ export interface IMyData extends IEntityData {
 }
 
 export class MyEntity extends Entity<IMyData> {
-  get name() { return this.data.name }
+  get name() {
+    return this.data.name
+  }
 
   activate() {
     this.data.status = 'active'
@@ -174,19 +184,19 @@ Validators are decorators that save metadata, queried at runtime:
 
 ```typescript
 // Available validators
-@isString()           // String type
-@isNumber()           // Number type
-@isBoolean()          // Boolean type
-@isDate()             // Date type
-@isNotEmpty()         // Non-empty value
-@isPresent()          // Not null/undefined
-@isOptional()         // Marks optional
-@min(value)           // Minimum value
-@max(value)           // Maximum value
-@isIn(allowedValues)  // Value in set
-@isArray(options)     // Array with item validators
-@isModel()            // Nested object validation
-@isRecord()           // Key-value object
+@isString() // String type
+@isNumber() // Number type
+@isBoolean() // Boolean type
+@isDate() // Date type
+@isNotEmpty() // Non-empty value
+@isPresent() // Not null/undefined
+@isOptional() // Marks optional
+@min(value) // Minimum value
+@max(value) // Maximum value
+@isIn(allowedValues) // Value in set
+@isArray(options) // Array with item validators
+@isModel() // Nested object validation
+@isRecord() // Key-value object
 
 // Usage
 export class CreateUserRequest {
@@ -203,6 +213,7 @@ export class CreateUserRequest {
 ### 5. Repository Pattern
 
 **Interface (feature layer):**
+
 ```typescript
 export interface ICrudRepository<T> {
   find(id: string): Promise<T | null>
@@ -214,12 +225,10 @@ export interface ICrudRepository<T> {
 ```
 
 **PostgreSQL Implementation (addon layer):**
+
 ```typescript
 @singleton()
-export class PgMyRepository
-  extends PgCrudRepository<MyEntity>
-  implements IMyRepository
-{
+export class PgMyRepository extends PgCrudRepository<MyEntity> implements IMyRepository {
   constructor(pool: Pool) {
     super(pool, {
       schema: 'myapp',
@@ -241,6 +250,7 @@ export class PgMyRepository
 ### Adding a New Chat Channel
 
 **1. Create Channel Implementation:**
+
 ```typescript
 // src/addon/chat-controller/mychannel/MyChannel.ts
 @injectable()
@@ -265,6 +275,7 @@ export class MyChannel implements IChatChannel {
 ```
 
 **2. Create Channel Config:**
+
 ```typescript
 @injectable()
 export class MyChannelConfig {
@@ -273,6 +284,7 @@ export class MyChannelConfig {
 ```
 
 **3. Create Channel Decorator:**
+
 ```typescript
 // src/addon/chat-controller/mychannel/@myChannel.ts
 export function myChannel(config: string | IMyChannelConfig) {
@@ -282,15 +294,14 @@ export function myChannel(config: string | IMyChannelConfig) {
       channelConstructor: MyChannel,
       functionName: propertyKey.toString(),
       controllerConstructor: target.constructor as IConstructor<any>,
-      channelConfig: new MyChannelConfig(
-        typeof config === 'string' ? config : config.apiKey
-      ),
+      channelConfig: new MyChannelConfig(typeof config === 'string' ? config : config.apiKey),
     })
   }
 }
 ```
 
 **4. Export from index:**
+
 ```typescript
 // src/addon/chat-controller/mychannel/index.ts
 export * from './@myChannel'
@@ -368,19 +379,18 @@ export class SendNotificationHandler implements ICommandHandler<SendNotification
   constructor(private notificationService: NotificationService) {}
 
   async handle(command: SendNotificationCommand) {
-    await this.notificationService.send(
-      command.data.userId,
-      command.data.message
-    )
+    await this.notificationService.send(command.data.userId, command.data.message)
   }
 }
 
 // Schedule command
 const scheduler = container.resolve(JobScheduler)
-await scheduler.schedule(new SendNotificationCommand({
-  userId: '123',
-  message: 'Hello!'
-}))
+await scheduler.schedule(
+  new SendNotificationCommand({
+    userId: '123',
+    message: 'Hello!',
+  }),
+)
 ```
 
 ### Adding Cron Jobs
@@ -388,8 +398,8 @@ await scheduler.schedule(new SendNotificationCommand({
 ```typescript
 @cron({
   name: 'daily-cleanup',
-  cron: '0 2 * * *',  // 2 AM daily
-  disabled: false
+  cron: '0 2 * * *', // 2 AM daily
+  disabled: false,
 })
 export class DailyCleanupHandler implements ICronHandler {
   constructor(private cleanupService: CleanupService) {}
@@ -430,6 +440,7 @@ export class ScheduleMeetingArgs {
 ## System Flows
 
 ### Chat Message Flow
+
 ```
 Channel.listen() → IChannelMessage
   → ChatResolver.resolve() → Chat entity
@@ -444,6 +455,7 @@ Channel.listen() → IChannelMessage
 ```
 
 ### REST Request Flow
+
 ```
 HTTP Request
   → Express middleware (json, urlencoded)
@@ -454,6 +466,7 @@ HTTP Request
 ```
 
 ### Async Job Flow
+
 ```
 JobScheduler.schedule(command)
   → Job created in JobRepository
@@ -486,6 +499,7 @@ runCronHandlers([DailyCleanupHandler])
 ## Path Aliases
 
 Defined in `tsconfig.json`:
+
 ```typescript
 import { ... } from '@/core/injection'    // src/core/injection
 import { ... } from '@/feature/chat-bot'  // src/feature/chat-bot
@@ -516,6 +530,7 @@ IMiddleware: { handle(req, res, container): Promise<void> }
 ## Dependencies Note
 
 Framework uses **peer dependencies**. Install only what you need:
+
 - `grammy` for Telegram
 - `@anthropic-ai/sdk` for Anthropic
 - `openai` for OpenAI

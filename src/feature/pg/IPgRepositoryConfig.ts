@@ -1,6 +1,5 @@
-import { Entity, IEntityData } from "@/core/entity"
-import { IConstructor } from "@/core/generics"
-
+import { Entity, IEntityData } from '@/core/entity'
+import { IConstructor } from '@/core/generics'
 
 export type IPgRepositoryConfig<P extends Entity<IEntityData>> = {
   schema?: string
