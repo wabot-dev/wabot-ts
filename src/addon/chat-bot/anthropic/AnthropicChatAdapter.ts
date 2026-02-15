@@ -66,11 +66,44 @@ export class AnthropicChatAdapter implements IChatAdapter {
     return messages
   }
 
-  private mapHumanMessage(item: IChatMessage) {
-    if (!item.text) {
+  private mapHumanMessage(item: IChatMessage): Anthropic.Messages.MessageParam {
+    const content: Anthropic.Messages.ContentBlock[] = []
+
+    if (item.images) {
+      for (const image of item.images) {
+        const imageUrl = image.publicUrl ?? image.base64Url
+        if (imageUrl) {
+          const isBase64 = imageUrl.startsWith('data:')
+          const imageBlock = isBase64
+            ? {
+                type: 'image' as const,
+                source: {
+                  type: 'base64' as const,
+                  media_type: imageUrl.match(/data:([^;]+);/)?.[1] || 'image/jpeg',
+                  data: imageUrl.split(',')[1].replace(/\s/g, ''),
+                },
+              }
+            : {
+                type: 'image' as const,
+                source: {
+                  type: 'url' as const,
+                  url: imageUrl,
+                },
+              }
+          content.push(imageBlock as unknown as Anthropic.Messages.ContentBlock)
+        }
+      }
+    }
+
+    if (item.text) {
+      content.push({ type: 'text', text: item.text } as Anthropic.Messages.ContentBlock)
+    }
+
+    if (content.length === 0) {
       throw new Error('User message content is empty')
     }
-    return { role: 'user', content: item.text } as const
+
+    return { role: 'user', content } as Anthropic.Messages.MessageParam
   }
 
   private mapBotMessage(item: IChatMessage) {
