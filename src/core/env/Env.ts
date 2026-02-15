@@ -24,7 +24,7 @@ export class Env {
 
   requireString(varName: string, options?: { default?: string }): string {
     const value = process.env[varName] ?? options?.default
-    if (!value) throw new Error(`Env Variable ${varName} is required`)
+    if (value == null) throw new Error(`Env Variable ${varName} is required`)
     return value
   }
 
