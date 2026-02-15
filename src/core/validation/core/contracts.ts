@@ -5,7 +5,7 @@ export interface IValidationError {
 }
 
 export interface IModelValidationError extends IValidationError {
-  properties: { [key: string]: string[] }
+  properties: { [key: string]: IValidationError[] }
 }
 
 export interface IArrayValidationError extends IValidationError {

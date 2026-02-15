@@ -1,4 +1,4 @@
-import { IModelValidationResult, IModelValidatorsInfo } from './contracts'
+import { IModelValidationResult, IModelValidatorsInfo, IValidationError } from './contracts'
 
 export function validateModel<V>(
   value: any,
@@ -8,7 +8,7 @@ export function validateModel<V>(
     return { error: { description: 'Invalid object', properties: {} } }
   }
 
-  let propertiesErrors: { [key: string]: string[] } = {}
+  let propertiesErrors: { [key: string]: IValidationError[] } = {}
   let resultValue = new info.modelConstructor() as any
 
   const properties: string[] = []
@@ -52,7 +52,7 @@ export function validateModel<V>(
           propertyErrors = []
           propertiesErrors[propertyName] = propertyErrors
         }
-        propertyErrors.push(propertyValidatorResult.error.description)
+        propertyErrors.push(propertyValidatorResult.error)
       } else {
         currentPropValue = propertyValidatorResult.value
       }
@@ -82,7 +82,7 @@ export function validateModel<V>(
           propertyErrors = []
           propertiesErrors[propertyName] = propertyErrors
         }
-        propertyErrors.push(propertyValidatorResult.error.description)
+        propertyErrors.push(propertyValidatorResult.error)
       }
     }
   }
