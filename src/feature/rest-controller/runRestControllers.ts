@@ -9,6 +9,7 @@ import path from 'path'
 import { EXPRESS_REQ, EXPRESS_RES } from './injection-tokens'
 import { RestControllerMetadataStore } from './metadata'
 import { RestRequest } from './RestRequest'
+import { IncomingMessage } from 'http'
 
 function buildRequest(req: Request): any {
   return Object.assign({}, req.body, req.query, req.params)
@@ -58,19 +59,24 @@ export function runRestControllers(controllers: IConstructor<any>[]) {
 
           if (endPoint.paramsTypes.length === 1) {
             const paramType = endPoint.paramsTypes[0]
-            if (typeof paramType !== 'function') {
-              throw new Error(`invalid rest controller endpoint parameter type`)
-            }
-            const paramInfo = validationMetadataStore.getModelValidatorsInfo(paramType)
 
-            const validableReq = paramInfo.modelHierarchy.includes(RestRequest)
-              ? req
-              : buildRequest(req)
-            const { value, error } = validateModel(validableReq, paramInfo)
-            if (error) {
-              throw new CustomError({ httpCode: 400, message: error.description, info: error })
+            if (paramType === IncomingMessage) {
+              endPointArgs.push(req)
+            } else {
+              if (typeof paramType !== 'function') {
+                throw new Error(`invalid rest controller endpoint parameter type`)
+              }
+              const paramInfo = validationMetadataStore.getModelValidatorsInfo(paramType)
+
+              const validableReq = paramInfo.modelHierarchy.includes(RestRequest)
+                ? req
+                : buildRequest(req)
+              const { value, error } = validateModel(validableReq, paramInfo)
+              if (error) {
+                throw new CustomError({ httpCode: 400, message: error.description, info: error })
+              }
+              endPointArgs.push(value)
             }
-            endPointArgs.push(value)
           }
 
           const response = await (controllerInstance[endPoint.functionName] as Function).apply(
