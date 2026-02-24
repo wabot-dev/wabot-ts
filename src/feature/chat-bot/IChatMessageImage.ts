@@ -3,6 +3,7 @@ export interface IChatMessagesPublicImage {
   publicUrl: string
   base64Url?: undefined
   mimeType: string
+  id: string
 }
 
 export interface IChatMessagesPrivateImage {
@@ -10,6 +11,7 @@ export interface IChatMessagesPrivateImage {
   publicUrl?: undefined
   base64Url: string
   mimeType: string
+  id: string
 }
 
 export type IChatMessageImage = IChatMessagesPrivateImage | IChatMessagesPublicImage
