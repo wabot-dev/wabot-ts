@@ -3,6 +3,7 @@ import { singleton } from '@/core/injection'
 import { Logger } from '@/core/logger'
 import { Random } from '@/core/random'
 import {
+  extractChatMessageText,
   IChatAdapter,
   IChatAdapterNextItemsReq,
   IChatAdapterNextItemsRes,
@@ -73,7 +74,7 @@ export class GoogleChatAdapter implements IChatAdapter {
     if (!item.text) {
       throw new Error('Bot message content is empty')
     }
-    return { role: 'model', parts: [{ text: item.text }] }
+    return { role: 'model', parts: [{ text: extractChatMessageText(item) }] }
   }
 
   private mapFunctionCall(item: IFunctionCall): Content[] {

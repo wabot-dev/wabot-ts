@@ -2,6 +2,7 @@ import { Env } from '@/core/env'
 import { singleton } from '@/core/injection'
 import { Logger } from '@/core/logger'
 import {
+  extractChatMessageText,
   IChatAdapter,
   IChatAdapterNextItemsReq,
   IChatAdapterNextItemsRes,
@@ -77,7 +78,7 @@ export class AnthropicChatAdapter implements IChatAdapter {
     if (!item.text) {
       throw new Error('Assistant message content is empty')
     }
-    return { role: 'assistant', content: item.text } as const
+    return { role: 'assistant', content: extractChatMessageText(item) } as const
   }
 
   private mapFunctionCall(item: IFunctionCall): Anthropic.Messages.MessageParam[] {

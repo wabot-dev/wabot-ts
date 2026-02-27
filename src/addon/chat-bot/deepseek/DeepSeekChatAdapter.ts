@@ -1,5 +1,6 @@
 import { Logger } from '@/core/logger'
 import {
+  extractChatMessageText,
   IChatAdapter,
   IChatAdapterNextItemsReq,
   IChatAdapterNextItemsRes,
@@ -73,7 +74,7 @@ export class DeepSeekChatAdapter implements IChatAdapter {
     if (!item.text) {
       throw new Error('User message content is empty')
     }
-    return { role: 'user', content: item.text } as const
+    return { role: 'user', content: extractChatMessageText(item) } as const
   }
 
   private mapBotMessage(item: IChatMessage) {

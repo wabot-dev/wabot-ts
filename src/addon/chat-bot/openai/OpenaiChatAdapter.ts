@@ -6,6 +6,7 @@ import {
   IChatMessage,
   IChatAdapterNextItemsRes,
   ILanguageModelUsage,
+  extractChatMessageText,
 } from '@/feature/chat-bot'
 import { OpenAI } from 'openai'
 import { IMindsetTool } from '@/feature/mindset'
@@ -53,7 +54,7 @@ export class OpenaiChatAdapter implements IChatAdapter {
 
   private mapConectionMessage(item: IChatMessage) {
     const content: OpenAI.Responses.ResponseInputContent[] = []
-    if (item.text) content.push({ type: 'input_text', text: item.text })
+    if (item.text) content.push({ type: 'input_text', text: extractChatMessageText(item) })
     if (item.images) {
       for (const image of item.images) {
         content.push({

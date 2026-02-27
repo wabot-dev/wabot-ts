@@ -182,6 +182,7 @@ export function testChatAdapter({ adapter, model }: ItestChatAdapterReq) {
           humanMessage: {
             images: [
               {
+                id: 'image1',
                 mimeType: 'image/jpeg',
                 publicUrl:
                   'https://www.shutterstock.com/shutterstock/photos/2499249955/display_1500/stock-photo-baby-anaconda-at-the-rainforest-cuyabeno-amazonas-in-ecuador-2499249955.jpg',
@@ -208,6 +209,7 @@ export function testChatAdapter({ adapter, model }: ItestChatAdapterReq) {
           humanMessage: {
             images: [
               {
+                id: 'image1',
                 mimeType: 'image/png',
                 base64Url:
                   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA AAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO 9TXL0Y4OHwAAAABJRU5ErkJggg==',
