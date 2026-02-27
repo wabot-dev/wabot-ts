@@ -4,20 +4,19 @@ import {
   IOpenaiAudioChatAdapterNextItemsRes,
 } from '../../../feature/chat-bot/IOpenaiAudioChatAdapter'
 import {
-  IChatAdapterNextItemsReq,
   IChatAdapterNextItemsRes,
   IChatItem,
   IChatMessage,
   IFunctionCall,
   ILanguageModelUsage,
 } from '@/feature/chat-bot'
-import { IAudioTranscribeReq, IAudioTranscribeRes } from '@/feature/chat-bot/IAudioTranscriber'
-import { IChatMessageAudio, IAudioMetadata } from '@/feature/chat-bot/IChatMessageAudio'
+import { IAudioMetadata, IChatMessageAudio } from '@/feature/chat-bot/IChatMessageAudio'
 import { OpenaiTtsConfig } from './OpenaiTtsConfig'
-import { AudioResponseFormat } from '@/feature/chat-bot/IAudioSpeechSynthesizer'
+import { OpenaiAudioTranscriber } from './OpenaiAudioTranscriber'
+import { OpenaiAudioSpeechSynthesizer } from './OpenaiAudioSpeechSynthesizer'
 import { IMindsetTool } from '@/feature/mindset'
-import { singleton, inject } from '@/core/injection'
-import { OpenAI, toFile } from 'openai'
+import { OpenAI } from 'openai'
+import { inject, singleton } from '@/core/injection'
 import { Logger } from '@/core/logger'
 
 @singleton()
@@ -25,7 +24,11 @@ export class OpenaiAudioChatAdapter implements IOpenaiAudioChatAdapter {
   private openai = new OpenAI()
   private logger = new Logger('wabot:openai-audio-chat-adapter')
 
-  constructor(@inject(OpenaiTtsConfig) private ttsConfig: OpenaiTtsConfig) {}
+  constructor(
+    @inject(OpenaiTtsConfig) private ttsConfig: OpenaiTtsConfig,
+    @inject(OpenaiAudioTranscriber) private transcriber: OpenaiAudioTranscriber,
+    @inject(OpenaiAudioSpeechSynthesizer) private synthesizer: OpenaiAudioSpeechSynthesizer,
+  ) {}
 
   async nextItems(
     req: IOpenaiAudioChatAdapterNextItemsReq,
@@ -34,16 +37,16 @@ export class OpenaiAudioChatAdapter implements IOpenaiAudioChatAdapter {
 
     if (req.audioRequest) {
       try {
-        const transcript = await this.transcribeAudio(req.audioRequest)
-        if (transcript) {
+        const result = await this.transcriber.transcribe(req.audioRequest)
+        if (result.text) {
           updatedPrevItems = [
             ...req.prevItems,
             {
               type: 'humanMessage',
-              humanMessage: { text: transcript },
+              humanMessage: { text: result.text },
             } as IChatItem,
           ]
-          this.logger.info('Audio transcribed', { text: transcript })
+          this.logger.info('Audio transcribed', { text: result.text })
         }
       } catch (error) {
         this.logger.error('Failed to transcribe audio', error)
@@ -78,41 +81,28 @@ export class OpenaiAudioChatAdapter implements IOpenaiAudioChatAdapter {
     return result as IOpenaiAudioChatAdapterNextItemsRes
   }
 
-  private async transcribeAudio(req: IAudioTranscribeReq): Promise<string> {
-    const file = await toFile(req.audio, 'audio.wav')
-    const response = await this.openai.audio.transcriptions.create({
-      model: req.model,
-      file,
-      response_format: 'text',
-    })
-
-    return typeof response === 'string' ? response : ''
-  }
-
   private async synthesizeAudio(text: string): Promise<IChatMessageAudio> {
-    const response = await this.openai.audio.speech.create({
+    const synthesizeResult = await this.synthesizer.synthesize({
       model: this.ttsConfig.model,
       voice: this.ttsConfig.voice,
-      input: text,
-      response_format: this.ttsConfig.format,
+      text,
+      format: this.ttsConfig.format,
     })
 
-    const audioBuffer = Buffer.from(await response.arrayBuffer())
-    const mimeType = this.getMimeType(this.ttsConfig.format)
-    const base64Url = `data:${mimeType};base64,${audioBuffer.toString('base64')}`
+    const base64Url = `data:${synthesizeResult.mimeType};base64,${synthesizeResult.audio.toString('base64')}`
 
     const metadata: IAudioMetadata = {
       provider: 'openai',
       model: this.ttsConfig.model,
       voice: this.ttsConfig.voice,
       format: this.ttsConfig.format,
-      sizeBytes: audioBuffer.length,
+      sizeBytes: synthesizeResult.audio.length,
       createdAt: new Date().toISOString(),
     }
 
     return {
       base64Url,
-      mimeType,
+      mimeType: synthesizeResult.mimeType,
       metadata,
     }
   }
@@ -232,17 +222,5 @@ export class OpenaiAudioChatAdapter implements IOpenaiAudioChatAdapter {
     }
 
     return { usage, nextItems }
-  }
-
-  private getMimeType(format: AudioResponseFormat): string {
-    const mimeMap: Record<AudioResponseFormat, string> = {
-      mp3: 'audio/mpeg',
-      opus: 'audio/opus',
-      wav: 'audio/wav',
-      aac: 'audio/aac',
-      flac: 'audio/flac',
-      pcm: 'audio/pcm',
-    }
-    return mimeMap[format] ?? 'audio/mpeg'
   }
 }

@@ -7,10 +7,10 @@ import {
   IChatAdapterNextItemsRes,
   ILanguageModelUsage,
 } from '@/feature/chat-bot'
-import { Logger } from '@/core/logger'
 import { OpenAI } from 'openai'
 import { IMindsetTool } from '@/feature/mindset'
 import { singleton } from '@/core/injection'
+import { Logger } from '@/core/logger'
 
 @singleton()
 export class OpenaiChatAdapter implements IChatAdapter {
