@@ -7,6 +7,7 @@ import { WhatsAppByWasenderChannelConfig } from './WhatsAppByWasenderChannelConf
 import { WhatsAppReceiverByWasender } from './WhatsAppReceiverByWasender'
 import { WhatsAppSenderByWasender } from './WhatsAppSenderByWasender'
 import { IWhatsAppByWasenderChannelMessage } from './IWhatsAppByWasenderChannelMessage'
+import { whatsAppByWasenderChannelName } from './whatsAppByWasenderChannelName'
 
 @injectable()
 export class WhatsAppByWasenderChannel implements IChatChannel {
@@ -15,7 +16,7 @@ export class WhatsAppByWasenderChannel implements IChatChannel {
   private receiver: WhatsAppReceiverByWasender
   private phoneNumber: string
 
-  static channelName = 'WhatsAppByWasenderChannel'
+  static channelName = whatsAppByWasenderChannelName
 
   constructor(config: WhatsAppByWasenderChannelConfig, env: Env) {
     const apiKey = config.apiKey ?? env.requireString('WASENDER_API_KEY')
@@ -35,6 +36,7 @@ export class WhatsAppByWasenderChannel implements IChatChannel {
     this.receiver.listenMessage(async (message, from) => {
       try {
         await callback({
+          channel: whatsAppByWasenderChannelName,
           chatConnection: {
             chatType: 'PRIVATE',
             channelName: WhatsAppByWasenderChannel.channelName,
