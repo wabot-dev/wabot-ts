@@ -1,2 +1,5 @@
 export * from './@cmd'
 export * from './CmdChannel'
+export * from './cmdChannelName'
+export * from './ICmdReceivedMessage'
+export * from './ICmdChannelMessage'
