@@ -3,8 +3,10 @@ import {
   ChatRepository,
   container,
   Env,
+  Locker,
   OpenaiChatAdapter,
   PgChatRepository,
+  PgLocker,
   runChatControllers,
   WabotChatAdapter,
   WhatsAppReceiver,
@@ -19,6 +21,8 @@ const env = container.resolve(Env)
 
 // Set Database Url
 container.registerInstance(Pool, new Pool({ connectionString: env.requireString('DATABASE_URL') }))
+
+container.registerType(Locker, PgLocker)
 
 // Set Chat Adapter
 container.registerType(ChatAdapter, OpenaiChatAdapter)

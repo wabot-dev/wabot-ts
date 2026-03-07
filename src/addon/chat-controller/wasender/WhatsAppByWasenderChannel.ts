@@ -3,7 +3,6 @@ import type { IChatMessage } from '@/feature/chat-bot'
 import { injectable } from '@/core/injection'
 import { Env } from '@/core/env'
 import { Logger } from '@/core/logger'
-import { ExpressProvider } from '@/feature/express'
 import { WhatsAppByWasenderChannelConfig } from './WhatsAppByWasenderChannelConfig'
 import { WhatsAppReceiverByWasender } from './WhatsAppReceiverByWasender'
 import { WhatsAppSenderByWasender } from './WhatsAppSenderByWasender'
@@ -15,13 +14,13 @@ export class WhatsAppByWasenderChannel implements IChatChannel {
   private receiver: WhatsAppReceiverByWasender
   private phoneNumber: string
 
-  constructor(config: WhatsAppByWasenderChannelConfig, env: Env, expressProvider: ExpressProvider) {
+  constructor(config: WhatsAppByWasenderChannelConfig, env: Env) {
     const apiKey = config.apiKey ?? env.requireString('WASENDER_API_KEY')
     const webhookSecret = config.webhookSecret ?? env.requireString('WASENDER_WEBHOOK_SECRET')
     this.phoneNumber = config.phoneNumber ?? env.requireString('WASENDER_PHONE_NUMBER')
 
     this.sender = new WhatsAppSenderByWasender(apiKey, config.retryOptions)
-    this.receiver = new WhatsAppReceiverByWasender(expressProvider, {
+    this.receiver = new WhatsAppReceiverByWasender({
       apiKey,
       webhookSecret,
       webhookPath: config.webhookPath,

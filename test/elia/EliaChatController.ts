@@ -1,4 +1,4 @@
-import { chatBot, ChatBot, chatController, cmd, type IReceivedMessage } from '@'
+import { chatBot, ChatBot, chatController, cmd, whatsAppByWasender, type IReceivedMessage } from '@'
 
 import { EliaMindset } from './EliaMindset'
 
@@ -7,7 +7,7 @@ export class EliaChatController {
   constructor(@chatBot(EliaMindset) private eliaBot: ChatBot) {}
 
   @cmd()
-  //@whatsApp('573134336124')
+  @whatsAppByWasender()
   onMessage(context: IReceivedMessage) {
     const chatBot = this.eliaBot
     chatBot.sendMessage(context.message, async (response) => {
