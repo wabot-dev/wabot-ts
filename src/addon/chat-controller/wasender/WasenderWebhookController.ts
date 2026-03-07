@@ -1,14 +1,14 @@
 import { Logger } from '@/core/logger'
 import { onPost } from '@/feature/rest-controller/metadata'
 import type { Wasender, WebhookRequestAdapter } from 'wasenderapi'
-import type { IChatConnection } from '@/feature/chat-bot'
-import type { IChannelMessage } from '@/feature/chat-controller'
 import type { IWasenderEvent, IWasenderMessageReceivedData } from './IWasenderEvent'
 import { extractNumberFromWasenderMessageKey } from './extractNumberFromWasenderKey'
 import { IncomingMessage } from 'http'
+import { IWhatsAppByWasenderChatMessage } from './IWhatsAppByWasenderChatMessage'
 
 export type IWasenderChannelMessageListener = (
-  message: Omit<IChannelMessage, 'reply'>,
+  message: IWhatsAppByWasenderChatMessage,
+  from: string,
 ) => Promise<void>
 
 export class WasenderWebhookController {
@@ -38,31 +38,24 @@ export class WasenderWebhookController {
   }
 
   private async handleMessages(messages: IWasenderMessageReceivedData[]): Promise<void> {
-    if (!this.listener) {
-      this.logger.warn('No listener registered, ignoring messages')
-      return
-    }
-
     for (const message of messages) {
-      const from = extractNumberFromWasenderMessageKey(message.key)
+      const rawNumber = extractNumberFromWasenderMessageKey(message.key)
+      const from = rawNumber.startsWith('+') ? rawNumber : `+${rawNumber}`
 
       this.logger.trace(`new message from '${from}'`)
 
       if (message.message.conversation) {
-        const chatConnection: IChatConnection = {
-          chatType: 'PRIVATE',
-          channelName: 'WhatsAppByWasenderChannel',
-          id: from,
-        }
-
-        await this.listener({
-          chatConnection,
-          message: {
+        await this.listener(
+          {
             text: message.message.conversation,
             senderName: message.pushName,
             senderId: from,
+            metadata: {
+              whatsAppNumber: from,
+            },
           },
-        })
+          from,
+        )
       }
     }
   }

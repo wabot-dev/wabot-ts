@@ -1,4 +1,4 @@
-import { IChannelMessage, type IChatChannel } from '@/feature/chat-controller'
+import { type IChatChannel } from '@/feature/chat-controller'
 import type { IChatMessage } from '@/feature/chat-bot'
 import { injectable } from '@/core/injection'
 import { Env } from '@/core/env'
@@ -6,6 +6,7 @@ import { Logger } from '@/core/logger'
 import { WhatsAppByWasenderChannelConfig } from './WhatsAppByWasenderChannelConfig'
 import { WhatsAppReceiverByWasender } from './WhatsAppReceiverByWasender'
 import { WhatsAppSenderByWasender } from './WhatsAppSenderByWasender'
+import { IWhatsAppByWasenderChannelMessage } from './IWhatsAppByWasenderChannelMessage'
 
 @injectable()
 export class WhatsAppByWasenderChannel implements IChatChannel {
@@ -13,6 +14,8 @@ export class WhatsAppByWasenderChannel implements IChatChannel {
   private sender: WhatsAppSenderByWasender
   private receiver: WhatsAppReceiverByWasender
   private phoneNumber: string
+
+  static channelName = 'WhatsAppByWasenderChannel'
 
   constructor(config: WhatsAppByWasenderChannelConfig, env: Env) {
     const apiKey = config.apiKey ?? env.requireString('WASENDER_API_KEY')
@@ -28,16 +31,20 @@ export class WhatsAppByWasenderChannel implements IChatChannel {
     })
   }
 
-  listen(callback: (message: IChannelMessage) => Promise<void>): void {
-    this.receiver.listenMessage(async (message) => {
+  listen(callback: (message: IWhatsAppByWasenderChannelMessage) => Promise<void>): void {
+    this.receiver.listenMessage(async (message, from) => {
       try {
         await callback({
-          chatConnection: message.chatConnection,
-          message: message.message,
+          chatConnection: {
+            chatType: 'PRIVATE',
+            channelName: WhatsAppByWasenderChannel.channelName,
+            id: from,
+          },
+          message,
           reply: async (replyMessage: IChatMessage) => {
             await this.sender.send({
               from: this.phoneNumber,
-              to: message.chatConnection.id,
+              to: from,
               message: replyMessage,
             })
           },
