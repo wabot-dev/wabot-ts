@@ -23,9 +23,6 @@ export class JobRunner {
         throw new Error(`Not found handler for command '${commandName}'`)
       }
 
-      jobRunnerContainer.registerInstance(Job, job)
-      const handler = jobRunnerContainer.resolve(handlerConstructor)
-
       const commandConstructor = this.asyncMetadataStore.getCommandForCommandName(commandName)
       if (commandConstructor === undefined && commandData != undefined) {
         throw new Error(`Not found class for validate data of command '${commandName}'`)
@@ -33,6 +30,9 @@ export class JobRunner {
 
       job.setAsStarted()
       await this.jobRepository.update(job)
+
+      jobRunnerContainer.registerInstance(Job, job)
+      const handler = jobRunnerContainer.resolve(handlerConstructor)
 
       let command: any = undefined
 
