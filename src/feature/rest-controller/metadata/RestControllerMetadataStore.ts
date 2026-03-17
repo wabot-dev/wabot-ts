@@ -4,6 +4,18 @@ import { IConstructor } from '@/core/generics'
 import { IMiddlewareMetadata } from './IMiddlewareMetadata'
 import { singleton } from '@/core/injection'
 
+function getClassHierarchy(cls: Function): Function[] {
+  const classes: Function[] = []
+  let proto = Object.getPrototypeOf(cls.prototype)
+
+  while (proto && proto.constructor !== Object) {
+    classes.push(proto.constructor)
+    proto = Object.getPrototypeOf(proto)
+  }
+
+  return classes
+}
+
 @singleton()
 export class RestControllerMetadataStore {
   private endPoints = new Map<Function, Map<string, IEndPointMetadata>>()
@@ -43,18 +55,37 @@ export class RestControllerMetadataStore {
       throw new Error(`${controllerConstructor.name} should be decorated with @restController`)
     }
 
-    const endPoints = this.endPoints.get(controllerConstructor)
+    const hierarchy = [controllerConstructor, ...getClassHierarchy(controllerConstructor)]
+    const endPointsMap = new Map<string, IEndPointMetadata>()
 
-    if (!endPoints?.size) {
-      // TODO: Warning
+    for (const cls of [...hierarchy].reverse()) {
+      const classEndPoints = this.endPoints.get(cls)
+      if (classEndPoints) {
+        for (const [name, endPoint] of classEndPoints) {
+          endPointsMap.set(name, endPoint)
+        }
+      }
+    }
+
+    if (!endPointsMap.size) {
       return []
     }
 
-    return [...endPoints.values()].map((endPoint) => ({
-      ...endPoint,
-      middlewares:
-        this.middlewares.get(endPoint.controllerConstructor)?.get(endPoint.functionName) ?? [],
-      controller: this.restControllers.get(endPoint.controllerConstructor)!,
-    }))
+    return [...endPointsMap.values()].map((endPoint) => {
+      const middlewares: IMiddlewareMetadata[] = []
+      for (const cls of [...hierarchy].reverse()) {
+        const classMiddlewares = this.middlewares.get(cls)?.get(endPoint.functionName)
+        if (classMiddlewares) {
+          middlewares.push(...classMiddlewares)
+        }
+      }
+
+      return {
+        ...endPoint,
+        controllerConstructor,
+        middlewares,
+        controller,
+      }
+    })
   }
 }

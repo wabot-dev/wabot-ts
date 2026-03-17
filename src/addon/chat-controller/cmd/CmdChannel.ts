@@ -1,9 +1,11 @@
-import { IChannelMessage, type IChatChannel } from '@/feature/chat-controller'
+import { type IChatChannel } from '@/feature/chat-controller'
 
 import { injectable } from '@/core/injection'
 import { Logger } from '@/core/logger'
 
 import { type IChatConnection, type IChatMessage } from '@/feature/chat-bot'
+import { ICmdChannelMessage } from './ICmdChannelMessage'
+import { cmdChannelName } from './cmdChannelName'
 import * as readline from 'readline'
 
 import * as fs from 'fs'
@@ -23,11 +25,13 @@ export class CmdChannel implements IChatChannel {
     output: process.stdout,
   })
 
-  private callBack: ((message: IChannelMessage) => Promise<void>) | null = null
+  static channelName = cmdChannelName
+
+  private callBack: ((message: ICmdChannelMessage) => Promise<void>) | null = null
 
   constructor(private auth: Auth<any>) {}
 
-  listen(callback: (message: IChannelMessage) => Promise<void>): void {
+  listen(callback: (message: ICmdChannelMessage) => Promise<void>): void {
     this.callBack = callback
   }
 
@@ -61,7 +65,7 @@ export class CmdChannel implements IChatChannel {
       const chatConnection: IChatConnection = {
         id: this.chatId,
         chatType: 'PRIVATE',
-        channelName: CmdChannel.name,
+        channelName: CmdChannel.channelName,
       }
 
       if (!this.callBack) return
@@ -74,6 +78,7 @@ export class CmdChannel implements IChatChannel {
       }
 
       await this.callBack({
+        channel: cmdChannelName,
         chatConnection,
         message: {
           text: trimmedInput,

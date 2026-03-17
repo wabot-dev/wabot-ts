@@ -1,4 +1,5 @@
 import { IListenWhatsAppMessageRequest, WhatsAppReceiver } from '../WhatsAppReceiver'
+import { whatsAppChannelName } from '../whatsAppChannelName'
 
 import { injectable } from '@/core/injection'
 import { Logger } from '@/core/logger'
@@ -57,7 +58,7 @@ export class WhatsAppReceiverByWabotProxy extends WhatsAppReceiver {
         request.listener({
           chatConnection: {
             chatType: 'PRIVATE',
-            channelName: 'WhatsAppChannel',
+            channelName: whatsAppChannelName,
             id: data.from,
           },
           message: {

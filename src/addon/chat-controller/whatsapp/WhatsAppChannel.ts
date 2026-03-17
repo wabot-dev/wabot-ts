@@ -1,4 +1,4 @@
-import { IChannelMessage, type IChatChannel } from '@/feature/chat-controller'
+import { type IChatChannel } from '@/feature/chat-controller'
 import type { IChatMessage } from '@/feature/chat-bot'
 import { injectable } from '@/core/injection'
 
@@ -6,9 +6,13 @@ import { Logger } from '@/core/logger'
 import { WhatsappChannelConfig } from './WhatsAppChannelConfig'
 import { WhatsAppReceiver } from './WhatsAppReceiver'
 import { WhatsAppSender } from './WhatsAppSender'
+import { IWhatsAppChannelMessage } from './IWhatsAppChannelMessage'
+import { whatsAppChannelName } from './whatsAppChannelName'
 
 @injectable()
 export class WhatsAppChannel implements IChatChannel {
+  static channelName = whatsAppChannelName
+
   private logger = new Logger('wabot:whatsapp-channel')
 
   constructor(
@@ -17,12 +21,13 @@ export class WhatsAppChannel implements IChatChannel {
     private receiver: WhatsAppReceiver,
   ) {}
 
-  listen(callback: (message: IChannelMessage) => Promise<void>): void {
+  listen(callback: (message: IWhatsAppChannelMessage) => Promise<void>): void {
     this.receiver.listenMessage({
       to: this.config.number,
       listener: async (message) => {
         try {
           await callback({
+            channel: whatsAppChannelName,
             chatConnection: message.chatConnection,
             message: message.message,
             reply: async (replyMessage: IChatMessage) => {

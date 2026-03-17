@@ -1,5 +1,6 @@
 import { Logger } from '@/core/logger'
 import type { IChatConnection } from '@/feature/chat-bot'
+import { whatsAppChannelName } from '../whatsAppChannelName'
 import type {
   IWhatsAppCloudContact,
   IWhatsAppCloudMessage,
@@ -106,12 +107,10 @@ export class WhatsAppReceiverByCloudApi extends WhatsAppReceiver {
       return
     }
 
-    const channelName = 'WhatsAppChannel'
-
     const chatConnection: IChatConnection = {
       id: contact.wa_id,
       chatType: 'PRIVATE',
-      channelName,
+      channelName: whatsAppChannelName,
     }
 
     await listener({

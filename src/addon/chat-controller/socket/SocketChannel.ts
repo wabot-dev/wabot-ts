@@ -1,6 +1,8 @@
 import { IConstructor } from '@/core/generics'
 import { injectable } from '@/core/injection'
-import { IChannelMessage, type IChatChannel } from '@/feature/chat-controller'
+import { type IChatChannel } from '@/feature/chat-controller'
+import { ISocketChannelMessage } from './ISocketChannelMessage'
+import { socketChannelName } from './socketChannelName'
 import {
   handshakeMiddlewares,
   onSocketEvent,
@@ -34,7 +36,9 @@ export class SocketChannelReceivedMessage implements ISocketChannelReceivedMessa
 
 @injectable()
 export class SocketChannel implements IChatChannel {
-  private callBack: ((message: IChannelMessage) => Promise<void>) | null = null
+  static channelName = socketChannelName
+
+  private callBack: ((message: ISocketChannelMessage) => Promise<void>) | null = null
   private controller: IConstructor<any> | null = null
 
   constructor(private config: SocketChannelConfig) {
@@ -61,10 +65,11 @@ export class SocketChannel implements IChatChannel {
         const chatConnection = {
           id: message.chatId,
           chatType: 'PRIVATE' as const,
-          channelName: SocketChannel.name,
+          channelName: SocketChannel.channelName,
         }
 
         await channel.callBack({
+          channel: socketChannelName,
           chatConnection,
           message: {
             text: message.text,
@@ -83,7 +88,7 @@ export class SocketChannel implements IChatChannel {
     this.controller = SocketChannelController
   }
 
-  listen(callback: (message: IChannelMessage) => Promise<void>): void {
+  listen(callback: (message: ISocketChannelMessage) => Promise<void>): void {
     this.callBack = callback
   }
 

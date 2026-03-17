@@ -1,3 +1,6 @@
 export * from './@telegram'
 export * from './TelegramChannelConfig'
 export * from './TelegramChannel'
+export * from './telegramChannelName'
+export * from './ITelegramReceivedMessage'
+export * from './ITelegramChannelMessage'
