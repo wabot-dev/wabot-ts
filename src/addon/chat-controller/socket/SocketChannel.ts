@@ -31,7 +31,6 @@ export class SocketChannelReceivedMessage implements ISocketChannelReceivedMessa
   senderName?: string
 
   @isString()
-  @isNotEmpty()
   @isOptional()
   text?: string
 }
