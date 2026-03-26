@@ -1,6 +1,6 @@
 {
   "name": "@wabot-dev/framework",
-  "version": "0.5.10",
+  "version": "0.5.11",
   "description": "Framework for IA Chat Bots",
   "type": "module",
   "main": "dist/src/index.js",
@@ -33,7 +33,7 @@
     "@rollup/plugin-node-resolve": "16.0.1",
     "@rollup/plugin-typescript": "12.1.2",
     "prettier": "^3.5.3",
-    "rollup": "4.39.0",
+    "rollup": "^4.60.0",
     "tsup": "^8.4.0",
     "typescript": "5.8.3"
   },

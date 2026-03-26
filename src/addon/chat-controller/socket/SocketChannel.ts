@@ -11,13 +11,13 @@ import {
 } from '@/feature/socket-controller'
 import { Socket } from 'socket.io'
 import { SocketChannelConfig } from './SocketChannelConfig'
-import { isNotEmpty, isString } from '@/core/validation'
+import { isNotEmpty, isOptional, isString } from '@/core/validation'
 import { Auth } from '@/core/auth'
 
 export interface ISocketChannelReceivedMessage {
   chatId: string
-  senderName: string
-  text: string
+  senderName?: string
+  text?: string
 }
 
 export class SocketChannelReceivedMessage implements ISocketChannelReceivedMessage {
@@ -27,11 +27,13 @@ export class SocketChannelReceivedMessage implements ISocketChannelReceivedMessa
 
   @isString()
   @isNotEmpty()
-  senderName!: string
+  @isOptional()
+  senderName?: string
 
   @isString()
   @isNotEmpty()
-  text!: string
+  @isOptional()
+  text?: string
 }
 
 @injectable()
@@ -56,11 +58,6 @@ export class SocketChannel implements IChatChannel {
       @onSocketEvent('message')
       async onMessage(message: SocketChannelReceivedMessage, socket: Socket) {
         if (!channel.callBack) return
-
-        const trimmedInput = message.text.trim()
-        if (!trimmedInput) {
-          return
-        }
 
         const chatConnection = {
           id: message.chatId,
