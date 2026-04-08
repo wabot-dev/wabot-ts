@@ -1,13 +1,23 @@
-import { describe, test } from 'node:test'
 import assert from 'node:assert/strict'
+import { describe, test } from 'node:test'
 import { OpenaiAudioSpeechSynthesizer } from './OpenaiAudioSpeechSynthesizer'
-import { container } from '@/core/injection'
+
+process.env.OPENAI_API_KEY ??= 'test-key'
 
 describe('OpenaiAudioSpeechSynthesizer', () => {
-  const synthesizer = container.resolve(OpenaiAudioSpeechSynthesizer)
-
   describe('synthesize', () => {
-    test('should synthesize text to audio', async () => {
+    test('synthesizes mp3 audio', async () => {
+      const synthesizer = new OpenaiAudioSpeechSynthesizer()
+      ;(synthesizer as any).openai = {
+        audio: {
+          speech: {
+            create: async () => ({
+              arrayBuffer: async () => Uint8Array.from([1, 2, 3]).buffer,
+            }),
+          },
+        },
+      }
+
       const result = await synthesizer.synthesize({
         model: 'tts-1',
         voice: 'alloy',
@@ -15,13 +25,23 @@ describe('OpenaiAudioSpeechSynthesizer', () => {
         format: 'mp3',
       })
 
-      assert.ok(result.audio, 'Should return audio buffer')
-      assert.ok(result.audio.length > 0, 'Audio buffer should not be empty')
-      assert.equal(result.format, 'mp3', 'Format should be mp3')
-      assert.equal(result.mimeType, 'audio/mpeg', 'MIME type should be audio/mpeg')
+      assert.deepEqual([...result.audio], [1, 2, 3])
+      assert.equal(result.format, 'mp3')
+      assert.equal(result.mimeType, 'audio/mpeg')
     })
 
-    test('should support different formats', async () => {
+    test('synthesizes wav audio', async () => {
+      const synthesizer = new OpenaiAudioSpeechSynthesizer()
+      ;(synthesizer as any).openai = {
+        audio: {
+          speech: {
+            create: async () => ({
+              arrayBuffer: async () => Uint8Array.from([4, 5, 6]).buffer,
+            }),
+          },
+        },
+      }
+
       const result = await synthesizer.synthesize({
         model: 'tts-1',
         voice: 'alloy',
@@ -29,8 +49,33 @@ describe('OpenaiAudioSpeechSynthesizer', () => {
         format: 'wav',
       })
 
-      assert.equal(result.format, 'wav', 'Format should be wav')
-      assert.equal(result.mimeType, 'audio/wav', 'MIME type should be audio/wav')
+      assert.deepEqual([...result.audio], [4, 5, 6])
+      assert.equal(result.format, 'wav')
+      assert.equal(result.mimeType, 'audio/wav')
+    })
+
+    test('synthesizes opus audio', async () => {
+      const synthesizer = new OpenaiAudioSpeechSynthesizer()
+      ;(synthesizer as any).openai = {
+        audio: {
+          speech: {
+            create: async () => ({
+              arrayBuffer: async () => Uint8Array.from([7, 8, 9]).buffer,
+            }),
+          },
+        },
+      }
+
+      const result = await synthesizer.synthesize({
+        model: 'tts-1',
+        voice: 'alloy',
+        text: 'Testing Opus format',
+        format: 'opus',
+      })
+
+      assert.deepEqual([...result.audio], [7, 8, 9])
+      assert.equal(result.format, 'opus')
+      assert.equal(result.mimeType, 'audio/opus')
     })
   })
 })

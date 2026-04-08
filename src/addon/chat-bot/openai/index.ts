@@ -1,2 +1,5 @@
 export * from './OpenaiChatAdapter'
 export * from './OpenaiAudioChatAdapter'
+export * from './OpenaiAudioTranscriber'
+export * from './OpenaiAudioSpeechSynthesizer'
+export * from './OpenaiTtsConfig'

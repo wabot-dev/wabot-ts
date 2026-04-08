@@ -6,7 +6,6 @@ export interface IAudioSynthesizeReq {
   text: string
   format?: AudioResponseFormat
   speed?: number
-  instructions?: string
 }
 
 export interface IAudioSynthesizeRes {
