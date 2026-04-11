@@ -22,7 +22,9 @@ export class JobScheduler {
 
   start(commands: string[]) {
     commands.forEach((x) => this.commands.add(x))
-    this.logger.info(`Starting job handlers for commands ${commands.join(', ')}`)
+    for (const command of commands) {
+      this.logger.info(`config COMMAND ${command}`)
+    }
 
     if (this.commands.size > 0 && !this.running) {
       this.running = true

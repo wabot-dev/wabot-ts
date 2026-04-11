@@ -29,6 +29,10 @@ export class CronJob extends Entity<ICronJobData> {
     }
   }
 
+  get schedule() {
+    return this.data.cron
+  }
+
   get nextRunAt() {
     return this.data.nextRunAt ? new Date(this.data.nextRunAt) : null
   }

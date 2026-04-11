@@ -65,9 +65,9 @@ export class CronScheduler {
       const cronJobs = await Promise.all(
         configToReconciliate.map((x) => this.reconciliateConfig(x)),
       )
-      this.logger.info(
-        `Cron reconciliation succeeded for ${configToReconciliate.map((x) => x.name).join(', ')}`,
-      )
+      for (const cronJob of cronJobs) {
+        this.logger.info(`config CRON ${cronJob.name} ${cronJob.schedule}`)
+      }
       this.jobScheduler.start(cronJobs.map((x) => x.commandName))
       this.jobWatchdog.start(cronJobs.map((x) => x.commandName))
     } catch (e) {
@@ -145,7 +145,7 @@ export class CronScheduler {
       await this.cronRepo.update(fresh)
 
       this.logger.info(
-        `Cron ${fresh.id} spawned ${executions} job(s), next at ${fresh.nextRunAt!.toISOString()}`,
+        `Cron ${fresh.name} spawned ${executions} job(s), next at ${fresh.nextRunAt!.toISOString()}`,
       )
     })
   }
