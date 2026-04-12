@@ -1,5 +1,5 @@
 import { Entity, IEntityData } from '@/core/entity'
-import { CustomError } from '@/core/error'
+import { errorToPlainObject } from '@/core/error'
 
 export interface IJobData extends IEntityData {
   commandName: string
@@ -125,11 +125,12 @@ export class Job extends Entity<IJobData> {
 
     const now = new Date().getTime()
 
+    const { name: _name, message, stack, ...extra } = errorToPlainObject(error)
     this.data.error = {
       time: now,
-      message: error.message,
-      stack: error.stack,
-      info: error instanceof CustomError ? error.info : undefined,
+      message,
+      stack,
+      info: Object.keys(extra).length > 0 ? extra : undefined,
     }
 
     if (this.data.intentNumber == null) throw new Error('Invalid intent number')

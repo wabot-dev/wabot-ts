@@ -1,4 +1,5 @@
 import debug, { type Debugger } from 'debug'
+import { errorToPlainObject } from '@/core/error'
 import type { ErrorSeverity, IErrorMonitor } from './IErrorMonitor'
 
 type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal'
@@ -148,11 +149,7 @@ export class Logger {
   private formatArgs(args: any[]): any[] {
     return args.map((arg) => {
       if (arg instanceof Error) {
-        return JSON.stringify({
-          name: arg.name,
-          message: arg.message,
-          stack: arg.stack,
-        })
+        return JSON.stringify(errorToPlainObject(arg))
       }
 
       if (arg === null) {

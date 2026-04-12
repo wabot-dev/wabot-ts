@@ -1,4 +1,5 @@
 import { singleton } from '@/core/injection'
+import { CustomError } from '@/core/error'
 import { AsyncMetadataStore } from './AsyncMetadataStore'
 import { Job } from './Job'
 import { JobRepository } from './JobRepository'
@@ -41,7 +42,10 @@ export class Async {
     const { error, value: commandData } = validateAndTransform(data, ctor)
 
     if (error) {
-      throw new Error(`Validation failed: ${error.description}`)
+      throw new CustomError({
+        message: `Validation failed: ${error.description}`,
+        info: error,
+      })
     }
 
     const scheduledDate = this.resolveScheduledDate(scheduledAt)

@@ -2,6 +2,7 @@ import { AsyncMetadataStore } from './AsyncMetadataStore'
 import { JobRepository } from './JobRepository'
 import { Job } from './Job'
 import { container, singleton } from '@/core/injection'
+import { CustomError } from '@/core/error'
 import { Logger } from '@/core/logger'
 import { validateAndTransform } from '@/core/validation'
 
@@ -38,8 +39,11 @@ export class JobRunner {
 
       if (commandConstructor) {
         const validationResult = validateAndTransform(commandData, commandConstructor)
-        if (!validationResult.value) {
-          throw new Error('Invalid command data')
+        if (validationResult.error) {
+          throw new CustomError({
+            message: `Invalid command data: ${validationResult.error.description}`,
+            info: validationResult.error,
+          })
         }
         command = validationResult.value
       }

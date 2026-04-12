@@ -1,4 +1,4 @@
-import { CustomError } from '@/core/error'
+import { CustomError, errorToPlainObject } from '@/core/error'
 import { IConstructor } from '@/core/generics'
 import { container } from '@/core/injection'
 import { Logger } from '@/core/logger'
@@ -87,17 +87,10 @@ export function runRestControllers(controllers: IConstructor<any>[]) {
         } catch (err) {
           logger.error(`${method.toUpperCase()} ${route} failed`, err)
           if (err instanceof Error) {
-            const keys = Object.keys(err).filter((key) => !['message', 'stack'].includes(key))
-            const { httpCode, ...info } = keys.reduce(
-              (acc, key) => {
-                acc[key] = (err as any)[key]
-                return acc
-              },
-              {} as { [key: string]: any },
-            )
+            const { name: _name, stack, httpCode, ...info } = errorToPlainObject(err)
             res
               .status(httpCode ?? 500)
-              .json(removeCircular({ error: { message: err.message, stack: err.stack, ...info } }))
+              .json(removeCircular({ error: { message: err.message, stack, ...info } }))
           } else {
             res.status(500).json({ error: { message: 'Unknown error' } })
           }

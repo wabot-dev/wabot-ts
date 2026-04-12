@@ -1,4 +1,4 @@
-import { CustomError } from '@/core/error'
+import { CustomError, errorToPlainObject } from '@/core/error'
 import { IConstructor } from '@/core/generics'
 import { container, DependencyContainer } from '@/core/injection'
 import { Logger } from '@/core/logger'
@@ -91,16 +91,9 @@ export function runSocketControllers(controllers: IConstructor<any>[]) {
       } catch (err) {
         logger.error(`Event '${event.config.event}' on '${namespace}' failed`, err)
         if (err instanceof Error) {
-          const keys = Object.keys(err).filter((key) => !['message', 'stack'].includes(key))
-          const { httpCode, ...info } = keys.reduce(
-            (acc, key) => {
-              acc[key] = (err as any)[key]
-              return acc
-            },
-            {} as { [key: string]: any },
-          )
+          const { name: _name, httpCode: _httpCode, ...info } = errorToPlainObject(err)
           if (typeof callback === 'function') {
-            callback({ error: { ...info, message: err.message, stack: err.stack } })
+            callback({ error: info })
           }
         } else {
           if (typeof callback === 'function') {

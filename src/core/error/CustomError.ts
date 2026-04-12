@@ -21,3 +21,13 @@ export class CustomError extends Error {
     this.info = data.info
   }
 }
+
+export function errorToPlainObject(error: Error): Record<string, any> {
+  const { name, message, stack } = error
+  const extra: Record<string, any> = {}
+  for (const key of Object.keys(error)) {
+    if (key === 'message' || key === 'stack') continue
+    extra[key] = (error as any)[key]
+  }
+  return { name, message, stack, ...extra }
+}
