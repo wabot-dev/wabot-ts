@@ -120,8 +120,6 @@ export class Job extends Entity<IJobData> {
   setAsFailed(error: Error) {
     if (this.hasFinished())
       throw new Error(`job ${this.id} Can't be set as failed because has be finished previously`)
-    if (!this.isRunning())
-      throw new Error(`job ${this.id} can't be set as failed because is no running`)
 
     const now = new Date().getTime()
 
@@ -133,14 +131,13 @@ export class Job extends Entity<IJobData> {
       info: Object.keys(extra).length > 0 ? extra : undefined,
     }
 
-    if (this.data.intentNumber == null) throw new Error('Invalid intent number')
-    const currentReintentDelay = (this.data.reintentsDelaysInSeconds ?? []).at(
-      this.data.intentNumber,
-    )
+    const intentNumber = this.data.intentNumber ?? 0
+    const currentReintentDelay = (this.data.reintentsDelaysInSeconds ?? []).at(intentNumber)
 
     if (currentReintentDelay == null) {
       this.data.failedAt = now
     } else {
+      this.data.intentNumber = intentNumber + 1
       this.data.scheduledAt = now + currentReintentDelay * 1000
       this.data.startedAt = undefined
     }
