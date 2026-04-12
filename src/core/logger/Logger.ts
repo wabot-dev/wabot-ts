@@ -1,5 +1,5 @@
 import debug, { type Debugger } from 'debug'
-import { errorToPlainObject } from '@/core/error'
+import { errorToPlainObject } from '@/core/error/CustomError'
 import type { ErrorSeverity, IErrorMonitor } from './IErrorMonitor'
 
 type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal'
