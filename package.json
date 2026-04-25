@@ -68,5 +68,5 @@
     "uuid": "^11.1.0",
     "wasenderapi": "^0.1.5",
     "@openrouter/sdk": "^0.12.2"
-  },
+  }
 }
