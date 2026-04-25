@@ -41,6 +41,7 @@ const config: RollupOptions = {
     'jsonwebtoken',
     '@google/genai',
     'big.js',
+    '@openrouter/sdk',
   ],
   output: {
     dir: 'dist/src',
