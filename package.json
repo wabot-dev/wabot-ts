@@ -67,8 +67,5 @@
     "tsyringe": "^4.9.1",
     "uuid": "^11.1.0",
     "wasenderapi": "^0.1.5"
-  },
-  "dependencies": {
-    "@openrouter/sdk": "^0.12.2"
   }
 }
