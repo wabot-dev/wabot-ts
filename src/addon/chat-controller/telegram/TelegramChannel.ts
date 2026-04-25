@@ -33,6 +33,7 @@ export class TelegramChannel implements IChatChannel {
         channel: telegramChannelName,
         chatConnection,
         message: {
+          senderId: ctx.from.id.toString(),
           senderName: ctx.from.first_name,
           text: ctx.message.text,
         },
