@@ -58,11 +58,12 @@ jobs:
         run: |
           VERSION_TO_PUBLISH=${{ needs.check-versions.outputs.pushedVersion }}
 
+          npm install -g npm@latest
           npm ci
           npm run build
 
           if [[ "$VERSION_TO_PUBLISH" == *"beta"* ]]; then
-            npm publish --access=public --tag beta --provenance
+            npm publish --access=public --tag beta
           else
-            npm publish --access=public --provenance
+            npm publish --access=public
           fi
