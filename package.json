@@ -1,6 +1,6 @@
 {
   "name": "@wabot-dev/framework",
-  "version": "0.5.15",
+  "version": "0.6.0",
   "description": "Framework for IA Chat Bots",
   "type": "module",
   "main": "dist/src/index.js",
@@ -40,6 +40,7 @@
   "peerDependencies": {
     "@anthropic-ai/sdk": "^0.60.0",
     "@google/genai": "^1.16.0",
+    "@openrouter/sdk": "^0.12.2",
     "@types/big.js": "^6.2.2",
     "@types/debug": "^4.1.12",
     "@types/express": "^5.0.1",
@@ -60,13 +61,12 @@
     "openai": "^6.10.0",
     "pg": "^8.15.6",
     "reflect-metadata": "^0.2.2",
-    "short-uuid": "^5.2.0",
+    "short-uuid": "^6.0.3",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
     "tslib": "^2.8.1",
     "tsyringe": "^4.9.1",
-    "uuid": "^11.1.0",
-    "wasenderapi": "^0.1.5",
-    "@openrouter/sdk": "^0.12.2"
+    "uuid": "^14.0.0",
+    "wasenderapi": "^0.1.5"
   }
 }
