@@ -4,10 +4,12 @@ import { type IMindset, type IMindsetIdentity, IMindsetLlm, Mindset } from './IM
 import { MindsetMetadataStore } from './metadata/MindsetMetadataStore'
 import { IMindsetTool } from './IMindsetTool'
 import { validateModel } from '@/core/validation'
-import { CustomError } from '@/core/error'
+import { CustomError, errorToPlainObject } from '@/core/error'
+import { Logger } from '@/core/logger'
 
 @injectable()
 export class MindsetOperator implements IMindset {
+  private logger = new Logger('wabot:mindset-operator')
   private metadata: ReturnType<MindsetMetadataStore['getMindsetInfo']>
 
   constructor(
@@ -161,7 +163,13 @@ export class MindsetOperator implements IMindset {
       }
       return await this.functionResponseToString(response)
     } catch (error) {
-      return await this.functionErrorToString(error)
+      const aiResponse = await this.functionErrorToString(error)
+      if (error instanceof Error) {
+        this.logger.error(`Function '${name}' threw an exception`, error, { aiResponse })
+      } else {
+        this.logger.error(`Function '${name}' threw a non-Error value`, { error, aiResponse })
+      }
+      return aiResponse
     }
   }
 
@@ -206,6 +214,11 @@ export class MindsetOperator implements IMindset {
         httpCode: status,
         body: typeof data === 'object' ? data : { message: data?.toString?.() || 'Unknown error' },
       })
+    }
+
+    if (error instanceof Error) {
+      const { stack: _stack, ...plain } = errorToPlainObject(error)
+      return JSON.stringify(plain)
     }
 
     if (error?.message) {
