@@ -7,11 +7,21 @@ import {
   IChatAdapterNextItemsRes,
   ILanguageModelUsage,
   extractChatMessageText,
+  isChatMessageEmpty,
 } from '@/feature/chat-bot'
 import { Logger } from '@/core/logger'
 import { OpenAI } from 'openai'
 import { IMindsetTool } from '@/feature/mindset'
 import { singleton } from '@/core/injection'
+
+const OPENAI_SUPPORTED_IMAGE_MIME_TYPES = [
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/gif',
+] as const
+
+const OPENAI_SUPPORTED_DOCUMENT_MIME_TYPES = ['application/pdf'] as const
 
 @singleton()
 export class OpenaiChatAdapter implements IChatAdapter {
@@ -53,10 +63,20 @@ export class OpenaiChatAdapter implements IChatAdapter {
   }
 
   private mapConectionMessage(item: IChatMessage) {
+    if (isChatMessageEmpty(item)) {
+      throw new Error('User message content is empty')
+    }
     const content: OpenAI.Responses.ResponseInputContent[] = []
-    if (item.text) content.push({ type: 'input_text', text: extractChatMessageText(item) })
+    content.push({
+      type: 'input_text',
+      text: extractChatMessageText(item, {
+        supportedImageMimeTypes: OPENAI_SUPPORTED_IMAGE_MIME_TYPES,
+        supportedDocumentMimeTypes: OPENAI_SUPPORTED_DOCUMENT_MIME_TYPES,
+      }),
+    })
     if (item.images) {
       for (const image of item.images) {
+        if (!OPENAI_SUPPORTED_IMAGE_MIME_TYPES.includes(image.mimeType as never)) continue
         content.push({
           type: 'input_image',
           image_url: image.publicUrl ?? image.base64Url,
@@ -64,11 +84,20 @@ export class OpenaiChatAdapter implements IChatAdapter {
         })
       }
     }
-
-    if (content.length === 0) {
-      throw new Error('message content is empty')
+    if (item.documents) {
+      for (const doc of item.documents) {
+        if (!OPENAI_SUPPORTED_DOCUMENT_MIME_TYPES.includes(doc.mimeType as never)) continue
+        if (doc.publicUrl) {
+          content.push({ type: 'input_file', file_url: doc.publicUrl })
+        } else {
+          content.push({
+            type: 'input_file',
+            file_data: doc.base64Url,
+            filename: doc.name ?? `${doc.id}.pdf`,
+          })
+        }
+      }
     }
-
     return { role: 'user', content } as const
   }
 

@@ -8,6 +8,6 @@ describe('OpenRouterChatAdapter', () => {
 
   testChatAdapter({
     adapter,
-    model: 'openai/gpt-4o-mini',
+    model: 'openrouter/free',
   })
 })

@@ -212,7 +212,123 @@ export function testChatAdapter({ adapter, model }: ItestChatAdapterReq) {
                 id: 'image1',
                 mimeType: 'image/png',
                 base64Url:
-                  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA AAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO 9TXL0Y4OHwAAAABJRU5ErkJggg==',
+                  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==',
+              },
+            ],
+          },
+        },
+      ],
+    })
+
+    assert(Array.isArray(nextItems), 'nextItems is not array')
+    assert(nextItems.length === 1, 'nexItems length should be 1')
+    assert(nextItems[0].type === 'botMessage', 'next item should have botMessage type')
+  })
+
+  test('consume public document', async () => {
+    const { nextItems } = await adapter.nextItems({
+      model,
+      tools: [],
+      systemPrompt: 'Act as a Bot',
+      prevItems: [
+        {
+          type: 'humanMessage',
+          humanMessage: {
+            documents: [
+              {
+                id: 'doc1',
+                mimeType: 'application/pdf',
+                publicUrl:
+                  'https://mozilla.github.io/pdf.js/web/compressed.tracemonkey-pldi-09.pdf',
+              },
+            ],
+          },
+        },
+      ],
+    })
+
+    assert(Array.isArray(nextItems), 'nextItems is not array')
+    assert(nextItems.length === 1, 'nexItems length should be 1')
+    assert(nextItems[0].type === 'botMessage', 'next item should have botMessage type')
+  })
+
+  test('consume private document', async () => {
+    const { nextItems } = await adapter.nextItems({
+      model,
+      tools: [],
+      systemPrompt: 'Act as a Bot',
+      prevItems: [
+        {
+          type: 'humanMessage',
+          humanMessage: {
+            documents: [
+              {
+                id: 'doc1',
+                mimeType: 'application/pdf',
+                base64Url:
+                  'data:application/pdf;base64,JVBERi0xLjEKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZy9QYWdlcyAyIDAgUj4+ZW5kb2JqCjIgMCBvYmo8PC9UeXBlL1BhZ2VzL0tpZHNbMyAwIFJdL0NvdW50IDE+PmVuZG9iagozIDAgb2JqPDwvVHlwZS9QYWdlL1BhcmVudCAyIDAgUi9NZWRpYUJveFswIDAgMjAwIDIwMF0vUmVzb3VyY2VzPDwvRm9udDw8L0YxPDwvVHlwZS9Gb250L1N1YnR5cGUvVHlwZTEvQmFzZUZvbnQvSGVsdmV0aWNhPj4+Pj4+L0NvbnRlbnRzIDQgMCBSPj5lbmRvYmoKNCAwIG9iajw8L0xlbmd0aCA0ND4+c3RyZWFtCkJUIC9GMSAxMiBUZiA1MCAxMDAgVGQgKEhlbGxvIFdvcmxkKSBUaiBFVAplbmRzdHJlYW0gZW5kb2JqCnhyZWYKMCA1CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAwOSAwMDAwMCBuIAowMDAwMDAwMDUzIDAwMDAwIG4gCjAwMDAwMDAwOTggMDAwMDAgbiAKMDAwMDAwMDIyOCAwMDAwMCBuIAp0cmFpbGVyPDwvU2l6ZSA1L1Jvb3QgMSAwIFI+PgpzdGFydHhyZWYKMzIwCiUlRU9GCg==',
+              },
+            ],
+          },
+        },
+      ],
+    })
+
+    assert(Array.isArray(nextItems), 'nextItems is not array')
+    assert(nextItems.length === 1, 'nexItems length should be 1')
+    assert(nextItems[0].type === 'botMessage', 'next item should have botMessage type')
+  })
+
+  test('throws when human message has no content', async () => {
+    const responsePromise = adapter.nextItems({
+      model,
+      tools: [],
+      systemPrompt: 'Act as a Bot',
+      prevItems: [
+        {
+          type: 'humanMessage',
+          humanMessage: {},
+        },
+      ],
+    })
+    await assert.rejects(responsePromise)
+  })
+
+  test('consume object-only human message', async () => {
+    const { nextItems } = await adapter.nextItems({
+      model,
+      tools: [],
+      systemPrompt: 'Act as a Bot',
+      prevItems: [
+        {
+          type: 'humanMessage',
+          humanMessage: {
+            object: { user: 'Jorge', country: 'Colombia' },
+          },
+        },
+      ],
+    })
+
+    assert(Array.isArray(nextItems), 'nextItems is not array')
+    assert(nextItems.length === 1, 'nexItems length should be 1')
+    assert(nextItems[0].type === 'botMessage', 'next item should have botMessage type')
+  })
+
+  test('skips unsupported image format without crashing', async () => {
+    const { nextItems } = await adapter.nextItems({
+      model,
+      tools: [],
+      systemPrompt: 'Act as a Bot',
+      prevItems: [
+        {
+          type: 'humanMessage',
+          humanMessage: {
+            text: 'Describe what I sent',
+            images: [
+              {
+                id: 'image1',
+                mimeType: 'image/bmp',
+                publicUrl: 'https://example.com/sample.bmp',
               },
             ],
           },

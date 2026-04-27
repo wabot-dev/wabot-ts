@@ -8,6 +8,7 @@ import {
   IChatMessage,
   IFunctionCall,
   ILanguageModelUsage,
+  isChatMessageEmpty,
 } from '@/feature/chat-bot'
 import { IMindsetTool } from '@/feature/mindset'
 import { OpenAI } from 'openai'
@@ -71,10 +72,16 @@ export class DeepSeekChatAdapter implements IChatAdapter {
   }
 
   private mapHumanMessage(item: IChatMessage) {
-    if (!item.text) {
+    if (isChatMessageEmpty(item)) {
       throw new Error('User message content is empty')
     }
-    return { role: 'user', content: extractChatMessageText(item) } as const
+    return {
+      role: 'user',
+      content: extractChatMessageText(item, {
+        supportedImageMimeTypes: [],
+        supportedDocumentMimeTypes: [],
+      }),
+    } as const
   }
 
   private mapBotMessage(item: IChatMessage) {

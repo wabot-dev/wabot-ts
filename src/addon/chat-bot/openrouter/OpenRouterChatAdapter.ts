@@ -10,10 +10,20 @@ import {
   IChatMessage,
   IFunctionCall,
   ILanguageModelUsage,
+  isChatMessageEmpty,
 } from '@/feature/chat-bot'
 import { IMindsetTool } from '@/feature/mindset'
 import { OpenRouter } from '@openrouter/sdk'
 import type { ChatResult } from '@openrouter/sdk/models'
+
+const OPENROUTER_SUPPORTED_IMAGE_MIME_TYPES = [
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/gif',
+] as const
+
+const OPENROUTER_SUPPORTED_DOCUMENT_MIME_TYPES = ['application/pdf'] as const
 
 @singleton()
 export class OpenRouterChatAdapter implements IChatAdapter {
@@ -70,21 +80,30 @@ export class OpenRouterChatAdapter implements IChatAdapter {
   }
 
   private mapHumanMessage(item: IChatMessage) {
-    const contentParts: string[] = []
-    if (item.text) contentParts.push(extractChatMessageText(item))
-    if (item.images) {
-      for (const image of item.images) {
-        const imageUrl = image.publicUrl ?? image.base64Url
-        if (imageUrl) {
-          contentParts.push(imageUrl)
-        }
-      }
-    }
-
-    if (contentParts.length === 0) {
+    if (isChatMessageEmpty(item)) {
       throw new Error('User message content is empty')
     }
-
+    const contentParts: string[] = []
+    contentParts.push(
+      extractChatMessageText(item, {
+        supportedImageMimeTypes: OPENROUTER_SUPPORTED_IMAGE_MIME_TYPES,
+        supportedDocumentMimeTypes: OPENROUTER_SUPPORTED_DOCUMENT_MIME_TYPES,
+      }),
+    )
+    if (item.images) {
+      for (const image of item.images) {
+        if (!OPENROUTER_SUPPORTED_IMAGE_MIME_TYPES.includes(image.mimeType as never)) continue
+        const imageUrl = image.publicUrl ?? image.base64Url
+        if (imageUrl) contentParts.push(imageUrl)
+      }
+    }
+    if (item.documents) {
+      for (const doc of item.documents) {
+        if (!OPENROUTER_SUPPORTED_DOCUMENT_MIME_TYPES.includes(doc.mimeType as never)) continue
+        const docUrl = doc.publicUrl ?? doc.base64Url
+        if (docUrl) contentParts.push(docUrl)
+      }
+    }
     return { role: 'user', content: contentParts.join('\n') } as const
   }
 

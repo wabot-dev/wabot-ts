@@ -8,12 +8,24 @@ import {
   IChatAdapterNextItemsRes,
   IChatItem,
   IChatMessage,
+  IChatMessageDocument,
+  IChatMessageImage,
   IFunctionCall,
   ILanguageModelUsage,
+  isChatMessageEmpty,
   safeJsonParse,
 } from '@/feature/chat-bot'
 import { IMindsetTool } from '@/feature/mindset'
 import { Anthropic } from '@anthropic-ai/sdk'
+
+const ANTHROPIC_SUPPORTED_IMAGE_MIME_TYPES = [
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+] as const
+
+const ANTHROPIC_SUPPORTED_DOCUMENT_MIME_TYPES = ['application/pdf', 'text/plain'] as const
 
 @singleton()
 export class AnthropicChatAdapter implements IChatAdapter {
@@ -67,11 +79,64 @@ export class AnthropicChatAdapter implements IChatAdapter {
     return messages
   }
 
-  private mapHumanMessage(item: IChatMessage) {
-    if (!item.text) {
+  private mapHumanMessage(item: IChatMessage): Anthropic.Messages.MessageParam {
+    if (isChatMessageEmpty(item)) {
       throw new Error('User message content is empty')
     }
-    return { role: 'user', content: item.text } as const
+    const blocks: Anthropic.Messages.ContentBlockParam[] = []
+    blocks.push({
+      type: 'text',
+      text: extractChatMessageText(item, {
+        supportedImageMimeTypes: ANTHROPIC_SUPPORTED_IMAGE_MIME_TYPES,
+        supportedDocumentMimeTypes: ANTHROPIC_SUPPORTED_DOCUMENT_MIME_TYPES,
+      }),
+    })
+    if (item.images) {
+      for (const image of item.images) {
+        if (!ANTHROPIC_SUPPORTED_IMAGE_MIME_TYPES.includes(image.mimeType as never)) continue
+        blocks.push({ type: 'image', source: this.toAnthropicImageSource(image) })
+      }
+    }
+    if (item.documents) {
+      for (const doc of item.documents) {
+        if (!ANTHROPIC_SUPPORTED_DOCUMENT_MIME_TYPES.includes(doc.mimeType as never)) continue
+        blocks.push({ type: 'document', source: this.toAnthropicDocumentSource(doc) })
+      }
+    }
+    return { role: 'user', content: blocks }
+  }
+
+  private toAnthropicImageSource(
+    image: IChatMessageImage,
+  ): Anthropic.Messages.ImageBlockParam['source'] {
+    if (image.publicUrl) {
+      return { type: 'url', url: image.publicUrl }
+    }
+    return {
+      type: 'base64',
+      media_type: image.mimeType as Anthropic.Messages.Base64ImageSource['media_type'],
+      data: stripDataUrlPrefix(image.base64Url!),
+    }
+  }
+
+  private toAnthropicDocumentSource(
+    doc: IChatMessageDocument,
+  ): Anthropic.Messages.DocumentBlockParam['source'] {
+    if (doc.publicUrl) {
+      return { type: 'url', url: doc.publicUrl }
+    }
+    if (doc.mimeType === 'text/plain') {
+      return {
+        type: 'text',
+        media_type: 'text/plain',
+        data: Buffer.from(stripDataUrlPrefix(doc.base64Url!), 'base64').toString('utf-8'),
+      }
+    }
+    return {
+      type: 'base64',
+      media_type: 'application/pdf',
+      data: stripDataUrlPrefix(doc.base64Url!),
+    }
   }
 
   private mapBotMessage(item: IChatMessage) {
@@ -155,4 +220,9 @@ export class AnthropicChatAdapter implements IChatAdapter {
 
     return { usage, nextItems }
   }
+}
+
+function stripDataUrlPrefix(dataUrl: string): string {
+  const commaIndex = dataUrl.indexOf(',')
+  return commaIndex >= 0 && dataUrl.startsWith('data:') ? dataUrl.slice(commaIndex + 1) : dataUrl
 }

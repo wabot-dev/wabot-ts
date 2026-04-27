@@ -9,12 +9,33 @@ import {
   IChatAdapterNextItemsRes,
   IChatItem,
   IChatMessage,
+  IChatMessageFile,
   IFunctionCall,
   ILanguageModelUsage,
+  isChatMessageEmpty,
   safeJsonParse,
 } from '@/feature/chat-bot'
 import { IMindsetTool } from '@/feature/mindset'
-import { Content, FunctionDeclaration, GenerateContentResponse, GoogleGenAI } from '@google/genai'
+import { Content, FunctionDeclaration, GenerateContentResponse, GoogleGenAI, Part } from '@google/genai'
+
+const GOOGLE_SUPPORTED_IMAGE_MIME_TYPES = [
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+] as const
+
+const GOOGLE_SUPPORTED_DOCUMENT_MIME_TYPES = [
+  'application/pdf',
+  'text/plain',
+  'text/csv',
+  'text/html',
+  'text/markdown',
+  'text/xml',
+  'text/rtf',
+  'application/json',
+] as const
 
 export interface GoogleChatAdapterV2Options {
   apiKey?: string
@@ -64,10 +85,38 @@ export class GoogleChatAdapter implements IChatAdapter {
   }
 
   private mapHumanMessage(item: IChatMessage): Content {
-    if (!item.text) {
+    if (isChatMessageEmpty(item)) {
       throw new Error('User message content is empty')
     }
-    return { role: 'user', parts: [{ text: item.text }] }
+    const parts: Part[] = []
+    parts.push({
+      text: extractChatMessageText(item, {
+        supportedImageMimeTypes: GOOGLE_SUPPORTED_IMAGE_MIME_TYPES,
+        supportedDocumentMimeTypes: GOOGLE_SUPPORTED_DOCUMENT_MIME_TYPES,
+      }),
+    })
+    if (item.images) {
+      for (const image of item.images) {
+        if (!GOOGLE_SUPPORTED_IMAGE_MIME_TYPES.includes(image.mimeType as never)) continue
+        parts.push(this.toGoogleFilePart(image))
+      }
+    }
+    if (item.documents) {
+      for (const doc of item.documents) {
+        if (!GOOGLE_SUPPORTED_DOCUMENT_MIME_TYPES.includes(doc.mimeType as never)) continue
+        parts.push(this.toGoogleFilePart(doc))
+      }
+    }
+    return { role: 'user', parts }
+  }
+
+  private toGoogleFilePart(file: IChatMessageFile): Part {
+    if (file.publicUrl) {
+      return { fileData: { fileUri: file.publicUrl, mimeType: file.mimeType } }
+    }
+    return {
+      inlineData: { data: stripDataUrlPrefix(file.base64Url!), mimeType: file.mimeType },
+    }
   }
 
   private mapBotMessage(item: IChatMessage): Content {
@@ -172,4 +221,9 @@ export class GoogleChatAdapter implements IChatAdapter {
 
     return { usage, nextItems }
   }
+}
+
+function stripDataUrlPrefix(dataUrl: string): string {
+  const commaIndex = dataUrl.indexOf(',')
+  return commaIndex >= 0 && dataUrl.startsWith('data:') ? dataUrl.slice(commaIndex + 1) : dataUrl
 }
