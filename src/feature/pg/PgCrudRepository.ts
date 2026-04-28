@@ -1,5 +1,5 @@
 import { Pool } from 'pg'
-import * as shortUUID from 'short-uuid'
+import { generate as generateShortUuid } from 'short-uuid'
 
 import { Entity, IEntityData } from '@/core/entity'
 import { ICrudRepository } from '@/core/repository'
@@ -68,7 +68,7 @@ export class PgCrudRepository<P extends Entity<IEntityData>>
       throw new Error('Item already created')
     }
 
-    item['data'].id = shortUUID.default.generate()
+    item['data'].id = generateShortUuid()
     item['data'].createdAt = new Date().getTime()
     item.validate()
 
