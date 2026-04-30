@@ -2,7 +2,13 @@ import { v4 as uuidv4 } from 'uuid'
 
 import { RamChatMemory } from './RamChatMemory'
 import { singleton } from '@/core/injection'
-import type { Chat, IChatConnection, IChatMemory, IChatRepository } from '@/feature/chat-bot'
+import {
+  ChatOperator,
+  type Chat,
+  type IChatConnection,
+  type IChatMemory,
+  type IChatRepository,
+} from '@/feature/chat-bot'
 
 interface IRamChatMemory {
   chatId: string
@@ -49,6 +55,14 @@ export class RamChatRepository implements IChatRepository {
       return Promise.resolve(null)
     }
     return Promise.resolve(memory.memory)
+  }
+
+  async findOperator(chatId: string): Promise<ChatOperator | null> {
+    const chat = this.items.find((item) => item.id === chatId) ?? null
+    if (!chat) return null
+    const memory = this.getMemory(chatId)
+    if (!memory) return null
+    return new ChatOperator(chat, memory.memory, this)
   }
 
   private getMemory(chatId: string): IRamChatMemory | null {

@@ -1,17 +1,15 @@
-import { injectable } from '@/core/injection'
 import { Chat, IChatAssociation } from './Chat'
 import { ChatItem } from './ChatItem'
-import { ChatMemory } from './ChatMemory'
-import { ChatRepository } from './ChatRepository'
 import { IChatConnection } from './IChatConnection'
+import { IChatMemory } from './IChatMemory'
 import { IChatMessage } from './IChatMessage'
+import { IChatRepository } from './IChatRepository'
 
-@injectable()
-export class ChatOperations {
+export class ChatOperator {
   constructor(
     private chat: Chat,
-    private memory: ChatMemory,
-    private repository: ChatRepository,
+    private memory: IChatMemory,
+    private repository: IChatRepository,
   ) {}
 
   async saveHumanMessage(message: IChatMessage): Promise<ChatItem> {

@@ -3,7 +3,13 @@ import { Pool } from 'pg'
 import { PgChatMemory } from './PgChatMemory'
 import { singleton } from '@/core/injection'
 import { PgCrudRepository } from '@/feature/pg'
-import { Chat, IChatConnection, IChatMemory, IChatRepository } from '@/feature/chat-bot'
+import {
+  Chat,
+  ChatOperator,
+  IChatConnection,
+  IChatMemory,
+  IChatRepository,
+} from '@/feature/chat-bot'
 
 @singleton()
 export class PgChatRepository extends PgCrudRepository<Chat> implements IChatRepository {
@@ -18,7 +24,7 @@ export class PgChatRepository extends PgCrudRepository<Chat> implements IChatRep
   async findByConnection(query: IChatConnection): Promise<Chat | null> {
     const sql = `
       SELECT ${this.columns}
-      FROM ${this.table} 
+      FROM ${this.table}
       WHERE data->'connections' @> $1::jsonb
       LIMIT 1
     `
@@ -28,5 +34,12 @@ export class PgChatRepository extends PgCrudRepository<Chat> implements IChatRep
 
   async findMemory(chatId: string): Promise<IChatMemory | null> {
     return new PgChatMemory(this.pool, chatId)
+  }
+
+  async findOperator(chatId: string): Promise<ChatOperator | null> {
+    const chat = await this.find(chatId)
+    if (!chat) return null
+    const memory = new PgChatMemory(this.pool, chatId)
+    return new ChatOperator(chat, memory, this)
   }
 }
