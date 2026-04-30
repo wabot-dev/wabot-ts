@@ -54,8 +54,22 @@ export class Chat extends Entity<IChatData> {
     this.data.connections.push(connection)
   }
 
-  hasAssociation(type: string, id: string) {
-    return this.data.associations?.some((a) => a.type === type && a.id === id) ?? false
+  removeConnection(connection: IChatConnection) {
+    const index = this.data.connections.findIndex(
+      (c) => c.channelName === connection.channelName && c.id === connection.id,
+    )
+    if (index === -1) {
+      throw new Error('Connection does not exist')
+    }
+    this.data.connections.splice(index, 1)
+  }
+
+  hasAssociation(association: IChatAssociation) {
+    return this.data.associations?.some((a) => a.type === association.type && a.id === association.id) ?? false
+  }
+
+  hasAssociations(type: string) {
+    return this.data.associations?.some((a) => a.type === type) ?? false
   }
 
   getAssociationsByType(type: string) {
@@ -63,11 +77,24 @@ export class Chat extends Entity<IChatData> {
   }
 
   addAssociation(association: IChatAssociation) {
-    if (this.hasAssociation(association.type, association.id)) {
+    if (this.hasAssociation(association)) {
       throw new Error('Association already exists')
     }
     if (!this.data.associations) this.data.associations = []
     this.data.associations.push(association)
+  }
+
+  removeAssociation(association: IChatAssociation) {
+    if (!this.data.associations) {
+      throw new Error('Association does not exist')
+    }
+    const index = this.data.associations.findIndex(
+      (a) => a.type === association.type && a.id === association.id,
+    )
+    if (index === -1) {
+      throw new Error('Association does not exist')
+    }
+    this.data.associations.splice(index, 1)
   }
 
   private validatePrivateChat() {
