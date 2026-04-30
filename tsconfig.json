@@ -5,17 +5,15 @@
     "target": "ES2022",
     "moduleResolution": "Bundler",
     "esModuleInterop": true,
-    "downlevelIteration": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": false,
     "skipLibCheck": true,
-    "baseUrl": ".",
-    "ignoreDeprecations": "5.0",
+    "ignoreDeprecations": "6.0",
     "paths": {
-      "@/*": ["src/*"],
-      "@": ["src"]
+      "@/*": ["./src/*"],
+      "@": ["./src"]
     }
   },
   "include": ["src", "test", "rollup.config.ts"]

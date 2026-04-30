@@ -1,6 +1,6 @@
 {
   "name": "@wabot-dev/framework",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Framework for IA Chat Bots",
   "type": "module",
   "main": "dist/src/index.js",
@@ -35,7 +35,7 @@
     "prettier": "^3.5.3",
     "rollup": "^4.60.0",
     "tsup": "^8.4.0",
-    "typescript": "5.8.3"
+    "typescript": "^6.0.3"
   },
   "peerDependencies": {
     "@anthropic-ai/sdk": "^0.60.0",

@@ -8,6 +8,7 @@ export class EliaChatController {
   constructor(@chatBot(EliaMindset) private eliaBot: ChatBot) {}
 
   @whatsAppByWasender()
+  @cmd()
   onMessage(context: IWhatsAppByWasenderReceivedMessage) {
     const whatsAppNumber = context.message.metadata.whatsAppNumber
 
