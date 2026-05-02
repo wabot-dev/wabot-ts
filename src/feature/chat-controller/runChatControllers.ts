@@ -61,6 +61,7 @@ export function runChatControllers(controllers: IConstructor<any>[]) {
     }
     for (const channelMetadata of chatControllerMetadata.channels) {
       const channelContainer = container.createChildContainer()
+      channelContainer.register(Container, { useValue: channelContainer })
       if (channelMetadata.channelConfig) {
         channelContainer.register(channelMetadata.channelConfig.constructor as any, {
           useValue: channelMetadata.channelConfig,

@@ -1,6 +1,6 @@
 import { CustomError, errorToPlainObject } from '@/core/error'
 import { IConstructor } from '@/core/generics'
-import { container } from '@/core/injection'
+import { container, Container } from '@/core/injection'
 import { Logger } from '@/core/logger'
 import { validateModel, ValidationMetadataStore } from '@/core/validation'
 import { ExpressProvider } from '@/feature/express'
@@ -40,6 +40,7 @@ export function runRestControllers(controllers: IConstructor<any>[]) {
       }
       expressApp[method](route, ...rawMiddlewares, async (req, res) => {
         const requestContainer = container.createChildContainer()
+        requestContainer.register(Container, { useValue: requestContainer })
         requestContainer.register(EXPRESS_REQ, { useValue: req })
         requestContainer.register(EXPRESS_RES, { useValue: req })
         try {

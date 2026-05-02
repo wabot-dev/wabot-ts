@@ -1,6 +1,6 @@
 import { CustomError, errorToPlainObject } from '@/core/error'
 import { IConstructor } from '@/core/generics'
-import { container, DependencyContainer } from '@/core/injection'
+import { container, Container, DependencyContainer } from '@/core/injection'
 import { Logger } from '@/core/logger'
 import { validateAndTransform } from '@/core/validation'
 import { Socket } from 'socket.io'
@@ -24,6 +24,7 @@ export function runSocketControllers(controllers: IConstructor<any>[]) {
 
     namespaceServer.use(async (socket, next) => {
       const connectionContainer = container.createChildContainer()
+      connectionContainer.register(Container, { useValue: connectionContainer })
       try {
         const middlewares =
           controllerInfo.handShakeMiddlewares?.map((x) =>
