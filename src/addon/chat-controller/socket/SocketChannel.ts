@@ -11,13 +11,49 @@ import {
 } from '@/feature/socket-controller'
 import { Socket } from 'socket.io'
 import { SocketChannelConfig } from './SocketChannelConfig'
-import { isNotEmpty, isOptional, isString } from '@/core/validation'
+import {
+  isArray,
+  isModel,
+  isNotEmpty,
+  isOptional,
+  isRecord,
+  isString,
+} from '@/core/validation'
 import { Auth } from '@/core/auth'
+import type { IChatMessageDocument, IChatMessageImage } from '@/feature/chat-bot'
+
+export class SocketChannelMessageFile {
+  @isString()
+  @isNotEmpty()
+  id!: string
+
+  @isString()
+  @isNotEmpty()
+  mimeType!: string
+
+  @isString()
+  @isNotEmpty()
+  @isOptional()
+  name?: string
+
+  @isString()
+  @isNotEmpty()
+  @isOptional()
+  publicUrl?: string
+
+  @isString()
+  @isNotEmpty()
+  @isOptional()
+  base64Url?: string
+}
 
 export interface ISocketChannelReceivedMessage {
   chatId: string
   senderName?: string
   text?: string
+  metadata?: Record<string, string>
+  images?: SocketChannelMessageFile[]
+  documents?: SocketChannelMessageFile[]
 }
 
 export class SocketChannelReceivedMessage implements ISocketChannelReceivedMessage {
@@ -33,6 +69,42 @@ export class SocketChannelReceivedMessage implements ISocketChannelReceivedMessa
   @isString()
   @isOptional()
   text?: string
+
+  @isRecord('string', 'string')
+  @isOptional()
+  metadata?: Record<string, string>
+
+  @isArray()
+  @isModel(SocketChannelMessageFile)
+  @isOptional()
+  images?: SocketChannelMessageFile[]
+
+  @isArray()
+  @isModel(SocketChannelMessageFile)
+  @isOptional()
+  documents?: SocketChannelMessageFile[]
+}
+
+function toChatFile(
+  file: SocketChannelMessageFile,
+): IChatMessageImage | IChatMessageDocument | null {
+  if (file.publicUrl) {
+    return {
+      id: file.id,
+      mimeType: file.mimeType,
+      name: file.name,
+      publicUrl: file.publicUrl,
+    }
+  }
+  if (file.base64Url) {
+    return {
+      id: file.id,
+      mimeType: file.mimeType,
+      name: file.name,
+      base64Url: file.base64Url,
+    }
+  }
+  return null
 }
 
 @injectable()
@@ -64,12 +136,20 @@ export class SocketChannel implements IChatChannel {
           channelName: SocketChannel.channelName,
         }
 
+        const images = message.images?.map(toChatFile).filter((x): x is IChatMessageImage => !!x)
+        const documents = message.documents
+          ?.map(toChatFile)
+          .filter((x): x is IChatMessageDocument => !!x)
+
         await channel.callBack({
           channel: socketChannelName,
           chatConnection,
           message: {
             text: message.text,
             senderName: message.senderName,
+            metadata: message.metadata,
+            images: images && images.length > 0 ? images : undefined,
+            documents: documents && documents.length > 0 ? documents : undefined,
           },
           reply: async (message) => {
             socket.emit('message', message)
