@@ -1,6 +1,6 @@
 {
   "name": "@wabot-dev/framework",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Framework for IA Chat Bots",
   "type": "module",
   "main": "dist/src/index.js",
@@ -12,6 +12,31 @@
     "url": "https://github.com/wabot-dev/wabot-ts"
   },
   "homepage": "https://docs.wabot.dev",
+  "keywords": [
+    "chatbot",
+    "ai",
+    "llm",
+    "typescript",
+    "framework",
+    "telegram",
+    "whatsapp",
+    "wasender",
+    "socket.io",
+    "openai",
+    "gpt",
+    "anthropic",
+    "claude",
+    "google-genai",
+    "gemini",
+    "openrouter",
+    "rest-api",
+    "dependency-injection",
+    "async-jobs",
+    "cron",
+    "messaging-platforms",
+    "bot-framework",
+    "conversational-ai"
+  ],
   "files": [
     "dist/src",
     "LICENSE.md"
