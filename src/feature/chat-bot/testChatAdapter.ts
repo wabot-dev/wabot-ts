@@ -50,6 +50,20 @@ export function testChatAdapter({ adapter, model }: ItestChatAdapterReq) {
     assert(typeof usage.outputTokens === 'number', 'outputTokens should be number')
     assert(usage.inputTokens > 0, 'inputTokens should be positive')
     assert(usage.outputTokens > 0, 'outputTokens should be positive')
+    assert(typeof usage.provider === 'string' && usage.provider.length > 0, 'usage.provider should be a non-empty string')
+    assert(typeof usage.model === 'string' && usage.model.length > 0, 'usage.model should be a non-empty string')
+    if (usage.cacheReadTokens !== undefined) {
+      assert(typeof usage.cacheReadTokens === 'number', 'cacheReadTokens should be a number when present')
+      assert(usage.cacheReadTokens >= 0, 'cacheReadTokens should be non-negative')
+    }
+    if (usage.cacheWriteTokens !== undefined) {
+      assert(typeof usage.cacheWriteTokens === 'number', 'cacheWriteTokens should be a number when present')
+      assert(usage.cacheWriteTokens >= 0, 'cacheWriteTokens should be non-negative')
+    }
+    if (usage.costUsd !== undefined) {
+      assert(typeof usage.costUsd === 'number', 'costUsd should be a number when present')
+      assert(usage.costUsd >= 0, 'costUsd should be non-negative')
+    }
   })
 
   test('throws when the request is invalid', async () => {
