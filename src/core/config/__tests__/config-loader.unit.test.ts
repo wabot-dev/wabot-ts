@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { str, num, bool, obj, resolveConfigReferences } from '../index'
+import { str, num, bool, obj, strArr, numArr, boolArr, resolveConfigReferences } from '../index'
 
 test.describe('ConfigLoader', () => {
   const originalEnv = { ...process.env }
@@ -208,6 +208,101 @@ test.describe('ConfigLoader', () => {
       process.env.TELEGRAM_TOKEN = ''
       const config = { token: str`telegram.token` }
       assert.throws(() => resolveConfigReferences(config), /Config not found/)
+    })
+  })
+
+  test.describe('strArr - String array tag function', () => {
+    test('should parse CSV from env', () => {
+      process.env.TAGS = 'foo,bar,baz'
+      const config = { tags: strArr`tags` }
+      const resolved = resolveConfigReferences(config)
+      assert.deepEqual(resolved.tags, ['foo', 'bar', 'baz'])
+    })
+
+    test('should trim whitespace and drop empty CSV items', () => {
+      process.env.TAGS = ' foo ,, bar ,  '
+      const config = { tags: strArr`tags` }
+      const resolved = resolveConfigReferences(config)
+      assert.deepEqual(resolved.tags, ['foo', 'bar'])
+    })
+
+    test('should parse JSON array from env', () => {
+      process.env.TAGS = '["foo","bar with, comma","baz"]'
+      const config = { tags: strArr`tags` }
+      const resolved = resolveConfigReferences(config)
+      assert.deepEqual(resolved.tags, ['foo', 'bar with, comma', 'baz'])
+    })
+
+    test('should use CSV default', () => {
+      delete process.env.TAGS
+      const config = { tags: strArr`tags:foo,bar` }
+      const resolved = resolveConfigReferences(config)
+      assert.deepEqual(resolved.tags, ['foo', 'bar'])
+    })
+
+    test('should use JSON default', () => {
+      delete process.env.TAGS
+      const config = { tags: strArr`tags:["a","b","c"]` }
+      const resolved = resolveConfigReferences(config)
+      assert.deepEqual(resolved.tags, ['a', 'b', 'c'])
+    })
+
+    test('should throw if JSON value is not an array', () => {
+      process.env.TAGS = '{"not":"array"}'
+      const config = { tags: strArr`tags` }
+      assert.throws(() => resolveConfigReferences(config), /Cannot coerce|Expected JSON array/)
+    })
+  })
+
+  test.describe('numArr - Number array tag function', () => {
+    test('should parse and coerce CSV numbers', () => {
+      process.env.PORTS = '80,443,8080'
+      const config = { ports: numArr`ports` }
+      const resolved = resolveConfigReferences(config)
+      assert.deepEqual(resolved.ports, [80, 443, 8080])
+    })
+
+    test('should parse and coerce JSON numbers', () => {
+      process.env.PORTS = '[80,443,8080]'
+      const config = { ports: numArr`ports` }
+      const resolved = resolveConfigReferences(config)
+      assert.deepEqual(resolved.ports, [80, 443, 8080])
+    })
+
+    test('should throw on non-numeric CSV item', () => {
+      process.env.PORTS = '80,not-a-number,8080'
+      const config = { ports: numArr`ports` }
+      assert.throws(() => resolveConfigReferences(config), /Cannot coerce/)
+    })
+
+    test('should use CSV default', () => {
+      delete process.env.PORTS
+      const config = { ports: numArr`ports:80,443` }
+      const resolved = resolveConfigReferences(config)
+      assert.deepEqual(resolved.ports, [80, 443])
+    })
+  })
+
+  test.describe('boolArr - Boolean array tag function', () => {
+    test('should parse CSV booleans', () => {
+      process.env.FLAGS = 'true,false,1,0,yes,no'
+      const config = { flags: boolArr`flags` }
+      const resolved = resolveConfigReferences(config)
+      assert.deepEqual(resolved.flags, [true, false, true, false, true, false])
+    })
+
+    test('should parse JSON booleans', () => {
+      process.env.FLAGS = '[true,false,true]'
+      const config = { flags: boolArr`flags` }
+      const resolved = resolveConfigReferences(config)
+      assert.deepEqual(resolved.flags, [true, false, true])
+    })
+
+    test('should use default', () => {
+      delete process.env.FLAGS
+      const config = { flags: boolArr`flags:true,false` }
+      const resolved = resolveConfigReferences(config)
+      assert.deepEqual(resolved.flags, [true, false])
     })
   })
 

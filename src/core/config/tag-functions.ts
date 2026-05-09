@@ -42,3 +42,15 @@ export function bool(strings: TemplateStringsArray): ConfigReference {
 export function obj(strings: TemplateStringsArray): ConfigReference {
   return createConfigReference('object', strings)
 }
+
+export function strArr(strings: TemplateStringsArray): ConfigReference {
+  return createConfigReference('string-array', strings)
+}
+
+export function numArr(strings: TemplateStringsArray): ConfigReference {
+  return createConfigReference('number-array', strings)
+}
+
+export function boolArr(strings: TemplateStringsArray): ConfigReference {
+  return createConfigReference('boolean-array', strings)
+}

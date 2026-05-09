@@ -47,6 +47,35 @@ export class ConfigResolver {
         } catch {
           throw new Error(`Cannot coerce "${value}" to object (invalid JSON)`)
         }
+
+      case 'string-array':
+      case 'number-array':
+      case 'boolean-array': {
+        const items = this.parseArrayItems(value)
+        const itemType =
+          type === 'string-array' ? 'string' : type === 'number-array' ? 'number' : 'boolean'
+        return items.map((item) => this.coerce(item, itemType))
+      }
     }
+  }
+
+  private static parseArrayItems(value: string): string[] {
+    const trimmed = value.trim()
+    if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+      let parsed: unknown
+      try {
+        parsed = JSON.parse(trimmed)
+      } catch {
+        throw new Error(`Cannot coerce "${value}" to array (invalid JSON)`)
+      }
+      if (!Array.isArray(parsed)) {
+        throw new Error(`Expected JSON array but got ${typeof parsed}: "${value}"`)
+      }
+      return parsed.map((item) => String(item))
+    }
+    return value
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0)
   }
 }
