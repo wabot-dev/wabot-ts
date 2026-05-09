@@ -11,6 +11,7 @@ import {
   IFunctionCall,
   ILanguageModelUsage,
   isChatMessageEmpty,
+  isRetryableError,
 } from '@/feature/chat-bot'
 import { IMindsetTool } from '@/feature/mindset'
 import { OpenAI } from 'openai'
@@ -45,14 +46,26 @@ export class DeepSeekChatAdapter implements IChatAdapter {
 
     const tools = req.tools.map((x) => this.mapTool(x))
 
-    const response = await this.deepSeek.chat.completions.create({
-      model: req.models[0].model,
-      messages: deepSeekInput,
-      tools,
-      tool_choice: 'auto',
-    })
-
-    return this.mapResponse(response)
+    let lastError: unknown
+    for (const ref of req.models) {
+      try {
+        const response = await this.deepSeek.chat.completions.create({
+          model: ref.model,
+          messages: deepSeekInput,
+          tools,
+          tool_choice: 'auto',
+        })
+        return this.mapResponse(response, ref.model)
+      } catch (err) {
+        if (!isRetryableError(err)) throw err
+        this.logger.warn(
+          `DeepSeek model '${ref.model}' failed with retryable error, trying next`,
+          err instanceof Error ? { message: err.message } : { err },
+        )
+        lastError = err
+      }
+    }
+    throw lastError ?? new Error('No DeepSeek model could handle the request')
   }
 
   private mapChatItems(chatItems: IChatItem[]): OpenAI.Chat.ChatCompletionMessageParam[] {
@@ -141,7 +154,10 @@ export class DeepSeekChatAdapter implements IChatAdapter {
     } as const
   }
 
-  private mapResponse(response: OpenAI.Chat.ChatCompletion): IChatAdapterNextItemsRes {
+  private mapResponse(
+    response: OpenAI.Chat.ChatCompletion,
+    modelName: string,
+  ): IChatAdapterNextItemsRes {
     let chatItem: IChatItem
 
     const { tool_calls: responseFunctionCall, content: responseText } =
@@ -164,9 +180,16 @@ export class DeepSeekChatAdapter implements IChatAdapter {
 
     let usage: ILanguageModelUsage
     if (response.usage) {
+      // DeepSeek exposes prompt_cache_hit_tokens (not in OpenAI SDK types)
+      const cacheRead =
+        (response.usage as unknown as { prompt_cache_hit_tokens?: number })
+          .prompt_cache_hit_tokens ?? 0
       usage = {
         inputTokens: response.usage.prompt_tokens,
         outputTokens: response.usage.completion_tokens,
+        cacheReadTokens: cacheRead || undefined,
+        provider: 'deepseek',
+        model: response.model ?? modelName,
       }
     } else {
       throw new Error('Unable to found usage info')

@@ -14,6 +14,7 @@ import {
   IFunctionCall,
   ILanguageModelUsage,
   isChatMessageEmpty,
+  isRetryableError,
   safeJsonParse,
 } from '@/feature/chat-bot'
 import { IMindsetTool } from '@/feature/mindset'
@@ -59,13 +60,25 @@ export class GoogleChatAdapter implements IChatAdapter {
 
     const functionDeclarations = req.tools.map((x) => this.mapTool(x))
 
-    const response = await this.ai.models.generateContent({
-      model: req.models[0].model,
-      contents,
-      config: { tools: [{ functionDeclarations }] },
-    })
-
-    return this.mapResponse(response)
+    let lastError: unknown
+    for (const ref of req.models) {
+      try {
+        const response = await this.ai.models.generateContent({
+          model: ref.model,
+          contents,
+          config: { tools: [{ functionDeclarations }] },
+        })
+        return this.mapResponse(response, ref.model)
+      } catch (err) {
+        if (!isRetryableError(err)) throw err
+        this.logger.warn(
+          `Google model '${ref.model}' failed with retryable error, trying next`,
+          err instanceof Error ? { message: err.message } : { err },
+        )
+        lastError = err
+      }
+    }
+    throw lastError ?? new Error('No Google model could handle the request')
   }
 
   private mapChatItems(chatItems: IChatItem[]): Content[] {
@@ -176,7 +189,10 @@ export class GoogleChatAdapter implements IChatAdapter {
     }
   }
 
-  private mapResponse(response: GenerateContentResponse): IChatAdapterNextItemsRes {
+  private mapResponse(
+    response: GenerateContentResponse,
+    modelName: string,
+  ): IChatAdapterNextItemsRes {
     if (!response.candidates || !response.candidates.length) {
       throw new Error('No candidates in response')
     }
@@ -216,9 +232,13 @@ export class GoogleChatAdapter implements IChatAdapter {
       }
     }
 
+    const cachedTokens = response.usageMetadata.cachedContentTokenCount ?? 0
     let usage: ILanguageModelUsage = {
       inputTokens: response.usageMetadata.promptTokenCount,
       outputTokens: response.usageMetadata.candidatesTokenCount,
+      cacheReadTokens: cachedTokens || undefined,
+      provider: 'google',
+      model: response.modelVersion ?? modelName,
     }
 
     return { usage, nextItems }

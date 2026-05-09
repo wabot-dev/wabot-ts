@@ -3,6 +3,7 @@ import { Logger } from '@/core/logger'
 import { IMindsetModelRef } from '@/feature/mindset'
 import { ChatAdapterRegistry } from './ChatAdapterRegistry'
 import { IChatAdapter, IChatAdapterNextItemsReq, IChatAdapterNextItemsRes } from './IChatAdapter'
+import { isRetryableError } from './isRetryableError'
 
 interface IProviderGroup {
   provider: string
@@ -37,8 +38,11 @@ export class UnionChatAdapter implements IChatAdapter {
       try {
         return await adapter.nextItems({ ...req, models: group.entries })
       } catch (err) {
+        if (!isRetryableError(err)) {
+          throw err
+        }
         this.logger.warn(
-          `Adapter for provider '${group.provider}' failed, trying next group`,
+          `Adapter for provider '${group.provider}' failed with retryable error, trying next group`,
           err instanceof Error ? { message: err.message } : { err },
         )
         lastError = err
