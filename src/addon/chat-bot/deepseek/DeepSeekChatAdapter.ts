@@ -1,5 +1,7 @@
+import { singleton } from '@/core/injection'
 import { Logger } from '@/core/logger'
 import {
+  chatAdapter,
   extractChatMessageText,
   IChatAdapter,
   IChatAdapterNextItemsReq,
@@ -13,6 +15,8 @@ import {
 import { IMindsetTool } from '@/feature/mindset'
 import { OpenAI } from 'openai'
 
+@chatAdapter({ provider: 'deepseek' })
+@singleton()
 export class DeepSeekChatAdapter implements IChatAdapter {
   private deepSeek: OpenAI
   private logger = new Logger('wabot:deepseek-chat-adapter')
@@ -42,7 +46,7 @@ export class DeepSeekChatAdapter implements IChatAdapter {
     const tools = req.tools.map((x) => this.mapTool(x))
 
     const response = await this.deepSeek.chat.completions.create({
-      model: req.model,
+      model: req.models[0].model,
       messages: deepSeekInput,
       tools,
       tool_choice: 'auto',

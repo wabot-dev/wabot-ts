@@ -1,5 +1,5 @@
 import { IChatAdapter, IFunctionCall } from '@/feature/chat-bot'
-import { IMindsetTool } from '@/feature/mindset'
+import { IMindsetModelRef, IMindsetTool } from '@/feature/mindset'
 import assert from 'node:assert'
 import { test } from 'node:test'
 
@@ -9,9 +9,10 @@ export interface ItestChatAdapterReq {
 }
 
 export function testChatAdapter({ adapter, model }: ItestChatAdapterReq) {
+  const models: IMindsetModelRef[] = [{ model }]
   test('bot responds to human message', async () => {
     const { nextItems } = await adapter.nextItems({
-      model,
+      models,
       tools: [],
       systemPrompt: 'Act as a Bot',
       prevItems: [
@@ -31,7 +32,7 @@ export function testChatAdapter({ adapter, model }: ItestChatAdapterReq) {
 
   test('response include usage', async () => {
     const { usage } = await adapter.nextItems({
-      model,
+      models,
       tools: [],
       systemPrompt: 'Act as a Bot',
       prevItems: [
@@ -53,7 +54,7 @@ export function testChatAdapter({ adapter, model }: ItestChatAdapterReq) {
 
   test('throws when the request is invalid', async () => {
     const responsePromise = adapter.nextItems({
-      model,
+      models,
       tools: [],
       systemPrompt: 'Act as a Bot',
       prevItems: [
@@ -86,7 +87,7 @@ export function testChatAdapter({ adapter, model }: ItestChatAdapterReq) {
     ]
 
     const { nextItems } = await adapter.nextItems({
-      model,
+      models,
       tools,
       systemPrompt: 'Act as a Bot',
       prevItems: [
@@ -144,7 +145,7 @@ export function testChatAdapter({ adapter, model }: ItestChatAdapterReq) {
     ]
 
     const { nextItems } = await adapter.nextItems({
-      model,
+      models,
       tools,
       systemPrompt: 'Act as a Bot',
       prevItems: [
@@ -173,7 +174,7 @@ export function testChatAdapter({ adapter, model }: ItestChatAdapterReq) {
 
   test('consume public image', async () => {
     const { nextItems } = await adapter.nextItems({
-      model,
+      models,
       tools: [],
       systemPrompt: 'Act as a Bot',
       prevItems: [
@@ -200,7 +201,7 @@ export function testChatAdapter({ adapter, model }: ItestChatAdapterReq) {
 
   test('consume private image', async () => {
     const { nextItems } = await adapter.nextItems({
-      model,
+      models,
       tools: [],
       systemPrompt: 'Act as a Bot',
       prevItems: [
@@ -227,7 +228,7 @@ export function testChatAdapter({ adapter, model }: ItestChatAdapterReq) {
 
   test('consume public document', async () => {
     const { nextItems } = await adapter.nextItems({
-      model,
+      models,
       tools: [],
       systemPrompt: 'Act as a Bot',
       prevItems: [
@@ -254,7 +255,7 @@ export function testChatAdapter({ adapter, model }: ItestChatAdapterReq) {
 
   test('consume private document', async () => {
     const { nextItems } = await adapter.nextItems({
-      model,
+      models,
       tools: [],
       systemPrompt: 'Act as a Bot',
       prevItems: [
@@ -281,7 +282,7 @@ export function testChatAdapter({ adapter, model }: ItestChatAdapterReq) {
 
   test('throws when human message has no content', async () => {
     const responsePromise = adapter.nextItems({
-      model,
+      models,
       tools: [],
       systemPrompt: 'Act as a Bot',
       prevItems: [
@@ -296,7 +297,7 @@ export function testChatAdapter({ adapter, model }: ItestChatAdapterReq) {
 
   test('consume object-only human message', async () => {
     const { nextItems } = await adapter.nextItems({
-      model,
+      models,
       tools: [],
       systemPrompt: 'Act as a Bot',
       prevItems: [
@@ -316,7 +317,7 @@ export function testChatAdapter({ adapter, model }: ItestChatAdapterReq) {
 
   test('skips unsupported image format without crashing', async () => {
     const { nextItems } = await adapter.nextItems({
-      model,
+      models,
       tools: [],
       systemPrompt: 'Act as a Bot',
       prevItems: [

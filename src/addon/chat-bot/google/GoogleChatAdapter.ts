@@ -3,6 +3,7 @@ import { singleton } from '@/core/injection'
 import { Logger } from '@/core/logger'
 import { Random } from '@/core/random'
 import {
+  chatAdapter,
   extractChatMessageText,
   IChatAdapter,
   IChatAdapterNextItemsReq,
@@ -41,6 +42,7 @@ export interface GoogleChatAdapterV2Options {
   apiKey?: string
 }
 
+@chatAdapter({ provider: 'google' })
 @singleton()
 export class GoogleChatAdapter implements IChatAdapter {
   private ai: GoogleGenAI
@@ -58,7 +60,7 @@ export class GoogleChatAdapter implements IChatAdapter {
     const functionDeclarations = req.tools.map((x) => this.mapTool(x))
 
     const response = await this.ai.models.generateContent({
-      model: req.model,
+      model: req.models[0].model,
       contents,
       config: { tools: [{ functionDeclarations }] },
     })

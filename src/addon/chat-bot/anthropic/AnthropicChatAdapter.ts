@@ -2,6 +2,7 @@ import { Env } from '@/core/env'
 import { singleton } from '@/core/injection'
 import { Logger } from '@/core/logger'
 import {
+  chatAdapter,
   extractChatMessageText,
   IChatAdapter,
   IChatAdapterNextItemsReq,
@@ -27,6 +28,7 @@ const ANTHROPIC_SUPPORTED_IMAGE_MIME_TYPES = [
 
 const ANTHROPIC_SUPPORTED_DOCUMENT_MIME_TYPES = ['application/pdf', 'text/plain'] as const
 
+@chatAdapter({ provider: 'anthropic' })
 @singleton()
 export class AnthropicChatAdapter implements IChatAdapter {
   private anthropic: Anthropic
@@ -43,7 +45,7 @@ export class AnthropicChatAdapter implements IChatAdapter {
     const messages = this.mapChatItems(req.prevItems)
 
     const request = {
-      model: req.model,
+      model: req.models[0].model,
       max_tokens: 4096,
       system: req.systemPrompt,
       messages,

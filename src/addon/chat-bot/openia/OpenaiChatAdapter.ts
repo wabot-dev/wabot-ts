@@ -1,4 +1,5 @@
 import {
+  chatAdapter,
   IChatAdapter,
   IChatAdapterNextItemsReq,
   IFunctionCall,
@@ -23,6 +24,7 @@ const OPENAI_SUPPORTED_IMAGE_MIME_TYPES = [
 
 const OPENAI_SUPPORTED_DOCUMENT_MIME_TYPES = ['application/pdf'] as const
 
+@chatAdapter({ provider: 'openai' })
 @singleton()
 export class OpenaiChatAdapter implements IChatAdapter {
   private openai = new OpenAI()
@@ -36,7 +38,7 @@ export class OpenaiChatAdapter implements IChatAdapter {
     const tools = req.tools.map((x) => this.mapTool(x))
 
     const response = await this.openai.responses.create({
-      model: req.model,
+      model: req.models[0].model,
       input: openIaInput,
       tools,
     })

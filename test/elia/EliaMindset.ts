@@ -35,16 +35,15 @@ export class EliaMindset implements IMindset {
     return ''
   }
 
-  async llms() {
-    return [
-      // {
-      //   provider: 'anthropic',
-      //   model: 'claude-3-5-haiku-20241022',
-      // },
-      {
-        provider: 'openai',
-        model: 'gpt-4.1',
-      },
-    ]
+  async models() {
+    return {
+      llm: [
+        { provider: 'openai', model: 'gpt-4.1' },
+        // fallback: same provider, smaller model
+        { provider: 'openai', model: 'gpt-4o' },
+        // fallback: different provider
+        { provider: 'anthropic', model: 'claude-3-5-haiku-20241022' },
+      ],
+    }
   }
 }

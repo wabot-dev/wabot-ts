@@ -2,6 +2,7 @@ import { Env } from '@/core/env'
 import { singleton } from '@/core/injection'
 import { Logger } from '@/core/logger'
 import {
+  chatAdapter,
   extractChatMessageText,
   IChatAdapter,
   IChatAdapterNextItemsReq,
@@ -25,6 +26,7 @@ const OPENROUTER_SUPPORTED_IMAGE_MIME_TYPES = [
 
 const OPENROUTER_SUPPORTED_DOCUMENT_MIME_TYPES = ['application/pdf'] as const
 
+@chatAdapter({ provider: 'openrouter' })
 @singleton()
 export class OpenRouterChatAdapter implements IChatAdapter {
   private openRouter: OpenRouter
@@ -42,13 +44,17 @@ export class OpenRouterChatAdapter implements IChatAdapter {
 
     const tools = req.tools.map((x) => this.mapTool(x))
 
+    const modelNames = req.models.map((m) => m.model)
+    const [primary, ...fallbacks] = modelNames
+
     this.logger.debug(
-      `Call OpenRouter with model: ${req.model}, messages: ${messages.length}, tools: ${tools.length}`,
+      `Call OpenRouter with model: ${primary}, fallbacks: ${fallbacks.length}, messages: ${messages.length}, tools: ${tools.length}`,
     )
 
     const response = await this.openRouter.chat.send({
       chatRequest: {
-        model: req.model,
+        model: primary,
+        models: fallbacks.length > 0 ? fallbacks : undefined,
         messages,
         tools: tools.length > 0 ? tools : undefined,
       },

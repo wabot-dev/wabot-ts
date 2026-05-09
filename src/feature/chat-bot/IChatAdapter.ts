@@ -1,9 +1,9 @@
-import { IMindsetTool } from '@/feature/mindset'
+import { IMindsetModelRef, IMindsetTool } from '@/feature/mindset'
 import { IChatItem } from './IChatItem'
 import { ILanguageModelUsage } from './ILanguageModelUsage'
 
 export interface IChatAdapterNextItemsReq {
-  model: string
+  models: IMindsetModelRef[]
   systemPrompt: string
   tools: IMindsetTool[]
   prevItems: IChatItem[]
