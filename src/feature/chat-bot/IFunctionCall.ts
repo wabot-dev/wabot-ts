@@ -3,4 +3,5 @@ export interface IFunctionCall {
   name: string
   arguments?: string
   result?: string
+  signature?: string
 }

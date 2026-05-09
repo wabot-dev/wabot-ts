@@ -1,4 +1,4 @@
-import { IChatAdapter, IFunctionCall } from '@/feature/chat-bot'
+import { IChatAdapter, IChatItem, IFunctionCall } from '@/feature/chat-bot'
 import { IMindsetModelRef, IMindsetTool } from '@/feature/mindset'
 import assert from 'node:assert'
 import { test } from 'node:test'
@@ -158,27 +158,34 @@ export function testChatAdapter({ adapter, model }: ItestChatAdapterReq) {
       },
     ]
 
+    const humanTurn: IChatItem = {
+      type: 'humanMessage',
+      humanMessage: { text: 'What is the time in Colombia' },
+    }
+
+    const firstTurn = await adapter.nextItems({
+      models,
+      tools,
+      systemPrompt: 'Act as a Bot',
+      prevItems: [humanTurn],
+    })
+
+    const callItems = firstTurn.nextItems.filter((x) => x.type === 'functionCall')
+    assert(callItems.length > 0, 'first turn should contain at least one functionCall item')
+
+    const resolvedCallItems: IChatItem[] = callItems.map((item) => ({
+      type: 'functionCall',
+      functionCall: {
+        ...item.functionCall,
+        result: '2023-10-12T12:00:00.000Z',
+      },
+    }))
+
     const { nextItems } = await adapter.nextItems({
       models,
       tools,
       systemPrompt: 'Act as a Bot',
-      prevItems: [
-        {
-          type: 'humanMessage',
-          humanMessage: {
-            text: 'What is the time in Colombia',
-          },
-        },
-        {
-          type: 'functionCall',
-          functionCall: {
-            id: 'id_erksndfooqne',
-            name: 'getCountryTime',
-            arguments: '{"country": "CO"}',
-            result: '2023-10-12T12:00:00.000Z',
-          },
-        },
-      ],
+      prevItems: [humanTurn, ...resolvedCallItems],
     })
 
     assert(Array.isArray(nextItems), 'nextItems is not array')

@@ -56,9 +56,13 @@ export class GoogleChatAdapter implements IChatAdapter {
   async nextItems(req: IChatAdapterNextItemsReq): Promise<IChatAdapterNextItemsRes> {
     const contents: Content[] = []
     contents.push({ role: 'user', parts: [{ text: req.systemPrompt }] })
-    contents.push(...this.mapChatItems(req.prevItems))
+    contents.push(...(await this.mapChatItems(req.prevItems)))
 
     const functionDeclarations = req.tools.map((x) => this.mapTool(x))
+
+    const hasUnsignedFunctionCall = req.prevItems.some(
+      (item) => item.type === 'functionCall' && !item.functionCall.signature,
+    )
 
     let lastError: unknown
     for (const ref of req.models) {
@@ -66,7 +70,10 @@ export class GoogleChatAdapter implements IChatAdapter {
         const response = await this.ai.models.generateContent({
           model: ref.model,
           contents,
-          config: { tools: [{ functionDeclarations }] },
+          config: {
+            tools: [{ functionDeclarations }],
+            ...(hasUnsignedFunctionCall ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+          },
         })
         return this.mapResponse(response, ref.model)
       } catch (err) {
@@ -81,12 +88,12 @@ export class GoogleChatAdapter implements IChatAdapter {
     throw lastError ?? new Error('No Google model could handle the request')
   }
 
-  private mapChatItems(chatItems: IChatItem[]): Content[] {
+  private async mapChatItems(chatItems: IChatItem[]): Promise<Content[]> {
     const contents: Content[] = []
     for (const chatItem of chatItems) {
       switch (chatItem.type) {
         case 'humanMessage':
-          contents.push(this.mapHumanMessage(chatItem.humanMessage))
+          contents.push(await this.mapHumanMessage(chatItem.humanMessage))
           break
         case 'botMessage':
           contents.push(this.mapBotMessage(chatItem.botMessage))
@@ -99,7 +106,7 @@ export class GoogleChatAdapter implements IChatAdapter {
     return contents
   }
 
-  private mapHumanMessage(item: IChatMessage): Content {
+  private async mapHumanMessage(item: IChatMessage): Promise<Content> {
     if (isChatMessageEmpty(item)) {
       throw new Error('User message content is empty')
     }
@@ -110,24 +117,31 @@ export class GoogleChatAdapter implements IChatAdapter {
         supportedDocumentMimeTypes: GOOGLE_SUPPORTED_DOCUMENT_MIME_TYPES,
       }),
     })
+    const filesToSend: IChatMessageFile[] = []
     if (item.images) {
       for (const image of item.images) {
         if (!GOOGLE_SUPPORTED_IMAGE_MIME_TYPES.includes(image.mimeType as never)) continue
-        parts.push(this.toGoogleFilePart(image))
+        filesToSend.push(image)
       }
     }
     if (item.documents) {
       for (const doc of item.documents) {
         if (!GOOGLE_SUPPORTED_DOCUMENT_MIME_TYPES.includes(doc.mimeType as never)) continue
-        parts.push(this.toGoogleFilePart(doc))
+        filesToSend.push(doc)
       }
     }
+    const fileParts = await Promise.all(filesToSend.map((f) => this.toGoogleFilePart(f)))
+    parts.push(...fileParts)
     return { role: 'user', parts }
   }
 
-  private toGoogleFilePart(file: IChatMessageFile): Part {
+  private async toGoogleFilePart(file: IChatMessageFile): Promise<Part> {
     if (file.publicUrl) {
-      return { fileData: { fileUri: file.publicUrl, mimeType: file.mimeType } }
+      if (isGoogleNativeFileUri(file.publicUrl)) {
+        return { fileData: { fileUri: file.publicUrl, mimeType: file.mimeType } }
+      }
+      const data = await fetchAsBase64(file.publicUrl)
+      return { inlineData: { data, mimeType: file.mimeType } }
     }
     return {
       inlineData: { data: stripDataUrlPrefix(file.base64Url!), mimeType: file.mimeType },
@@ -142,18 +156,20 @@ export class GoogleChatAdapter implements IChatAdapter {
   }
 
   private mapFunctionCall(item: IFunctionCall): Content[] {
+    const callPart: Part = {
+      functionCall: {
+        id: item.id,
+        name: item.name,
+        args: safeJsonParse(item.arguments, 'function call arguments'),
+      },
+    }
+    if (item.signature) {
+      callPart.thoughtSignature = item.signature
+    }
     return [
       {
         role: 'model',
-        parts: [
-          {
-            functionCall: {
-              id: item.id,
-              name: item.name,
-              args: safeJsonParse(item.arguments, 'function call arguments'),
-            },
-          },
-        ],
+        parts: [callPart],
       },
       {
         role: 'function',
@@ -227,6 +243,7 @@ export class GoogleChatAdapter implements IChatAdapter {
             id: id ?? Random.alphaNumericLowerCase(10),
             name,
             arguments: args && JSON.stringify(args),
+            signature: part.thoughtSignature,
           },
         })
       }
@@ -248,4 +265,19 @@ export class GoogleChatAdapter implements IChatAdapter {
 function stripDataUrlPrefix(dataUrl: string): string {
   const commaIndex = dataUrl.indexOf(',')
   return commaIndex >= 0 && dataUrl.startsWith('data:') ? dataUrl.slice(commaIndex + 1) : dataUrl
+}
+
+function isGoogleNativeFileUri(url: string): boolean {
+  if (url.startsWith('gs://')) return true
+  if (url.startsWith('https://generativelanguage.googleapis.com/')) return true
+  return false
+}
+
+async function fetchAsBase64(url: string): Promise<string> {
+  const res = await fetch(url)
+  if (!res.ok) {
+    throw new Error(`Failed to fetch '${url}': ${res.status} ${res.statusText}`)
+  }
+  const buf = Buffer.from(await res.arrayBuffer())
+  return buf.toString('base64')
 }
