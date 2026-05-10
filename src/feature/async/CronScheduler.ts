@@ -12,7 +12,7 @@ import { JobWatchdog } from './JobWatchdog'
 @singleton()
 export class CronScheduler {
   private running = false
-  private timeout?: NodeJS.Timeout
+  private timeout?: ReturnType<typeof setTimeout>
   private configuredCrons = new Map<string, ICronJobScheduleConfig & { reconciliated?: boolean }>()
   private logger = new Logger('wabot:cron-scheduler')
 

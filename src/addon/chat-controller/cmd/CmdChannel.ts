@@ -6,10 +6,10 @@ import { Logger } from '@/core/logger'
 import { type IChatConnection, type IChatMessage } from '@/feature/chat-bot'
 import { ICmdChannelMessage } from './ICmdChannelMessage'
 import { cmdChannelName } from './cmdChannelName'
-import * as readline from 'readline'
+import * as readline from 'node:readline'
 
-import * as fs from 'fs'
-import * as path from 'path'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
 import { Random } from '@/core/random'
 import { Auth } from '@/core/auth'
 

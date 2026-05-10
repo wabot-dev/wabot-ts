@@ -1,4 +1,4 @@
-import { AsyncLocalStorage } from 'async_hooks'
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { Pool, PoolClient } from 'pg'
 
 // Map each Pool instance to its active client in the current async context

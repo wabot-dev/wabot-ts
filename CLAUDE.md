@@ -538,6 +538,19 @@ Framework uses **peer dependencies**. Install only what you need:
 - `pg` for PostgreSQL
 - `socket.io` for WebSocket
 
+## Runtime Compatibility
+
+The built framework (`dist/`) must run under both **Node.js** and **Bun**. The framework itself does not ship Bun tooling — compatibility is a code-level requirement, so consumer apps can pick either runtime.
+
+**Rules for any code reachable from `src/index.ts`:**
+
+- **Use the `node:` prefix for all Node builtin imports.** Examples: `import { readFile } from 'node:fs'`, `import { AsyncLocalStorage } from 'node:async_hooks'`, `import { Server } from 'node:http'`. Never use bare `'fs'`, `'path'`, `'http'`, `'crypto'`, `'async_hooks'`, `'readline'`, etc.
+- **Do not use the `NodeJS.*` type namespace.** Prefer portable types: `ReturnType<typeof setTimeout>` instead of `NodeJS.Timeout`, `ReturnType<typeof setInterval>` instead of `NodeJS.Timer`. Avoids implicit dependency on `@types/node` global namespace augmentation.
+- **Do not use Node-only APIs that lack a Bun equivalent.** Avoid `node:cluster`, `node:v8`, `node:inspector`, `node:trace_events`, `node:domain`, native `.node` addons, and `pg-native`. The Node APIs used today (`node:crypto`, `node:async_hooks`, `node:http`, `node:fs`, `node:path`, `node:readline`, `Buffer`, `process.env/cwd/exit/hrtime/stdin/stdout`, `setTimeout`/`setInterval`) are all supported by Bun's Node compat layer.
+- **Test-only imports (`node:test`, `node:assert`, `node:child_process`) are allowed only in files that are NOT exported from `src/index.ts`** (e.g. `*.test.ts`, `__tests__/`, `testAsync.ts`, `testChatAdapter.ts`, `testAsyncHelpers.ts`, `pg-async-test-*.ts`). These must never reach `dist/`.
+
+**Decorator stack note:** the framework relies on `tsyringe` + `reflect-metadata` with `experimentalDecorators` and `emitDecoratorMetadata`. Metadata is emitted at build time by Rollup's TS plugin, so consumers running Bun only need `reflect-metadata` imported at app entry — same as Node.
+
 ## Documentation
 
 - Full docs: https://docs.wabot.dev

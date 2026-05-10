@@ -5,11 +5,11 @@ import { Logger } from '@/core/logger'
 import { validateModel, ValidationMetadataStore } from '@/core/validation'
 import { ExpressProvider } from '@/feature/express'
 import { Request, json, urlencoded } from 'express'
-import path from 'path'
+import path from 'node:path'
 import { EXPRESS_REQ, EXPRESS_RES } from './injection-tokens'
 import { RestControllerMetadataStore } from './metadata'
 import { RestRequest } from './RestRequest'
-import { IncomingMessage } from 'http'
+import { IncomingMessage } from 'node:http'
 
 function buildRequest(req: Request): any {
   return Object.assign({}, req.body, req.query, req.params)

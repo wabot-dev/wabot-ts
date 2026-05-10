@@ -1,6 +1,6 @@
 import { singleton } from '@/core/injection'
 import { Logger } from '@/core/logger'
-import { Server } from 'http'
+import { Server } from 'node:http'
 
 @singleton()
 export class HttpServerProvider {
