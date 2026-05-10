@@ -1,5 +1,5 @@
 import { Pool, PoolClient } from 'pg'
-import { AsyncLocalStorage } from 'async_hooks'
+import { AsyncLocalStorage } from 'node:async_hooks'
 
 // Async-local storage for clients per pool
 const pgStorage = new AsyncLocalStorage<Map<Pool, PoolClient>>()

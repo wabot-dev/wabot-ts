@@ -3,7 +3,7 @@ import { onPost } from '@/feature/rest-controller/metadata'
 import type { Wasender, WebhookRequestAdapter } from 'wasenderapi'
 import type { IWasenderEvent, IWasenderMessageReceivedData } from './IWasenderEvent'
 import { extractNumberFromWasenderMessageKey } from './extractNumberFromWasenderKey'
-import { IncomingMessage } from 'http'
+import { IncomingMessage } from 'node:http'
 import { IWhatsAppByWasenderChatMessage } from './IWhatsAppByWasenderChatMessage'
 
 export type IWasenderChannelMessageListener = (

@@ -8,7 +8,7 @@ import { Locker } from '@/core/lock'
 
 @singleton()
 export class JobScheduler {
-  private timeout?: NodeJS.Timeout
+  private timeout?: ReturnType<typeof setTimeout>
   private logger = new Logger('wabot:job-scheduler')
   private commands = new Set<string>()
   private running = false
