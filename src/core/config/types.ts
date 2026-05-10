@@ -7,9 +7,10 @@ export type ConfigReferenceType =
   | 'number-array'
   | 'boolean-array'
 
-export interface ConfigReference {
+export interface ConfigReference<TResolved = unknown> {
   type: ConfigReferenceType
   path: string
   default?: string
   __isConfigReference: true
+  __resolvedType?: TResolved
 }

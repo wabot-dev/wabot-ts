@@ -1,4 +1,4 @@
-import { ConfigReference } from './types'
+import { ConfigReference, ConfigReferenceType } from './types'
 
 function parsePathAndDefault(strings: TemplateStringsArray): [string, string | undefined] {
   if (strings.length > 1) {
@@ -14,10 +14,10 @@ function parsePathAndDefault(strings: TemplateStringsArray): [string, string | u
   return [path, defaultValue]
 }
 
-function createConfigReference(
-  type: ConfigReference['type'],
+function createConfigReference<T>(
+  type: ConfigReferenceType,
   strings: TemplateStringsArray,
-): ConfigReference {
+): ConfigReference<T> {
   const [path, defaultValue] = parsePathAndDefault(strings)
   return {
     type,
@@ -27,30 +27,30 @@ function createConfigReference(
   }
 }
 
-export function str(strings: TemplateStringsArray): ConfigReference {
+export function str(strings: TemplateStringsArray): ConfigReference<string> {
   return createConfigReference('string', strings)
 }
 
-export function num(strings: TemplateStringsArray): ConfigReference {
+export function num(strings: TemplateStringsArray): ConfigReference<number> {
   return createConfigReference('number', strings)
 }
 
-export function bool(strings: TemplateStringsArray): ConfigReference {
+export function bool(strings: TemplateStringsArray): ConfigReference<boolean> {
   return createConfigReference('boolean', strings)
 }
 
-export function obj(strings: TemplateStringsArray): ConfigReference {
+export function obj<T = unknown>(strings: TemplateStringsArray): ConfigReference<T> {
   return createConfigReference('object', strings)
 }
 
-export function strArr(strings: TemplateStringsArray): ConfigReference {
+export function strArr(strings: TemplateStringsArray): ConfigReference<string[]> {
   return createConfigReference('string-array', strings)
 }
 
-export function numArr(strings: TemplateStringsArray): ConfigReference {
+export function numArr(strings: TemplateStringsArray): ConfigReference<number[]> {
   return createConfigReference('number-array', strings)
 }
 
-export function boolArr(strings: TemplateStringsArray): ConfigReference {
+export function boolArr(strings: TemplateStringsArray): ConfigReference<boolean[]> {
   return createConfigReference('boolean-array', strings)
 }
