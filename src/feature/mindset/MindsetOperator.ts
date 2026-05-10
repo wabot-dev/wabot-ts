@@ -1,11 +1,24 @@
 import { Container, injectable } from '@/core/injection'
-import { type IMindset, type IMindsetIdentity, IMindsetLlm, Mindset } from './IMindset'
+import {
+  type IMindset,
+  type IMindsetIdentity,
+  IMindsetLlm,
+  IMindsetModelKind,
+  IMindsetModelRef,
+  IMindsetModels,
+  Mindset,
+} from './IMindset'
 
 import { MindsetMetadataStore } from './metadata/MindsetMetadataStore'
 import { IMindsetTool } from './IMindsetTool'
 import { validateModel } from '@/core/validation'
 import { CustomError, errorToPlainObject } from '@/core/error'
 import { Logger } from '@/core/logger'
+
+const MODEL_KIND_FALLBACK: Partial<Record<IMindsetModelKind, IMindsetModelKind>> = {
+  visionLlm: 'llm',
+  audioLlm: 'llm',
+}
 
 @injectable()
 export class MindsetOperator implements IMindset {
@@ -40,8 +53,31 @@ export class MindsetOperator implements IMindset {
     return this.mindset.workflow()
   }
 
-  llms(): Promise<IMindsetLlm[]> {
-    return this.mindset.llms()
+  /** @deprecated use {@link MindsetOperator.models} */
+  async llms(): Promise<IMindsetLlm[]> {
+    if (this.mindset.llms) return this.mindset.llms()
+    const models = await this.models()
+    return models.llm ?? []
+  }
+
+  async models(): Promise<IMindsetModels> {
+    if (this.mindset.models) return this.mindset.models()
+    if (this.mindset.llms) return { llm: await this.mindset.llms() }
+    throw new Error(
+      `Invalid ${this.mindset.constructor.name} - models() or llms() must be implemented`,
+    )
+  }
+
+  async resolveModels(kind: IMindsetModelKind): Promise<IMindsetModelRef[]> {
+    const models = await this.models()
+    const direct = models[kind]
+    if (direct && direct.length > 0) return direct
+    const fallbackKind = MODEL_KIND_FALLBACK[kind]
+    if (fallbackKind) {
+      const fallback = models[fallbackKind]
+      if (fallback && fallback.length > 0) return fallback
+    }
+    return []
   }
 
   async systemPrompt(): Promise<string> {

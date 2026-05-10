@@ -2,6 +2,7 @@ import { Env } from '@/core/env'
 import { singleton } from '@/core/injection'
 import { Logger } from '@/core/logger'
 import {
+  chatAdapter,
   extractChatMessageText,
   IChatAdapter,
   IChatAdapterNextItemsReq,
@@ -13,6 +14,7 @@ import {
   IFunctionCall,
   ILanguageModelUsage,
   isChatMessageEmpty,
+  isRetryableError,
   safeJsonParse,
 } from '@/feature/chat-bot'
 import { IMindsetTool } from '@/feature/mindset'
@@ -27,6 +29,7 @@ const ANTHROPIC_SUPPORTED_IMAGE_MIME_TYPES = [
 
 const ANTHROPIC_SUPPORTED_DOCUMENT_MIME_TYPES = ['application/pdf', 'text/plain'] as const
 
+@chatAdapter({ provider: 'anthropic' })
 @singleton()
 export class AnthropicChatAdapter implements IChatAdapter {
   private anthropic: Anthropic
@@ -39,24 +42,35 @@ export class AnthropicChatAdapter implements IChatAdapter {
 
   async nextItems(req: IChatAdapterNextItemsReq): Promise<IChatAdapterNextItemsRes> {
     const tools = req.tools.map((x) => this.mapTool(x))
-
     const messages = this.mapChatItems(req.prevItems)
 
-    const request = {
-      model: req.model,
-      max_tokens: 4096,
-      system: req.systemPrompt,
-      messages,
-      tools: tools.length > 0 ? tools : undefined,
+    let lastError: unknown
+    for (const ref of req.models) {
+      const request = {
+        model: ref.model,
+        max_tokens: 4096,
+        system: req.systemPrompt,
+        messages,
+        tools: tools.length > 0 ? tools : undefined,
+      }
+
+      this.logger.debug(
+        `Call Claude API with model: ${request.model}, messages: ${request.messages.length}, tools: ${request.tools?.length ?? 0}`,
+      )
+
+      try {
+        const response = await this.anthropic.messages.create(request)
+        return this.mapResponse(response, ref.model)
+      } catch (err) {
+        if (!isRetryableError(err)) throw err
+        this.logger.warn(
+          `Anthropic model '${ref.model}' failed with retryable error, trying next`,
+          err instanceof Error ? { message: err.message } : { err },
+        )
+        lastError = err
+      }
     }
-
-    this.logger.debug(
-      `Call Claude API with model: ${request.model}, messages: ${request.messages.length}, tools: ${request.tools?.length ?? 0}`,
-    )
-
-    const response = await this.anthropic.messages.create(request)
-
-    return this.mapResponse(response)
+    throw lastError ?? new Error('No Anthropic model could handle the request')
   }
 
   private mapChatItems(chatItems: IChatItem[]): Anthropic.Messages.MessageParam[] {
@@ -190,12 +204,21 @@ export class AnthropicChatAdapter implements IChatAdapter {
     }
   }
 
-  private mapResponse(response: Anthropic.Messages.Message): IChatAdapterNextItemsRes {
+  private mapResponse(
+    response: Anthropic.Messages.Message,
+    modelName: string,
+  ): IChatAdapterNextItemsRes {
     let usage: ILanguageModelUsage
     if (response.usage) {
+      const cacheRead = response.usage.cache_read_input_tokens ?? 0
+      const cacheWrite = response.usage.cache_creation_input_tokens ?? 0
       usage = {
-        inputTokens: response.usage.input_tokens,
+        inputTokens: response.usage.input_tokens + cacheRead + cacheWrite,
         outputTokens: response.usage.output_tokens,
+        cacheReadTokens: cacheRead || undefined,
+        cacheWriteTokens: cacheWrite || undefined,
+        provider: 'anthropic',
+        model: response.model ?? modelName,
       }
     } else {
       throw new Error('Unable to found usage info')

@@ -3,11 +3,13 @@ import { CustomError } from '@/core/error'
 import { singleton } from '@/core/injection'
 import { Logger } from '@/core/logger'
 import {
+  chatAdapter,
   IChatAdapter,
   IChatAdapterNextItemsReq,
   IChatAdapterNextItemsRes,
 } from '@/feature/chat-bot'
 
+@chatAdapter({ provider: 'wabot' })
 @singleton()
 export class WabotChatAdapter implements IChatAdapter {
   private apiKey: string

@@ -1,5 +1,4 @@
 import {
-  ChatAdapter,
   ChatRepository,
   container,
   Env,
@@ -7,8 +6,8 @@ import {
   OpenaiChatAdapter,
   PgChatRepository,
   PgLocker,
+  runChatAdapters,
   runChatControllers,
-  WabotChatAdapter,
   WhatsAppReceiver,
   WhatsAppReceiverByWabotProxy,
   WhatsAppSender,
@@ -24,9 +23,8 @@ container.registerInstance(Pool, new Pool({ connectionString: env.requireString(
 
 container.registerType(Locker, PgLocker)
 
-// Set Chat Adapter
-container.registerType(ChatAdapter, OpenaiChatAdapter)
-// container.registerType(ChatAdapter, WabotChatAdapter)
+// Register chat adapters (the first one is the default for refs without `provider`)
+runChatAdapters([OpenaiChatAdapter])
 
 // Set Chat Repository
 container.registerType(ChatRepository, PgChatRepository)

@@ -1,3 +1,6 @@
+export * from './@chatAdapter'
 export * from './@chatBot'
+export * from './ChatAdapterMetadataStore'
 export * from './ChatBotMetadataStore'
+export * from './IChatAdapterMetadata'
 export * from './IChatBotMetadata'

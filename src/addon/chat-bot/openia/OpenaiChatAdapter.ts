@@ -1,4 +1,5 @@
 import {
+  chatAdapter,
   IChatAdapter,
   IChatAdapterNextItemsReq,
   IFunctionCall,
@@ -8,6 +9,7 @@ import {
   ILanguageModelUsage,
   extractChatMessageText,
   isChatMessageEmpty,
+  isRetryableError,
 } from '@/feature/chat-bot'
 import { Logger } from '@/core/logger'
 import { OpenAI } from 'openai'
@@ -23,6 +25,7 @@ const OPENAI_SUPPORTED_IMAGE_MIME_TYPES = [
 
 const OPENAI_SUPPORTED_DOCUMENT_MIME_TYPES = ['application/pdf'] as const
 
+@chatAdapter({ provider: 'openai' })
 @singleton()
 export class OpenaiChatAdapter implements IChatAdapter {
   private openai = new OpenAI()
@@ -35,13 +38,25 @@ export class OpenaiChatAdapter implements IChatAdapter {
 
     const tools = req.tools.map((x) => this.mapTool(x))
 
-    const response = await this.openai.responses.create({
-      model: req.model,
-      input: openIaInput,
-      tools,
-    })
-
-    return this.mapResponse(response)
+    let lastError: unknown
+    for (const ref of req.models) {
+      try {
+        const response = await this.openai.responses.create({
+          model: ref.model,
+          input: openIaInput,
+          tools,
+        })
+        return this.mapResponse(response, ref.model)
+      } catch (err) {
+        if (!isRetryableError(err)) throw err
+        this.logger.warn(
+          `OpenAI model '${ref.model}' failed with retryable error, trying next`,
+          err instanceof Error ? { message: err.message } : { err },
+        )
+        lastError = err
+      }
+    }
+    throw lastError ?? new Error('No OpenAI model could handle the request')
   }
 
   private mapChatItems(chatItems: IChatItem[]): OpenAI.Responses.ResponseInput {
@@ -145,12 +160,19 @@ export class OpenaiChatAdapter implements IChatAdapter {
     } as const
   }
 
-  private mapResponse(response: OpenAI.Responses.Response): IChatAdapterNextItemsRes {
+  private mapResponse(
+    response: OpenAI.Responses.Response,
+    modelName: string,
+  ): IChatAdapterNextItemsRes {
     let usage: ILanguageModelUsage
     if (response.usage) {
+      const cacheRead = response.usage.input_tokens_details?.cached_tokens ?? 0
       usage = {
         inputTokens: response.usage.input_tokens,
         outputTokens: response.usage.output_tokens,
+        cacheReadTokens: cacheRead || undefined,
+        provider: 'openai',
+        model: response.model ?? modelName,
       }
     } else {
       throw new Error('Unable to found usage info')

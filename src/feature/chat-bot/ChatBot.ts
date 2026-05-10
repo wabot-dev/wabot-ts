@@ -39,15 +39,21 @@ export class ChatBot implements IChatBot {
     const systemPrompt = await this.mindset.systemPrompt()
     const tools = this.mindset.tools()
     const identity = await this.mindset.identity()
-    const llms = await this.mindset.llms()
-    if (llms.length === 0) {
-      throw new Error(`Invalid ${this.mindset.constructor.name} - llms not found`)
+
+    const needsVision = prevItems.some((item) => {
+      const data = item.getData()
+      return data.type === 'humanMessage' && (data.humanMessage.images?.length ?? 0) > 0
+    })
+    const kind = needsVision ? 'visionLlm' : 'llm'
+    const candidates = await this.mindset.resolveModels(kind)
+    if (candidates.length === 0) {
+      throw new Error(
+        `Invalid ${this.mindset.constructor.name} - no model resolved for kind '${kind}'`,
+      )
     }
-    const llm = llms[0]
 
     const { nextItems: newItemsData } = await this.adapter.nextItems({
-      model: llm.model,
-      provider: llm.provider,
+      models: candidates,
       systemPrompt,
       tools,
       prevItems: prevItems.map((x) => x.getData()),
