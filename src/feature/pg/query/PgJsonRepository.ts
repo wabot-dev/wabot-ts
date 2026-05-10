@@ -13,9 +13,7 @@ export class PgJsonRepository<P extends Entity<IEntityData>> extends PgCrudRepos
     const store = container.resolve(PgRepositoryMetadataStore)
     const config = store.getRepositoryConfig(ctor)
     if (!config) {
-      throw new Error(
-        `${ctor.name} must be decorated with @pgJsonRepository`,
-      )
+      throw new Error(`${ctor.name} must be decorated with @pgJsonRepository`)
     }
     super(pool, config)
   }

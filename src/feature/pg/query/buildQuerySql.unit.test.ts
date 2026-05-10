@@ -25,10 +25,7 @@ test.describe('buildQuerySql', () => {
 
     test('findByName → equality WHERE', () => {
       const r = build('findByName')
-      assert.equal(
-        squash(r.sql),
-        `SELECT ${COLUMNS} FROM ${TABLE} WHERE data->>'name' = $1`,
-      )
+      assert.equal(squash(r.sql), `SELECT ${COLUMNS} FROM ${TABLE} WHERE data->>'name' = $1`)
       assert.equal(r.argCount, 1)
     })
 
@@ -143,10 +140,7 @@ test.describe('buildQuerySql', () => {
   test.describe('delete', () => {
     test('deleteByStatus', () => {
       const r = build('deleteByStatus')
-      assert.equal(
-        squash(r.sql),
-        `DELETE FROM ${TABLE} WHERE data->>'status' = $1`,
-      )
+      assert.equal(squash(r.sql), `DELETE FROM ${TABLE} WHERE data->>'status' = $1`)
       assert.equal(r.argCount, 1)
     })
   })

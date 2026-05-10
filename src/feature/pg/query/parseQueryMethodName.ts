@@ -56,9 +56,7 @@ function matchPrefix(name: string): { prefix: QueryPrefix; rest: string } {
       }
     }
   }
-  throw new Error(
-    `Query method "${name}" must start with one of: ${PREFIXES.join(', ')}`,
-  )
+  throw new Error(`Query method "${name}" must start with one of: ${PREFIXES.join(', ')}`)
 }
 
 function parseConditionTokens(tokens: string[]): { field: string; operator: QueryOperator } {
@@ -78,9 +76,7 @@ function parseConditions(body: string): IQueryCondition[] {
   const tokens = splitCamelCase(body)
   if (tokens.length === 0) return []
   if (CONNECTOR_TOKENS.has(tokens[0])) {
-    throw new Error(
-      `Query method: condition cannot start with connector "${tokens[0]}"`,
-    )
+    throw new Error(`Query method: condition cannot start with connector "${tokens[0]}"`)
   }
 
   const conditions: IQueryCondition[] = []
@@ -150,9 +146,7 @@ export function parseQueryMethodName(name: string): IQueryAst {
   const limitMatch = rest.match(/Limit(\d+)$/)
   if (limitMatch) {
     if (prefix === 'findOne') {
-      throw new Error(
-        `Query method "${name}": findOne implies LIMIT 1; remove the Limit suffix`,
-      )
+      throw new Error(`Query method "${name}": findOne implies LIMIT 1; remove the Limit suffix`)
     }
     limit = parseInt(limitMatch[1], 10)
     rest = rest.slice(0, rest.length - limitMatch[0].length)

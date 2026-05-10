@@ -309,11 +309,14 @@ test.describe('ConfigLoader', () => {
   test.describe('Template interpolation', () => {
     test('should reject interpolated templates at runtime', () => {
       const fakeStrings = Object.assign(['telegram.', ''], { raw: ['telegram.', ''] })
-      const callWithInterpolation = (str as unknown as (
+      const callWithInterpolation = str as unknown as (
         s: TemplateStringsArray,
         ...v: unknown[]
-      ) => unknown)
-      assert.throws(() => callWithInterpolation(fakeStrings as TemplateStringsArray, 'token'), /interpolation/)
+      ) => unknown
+      assert.throws(
+        () => callWithInterpolation(fakeStrings as TemplateStringsArray, 'token'),
+        /interpolation/,
+      )
     })
   })
 })

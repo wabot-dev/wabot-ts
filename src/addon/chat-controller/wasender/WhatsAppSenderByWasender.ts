@@ -13,14 +13,7 @@ export class WhatsAppSenderByWasender {
   private logger = new Logger('wabot:whatsapp-sender-by-wasender')
 
   constructor(apiKey: string, retryOptions?: { enabled: boolean; maxRetries: number }) {
-    this.wasender = createWasender(
-      apiKey,
-      undefined,
-      undefined,
-      undefined,
-      retryOptions,
-      undefined,
-    )
+    this.wasender = createWasender(apiKey, undefined, undefined, undefined, retryOptions, undefined)
   }
 
   async send(request: ISendByWasenderRequest): Promise<void> {

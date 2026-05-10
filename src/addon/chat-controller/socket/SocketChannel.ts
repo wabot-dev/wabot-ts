@@ -11,14 +11,7 @@ import {
 } from '@/feature/socket-controller'
 import { Socket } from 'socket.io'
 import { SocketChannelConfig } from './SocketChannelConfig'
-import {
-  isArray,
-  isModel,
-  isNotEmpty,
-  isOptional,
-  isRecord,
-  isString,
-} from '@/core/validation'
+import { isArray, isModel, isNotEmpty, isOptional, isRecord, isString } from '@/core/validation'
 import { Auth } from '@/core/auth'
 import type { IChatMessageDocument, IChatMessageImage } from '@/feature/chat-bot'
 

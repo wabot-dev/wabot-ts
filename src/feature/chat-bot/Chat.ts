@@ -65,7 +65,10 @@ export class Chat extends Entity<IChatData> {
   }
 
   hasAssociation(association: IChatAssociation) {
-    return this.data.associations?.some((a) => a.type === association.type && a.id === association.id) ?? false
+    return (
+      this.data.associations?.some((a) => a.type === association.type && a.id === association.id) ??
+      false
+    )
   }
 
   hasAssociations(type: string) {

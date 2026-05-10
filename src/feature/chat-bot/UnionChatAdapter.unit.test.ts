@@ -1,11 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { ChatAdapterRegistry } from './ChatAdapterRegistry'
-import {
-  IChatAdapter,
-  IChatAdapterNextItemsReq,
-  IChatAdapterNextItemsRes,
-} from './IChatAdapter'
+import { IChatAdapter, IChatAdapterNextItemsReq, IChatAdapterNextItemsRes } from './IChatAdapter'
 import { UnionChatAdapter } from './UnionChatAdapter'
 
 interface IFakeAdapterCall {
@@ -41,9 +37,7 @@ function okResponse(): Promise<IChatAdapterNextItemsRes> {
   })
 }
 
-function buildReq(
-  models: { provider?: string; model: string }[],
-): IChatAdapterNextItemsReq {
+function buildReq(models: { provider?: string; model: string }[]): IChatAdapterNextItemsReq {
   return {
     models,
     systemPrompt: '',

@@ -140,11 +140,7 @@ function buildDeleteSql(ast: IQueryAst, table: string): { sql: string; argCount:
   return { sql, argCount: where.argCount }
 }
 
-export function buildQuerySql(
-  ast: IQueryAst,
-  table: string,
-  columns: string,
-): IBuiltQuery {
+export function buildQuerySql(ast: IQueryAst, table: string, columns: string): IBuiltQuery {
   let sql: string
   let argCount: number
 
@@ -178,9 +174,7 @@ export function buildQuerySql(
 
   const buildParams = (args: any[]): any[] => {
     if (args.length !== argCount) {
-      throw new Error(
-        `Query expected ${argCount} argument(s), received ${args.length}`,
-      )
+      throw new Error(`Query expected ${argCount} argument(s), received ${args.length}`)
     }
     return args
   }

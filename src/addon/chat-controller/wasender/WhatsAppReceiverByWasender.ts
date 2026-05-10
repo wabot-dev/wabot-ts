@@ -1,7 +1,10 @@
 import { restController } from '@/feature/rest-controller/metadata'
 import { runRestControllers } from '@/feature/rest-controller'
 import { createWasender, type Wasender } from 'wasenderapi'
-import { WasenderWebhookController, type IWasenderChannelMessageListener } from './WasenderWebhookController'
+import {
+  WasenderWebhookController,
+  type IWasenderChannelMessageListener,
+} from './WasenderWebhookController'
 
 export { type IWasenderChannelMessageListener } from './WasenderWebhookController'
 

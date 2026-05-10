@@ -1,4 +1,1 @@
-
-export class RestRequest {
-
-}
+export class RestRequest {}

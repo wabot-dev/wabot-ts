@@ -18,7 +18,13 @@ import {
   safeJsonParse,
 } from '@/feature/chat-bot'
 import { IMindsetTool } from '@/feature/mindset'
-import { Content, FunctionDeclaration, GenerateContentResponse, GoogleGenAI, Part } from '@google/genai'
+import {
+  Content,
+  FunctionDeclaration,
+  GenerateContentResponse,
+  GoogleGenAI,
+  Part,
+} from '@google/genai'
 
 const GOOGLE_SUPPORTED_IMAGE_MIME_TYPES = [
   'image/png',

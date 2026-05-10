@@ -52,7 +52,9 @@ function makeStub(opts: { entities?: Thing[]; rawRows?: IFakeRow[] } = {}) {
   const stub: any = {
     table: '"wabot"."thing"',
     columns: '"id", "created_at", "data"',
-    pool: { /* sentinel; never connected */ },
+    pool: {
+      /* sentinel; never connected */
+    },
     async query(sql: string, params: any[]) {
       calls.push({ kind: 'query', sql, params })
       return opts.entities ?? []

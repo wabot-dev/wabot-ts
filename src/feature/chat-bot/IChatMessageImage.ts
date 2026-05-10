@@ -1,3 +1,3 @@
-import { IChatMessageFile } from "./IChatMessageFile";
+import { IChatMessageFile } from './IChatMessageFile'
 
 export type IChatMessageImage = IChatMessageFile

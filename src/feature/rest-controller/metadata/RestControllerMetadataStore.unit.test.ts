@@ -30,10 +30,9 @@ test.describe('RestControllerMetadataStore', () => {
     const store = createStore()
     class NotDecorated {}
 
-    assert.throws(
-      () => store.getControllerEndPointsInfo(NotDecorated),
-      { message: 'NotDecorated should be decorated with @restController' },
-    )
+    assert.throws(() => store.getControllerEndPointsInfo(NotDecorated), {
+      message: 'NotDecorated should be decorated with @restController',
+    })
   })
 
   test('retorna array vacio si no hay endpoints', () => {

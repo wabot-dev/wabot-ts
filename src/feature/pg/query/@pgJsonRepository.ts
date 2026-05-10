@@ -56,14 +56,10 @@ function makeQueryImpl(methodName: string, ast: IQueryAst) {
   }
 }
 
-export function pgJsonRepository<P extends Entity<IEntityData>>(
-  config: IPgRepositoryConfig<P>,
-) {
+export function pgJsonRepository<P extends Entity<IEntityData>>(config: IPgRepositoryConfig<P>) {
   return function (target: IConstructor<any>) {
     if (target !== PgJsonRepository && !(target.prototype instanceof PgJsonRepository)) {
-      throw new Error(
-        `@pgJsonRepository: ${target.name} must extend PgJsonRepository`,
-      )
+      throw new Error(`@pgJsonRepository: ${target.name} must extend PgJsonRepository`)
     }
 
     const store = container.resolve(PgRepositoryMetadataStore)

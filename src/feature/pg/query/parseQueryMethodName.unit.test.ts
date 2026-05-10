@@ -52,10 +52,7 @@ test.describe('parseQueryMethodName', () => {
     })
 
     test('throws if rest is neither By* nor All', () => {
-      assert.throws(
-        () => parseQueryMethodName('findSomething'),
-        /expected "By<\.\.\.>" or "All"/,
-      )
+      assert.throws(() => parseQueryMethodName('findSomething'), /expected "By<\.\.\.>" or "All"/)
     })
   })
 
@@ -76,9 +73,7 @@ test.describe('parseQueryMethodName', () => {
 
     test('Like operator', () => {
       const ast = parseQueryMethodName('findByNameLike')
-      assert.deepEqual(ast.conditions, [
-        { field: 'name', operator: 'Like', connector: undefined },
-      ])
+      assert.deepEqual(ast.conditions, [{ field: 'name', operator: 'Like', connector: undefined }])
     })
 
     test('NotLike operator', () => {
@@ -90,16 +85,12 @@ test.describe('parseQueryMethodName', () => {
 
     test('Not operator', () => {
       const ast = parseQueryMethodName('findByStatusNot')
-      assert.deepEqual(ast.conditions, [
-        { field: 'status', operator: 'Not', connector: undefined },
-      ])
+      assert.deepEqual(ast.conditions, [{ field: 'status', operator: 'Not', connector: undefined }])
     })
 
     test('In operator', () => {
       const ast = parseQueryMethodName('findByStatusIn')
-      assert.deepEqual(ast.conditions, [
-        { field: 'status', operator: 'In', connector: undefined },
-      ])
+      assert.deepEqual(ast.conditions, [{ field: 'status', operator: 'In', connector: undefined }])
     })
 
     test('NotIn operator', () => {
@@ -115,10 +106,7 @@ test.describe('parseQueryMethodName', () => {
     })
 
     test('GreaterThanEqual / Gte operators map to Gte', () => {
-      assert.equal(
-        parseQueryMethodName('findByAgeGreaterThanEqual').conditions[0].operator,
-        'Gte',
-      )
+      assert.equal(parseQueryMethodName('findByAgeGreaterThanEqual').conditions[0].operator, 'Gte')
       assert.equal(parseQueryMethodName('findByAgeGte').conditions[0].operator, 'Gte')
     })
 
@@ -134,10 +122,7 @@ test.describe('parseQueryMethodName', () => {
 
     test('IsNull and IsNotNull operators', () => {
       assert.equal(parseQueryMethodName('findByEmailIsNull').conditions[0].operator, 'IsNull')
-      assert.equal(
-        parseQueryMethodName('findByEmailIsNotNull').conditions[0].operator,
-        'IsNotNull',
-      )
+      assert.equal(parseQueryMethodName('findByEmailIsNotNull').conditions[0].operator, 'IsNotNull')
     })
 
     test('multi-word field with operator at the end', () => {
@@ -223,19 +208,13 @@ test.describe('parseQueryMethodName', () => {
     })
 
     test('throws when findOne is paired with Limit', () => {
-      assert.throws(
-        () => parseQueryMethodName('findOneByEmailLimit5'),
-        /findOne implies LIMIT 1/,
-      )
+      assert.throws(() => parseQueryMethodName('findOneByEmailLimit5'), /findOne implies LIMIT 1/)
     })
   })
 
   test.describe('hard-fail edge cases', () => {
     test('throws when condition starts with a connector', () => {
-      assert.throws(
-        () => parseQueryMethodName('findByAndStatus'),
-        /cannot start with connector/,
-      )
+      assert.throws(() => parseQueryMethodName('findByAndStatus'), /cannot start with connector/)
     })
   })
 })
