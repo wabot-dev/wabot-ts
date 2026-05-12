@@ -3,17 +3,14 @@ import {
   ISendWhatsAppTemplateReq,
   IWhatsAppSender,
 } from '../IWhatsAppSender'
-import { singleton } from '@/core/injection'
-import { Env } from '@/core/env'
 
-@singleton()
 export class WhatsAppApiSender implements IWhatsAppSender {
   private accessToken: string
   private businessNumberId: string
 
-  constructor(env: Env) {
-    this.accessToken = env.requireString('WHATSAPP_ACCESS_TOKEN')
-    this.businessNumberId = env.requireString('WHATSAPP_BUSINESS_NUMBER_ID')
+  constructor(accessToken: string, businessNumberId: string) {
+    this.accessToken = accessToken
+    this.businessNumberId = businessNumberId
   }
 
   async sendMessage(request: ISendWhatsAppMessageReq): Promise<void> {

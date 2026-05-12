@@ -13,10 +13,10 @@ import { json, type Express, type Request, type Response } from 'express'
 import {
   IListenWhatsAppMessageRequest,
   IWhatsAppMessageListener,
-  WhatsAppReceiver,
-} from './WhatsAppReceiver'
+  WhatsAppApiReceiver,
+} from './WhatsAppApiReceiver'
 
-export class WhatsAppReceiverByCloudApi extends WhatsAppReceiver {
+export class WhatsAppReceiverByCloudApi extends WhatsAppApiReceiver {
   private listeners: Map<string, IWhatsAppMessageListener> = new Map()
   private expressApp: Express
   private logger = new Logger('wabot:whatsapp-receiver-by-webhook')

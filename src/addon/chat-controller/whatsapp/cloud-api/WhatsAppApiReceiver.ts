@@ -7,7 +7,7 @@ export interface IListenWhatsAppMessageRequest {
   listener: IWhatsAppMessageListener
 }
 
-export class WhatsAppReceiver {
+export class WhatsAppApiReceiver {
   connect(): Promise<void> {
     throw new Error('Not Implemented')
   }

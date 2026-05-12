@@ -1,10 +1,11 @@
 import { type IChatChannel } from '@/feature/chat-controller'
 import type { IChatMessage } from '@/feature/chat-bot'
-import { injectable, inject } from '@/core/injection'
+import { injectable } from '@/core/injection'
+import { Env } from '@/core/env'
 
 import { Logger } from '@/core/logger'
 import { WhatsappChannelConfig } from './WhatsAppChannelConfig'
-import { WhatsAppReceiver } from './WhatsAppReceiver'
+import { WhatsAppApiReceiver } from './WhatsAppApiReceiver'
 import { WhatsAppApiSender } from './WhatsAppApiSender'
 import { IWhatsAppChannelMessage } from './IWhatsAppChannelMessage'
 import { whatsAppChannelName } from './whatsAppChannelName'
@@ -12,13 +13,21 @@ import { whatsAppChannelName } from './whatsAppChannelName'
 @injectable()
 export class WhatsAppChannel implements IChatChannel {
   static channelName = whatsAppChannelName
+  private sender: WhatsAppApiSender
+  private receiver: WhatsAppApiReceiver
   private logger = new Logger('wabot:whatsapp-channel')
 
   constructor(
     private config: WhatsappChannelConfig,
-    @inject(WhatsAppApiSender) private sender: WhatsAppApiSender,
-    @inject(WhatsAppReceiver) private receiver: WhatsAppReceiver,
-  ) {}
+    private env: Env,
+  ) {
+    const accessToken = this.config.accessToken ?? this.env.requireString('WHATSAPP_ACCESS_TOKEN')
+    const businessNumberId =
+      this.config.businessNumberId ?? this.env.requireString('WHATSAPP_BUSINESS_NUMBER_ID')
+
+    this.sender = new WhatsAppApiSender(accessToken, businessNumberId)
+    this.receiver = new WhatsAppApiReceiver()
+  }
 
   listen(callback: (message: IWhatsAppChannelMessage) => Promise<void>): void {
     this.receiver.listenMessage({
