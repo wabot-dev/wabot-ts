@@ -9,12 +9,7 @@ import { WasenderChannel } from './WasenderChannel'
 export function wasender(config?: IWasenderChannelConfig) {
   return function (target: object, propertyKey: string | symbol) {
     const cfg: IWasenderChannelConfig = config ?? {}
-    const resolvedConfig = resolveConfigReferences(cfg) as {
-      apiKey?: string
-      webhookSecret?: string
-      phoneNumber?: string
-      webhookPath?: string
-    }
+    const resolvedConfig = resolveConfigReferences(cfg)
     const store = container.resolve(ControllerMetadataStore)
     store.saveChannelMetadata({
       channelConstructor: WasenderChannel,

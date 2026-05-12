@@ -8,11 +8,7 @@ import { WhatsAppChannel } from './WhatsAppChannel'
 export function whatsApp(config: string | IWhatsappChannelConfig) {
   return function (target: object, propertyKey: string | symbol) {
     const result = typeof config === 'string' ? { number: config } : config
-    const resolved = resolveConfigReferences(result) as {
-      number: string
-      accessToken?: string
-      businessNumberId?: string
-    }
+    const resolved = resolveConfigReferences(result)
     const store = container.resolve(ControllerMetadataStore)
     store.saveChannelMetadata({
       channelConstructor: WhatsAppChannel,

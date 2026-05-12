@@ -1,7 +1,9 @@
 import { ConfigReference } from './types'
 
+type ResolveConfigValue<V> = V extends ConfigReference<infer R> ? R : V
+
 export type ResolvedConfig<T> = {
-  [K in keyof T]: T[K] extends ConfigReference<infer R> ? R : T[K]
+  [K in keyof T]: ResolveConfigValue<T[K]>
 }
 
 export function resolveConfigReferences<T extends Record<string, any>>(
