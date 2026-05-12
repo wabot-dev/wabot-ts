@@ -1,4 +1,5 @@
 import { container } from '@/core/injection'
+import { resolveConfigReferences } from '@/core/config'
 import { WasenderChannelConfig } from './WasenderChannelConfig'
 import { type IWasenderChannelConfig } from './IWasenderChannelConfig'
 import { ControllerMetadataStore } from '@/feature/chat-controller'
@@ -7,12 +8,19 @@ import { WasenderChannel } from './WasenderChannel'
 
 export function wasender(config?: IWasenderChannelConfig) {
   return function (target: object, propertyKey: string | symbol) {
+    const cfg: IWasenderChannelConfig = config ?? {}
+    const resolvedConfig = resolveConfigReferences(cfg) as {
+      apiKey?: string
+      webhookSecret?: string
+      phoneNumber?: string
+      webhookPath?: string
+    }
     const store = container.resolve(ControllerMetadataStore)
     store.saveChannelMetadata({
       channelConstructor: WasenderChannel,
       functionName: propertyKey.toString(),
       controllerConstructor: target.constructor as IConstructor<any>,
-      channelConfig: new WasenderChannelConfig(config ?? {}),
+      channelConfig: new WasenderChannelConfig(resolvedConfig),
     })
   }
 }

@@ -1,11 +1,12 @@
+import type { ConfigReference } from '@/core/config'
+
 export interface IWhatsappChannelConfig {
-  number: string
-  accessToken?: string
-  businessNumberId?: string
-  proxy?: string
+  number: string | ConfigReference<string>
+  accessToken?: string | ConfigReference<string>
+  businessNumberId?: string | ConfigReference<string>
 }
 
-export class WhatsappChannelConfig implements IWhatsappChannelConfig {
+export class WhatsappChannelConfig {
   constructor(
     public number: string,
     public accessToken?: string,
