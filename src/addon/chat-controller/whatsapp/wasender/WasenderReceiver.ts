@@ -8,7 +8,7 @@ import {
 
 export { type IWasenderChannelMessageListener } from './WasenderWebhookController'
 
-export class WhatsAppReceiverByWasender {
+export class WasenderReceiver {
   private wasender: Wasender
   private listener: IWasenderChannelMessageListener | null = null
 

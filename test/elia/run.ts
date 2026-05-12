@@ -8,10 +8,6 @@ import {
   PgLocker,
   runChatAdapters,
   runChatControllers,
-  WhatsAppReceiver,
-  WhatsAppReceiverByWabotProxy,
-  WhatsAppSender,
-  WhatsAppSenderByWabotProxy,
 } from '@'
 import { Pool } from 'pg'
 import { EliaChatController } from './EliaChatController'
@@ -28,10 +24,6 @@ runChatAdapters([OpenaiChatAdapter])
 
 // Set Chat Repository
 container.registerType(ChatRepository, PgChatRepository)
-
-// Set WhatsApp implementation
-container.registerType(WhatsAppSender, WhatsAppSenderByWabotProxy)
-container.registerType(WhatsAppReceiver, WhatsAppReceiverByWabotProxy)
 
 // Run chat controllers
 runChatControllers([EliaChatController])

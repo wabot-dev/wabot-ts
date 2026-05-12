@@ -1,18 +1,18 @@
 import { container } from '@/core/injection'
-import { WhatsAppByWasenderChannelConfig } from './WhatsAppByWasenderChannelConfig'
-import { type IWhatsAppByWasenderChannelConfig } from './IWhatsAppByWasenderChannelConfig'
+import { WasenderChannelConfig } from './WasenderChannelConfig'
+import { type IWasenderChannelConfig } from './IWasenderChannelConfig'
 import { ControllerMetadataStore } from '@/feature/chat-controller'
 import type { IConstructor } from '@/core/generics'
-import { WhatsAppByWasenderChannel } from './WhatsAppByWasenderChannel'
+import { WasenderChannel } from './WasenderChannel'
 
-export function whatsAppByWasender(config?: IWhatsAppByWasenderChannelConfig) {
+export function wasender(config?: IWasenderChannelConfig) {
   return function (target: object, propertyKey: string | symbol) {
     const store = container.resolve(ControllerMetadataStore)
     store.saveChannelMetadata({
-      channelConstructor: WhatsAppByWasenderChannel,
+      channelConstructor: WasenderChannel,
       functionName: propertyKey.toString(),
       controllerConstructor: target.constructor as IConstructor<any>,
-      channelConfig: new WhatsAppByWasenderChannelConfig(config ?? {}),
+      channelConfig: new WasenderChannelConfig(config ?? {}),
     })
   }
 }

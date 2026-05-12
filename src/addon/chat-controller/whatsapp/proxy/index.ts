@@ -1,7 +1,0 @@
-export * from './IWhatsAppProxyMessage'
-export * from './IWhatsAppProxyMessageContent'
-export * from './WhatsAppProxyContracts'
-export * from './WhatsAppProxyContracts'
-export * from './WhatsAppReceiverByWabotProxy'
-export * from './WhatsAppSenderByWabotProxy'
-export * from './WhatsAppWabotProxyConnection'

@@ -4,10 +4,10 @@ import type { Wasender, WebhookRequestAdapter } from 'wasenderapi'
 import type { IWasenderEvent, IWasenderMessageReceivedData } from './IWasenderEvent'
 import { extractNumberFromWasenderMessageKey } from './extractNumberFromWasenderKey'
 import { IncomingMessage } from 'node:http'
-import { IWhatsAppByWasenderChatMessage } from './IWhatsAppByWasenderChatMessage'
+import { IWasenderChatMessage } from './IWasenderChatMessage'
 
 export type IWasenderChannelMessageListener = (
-  message: IWhatsAppByWasenderChatMessage,
+  message: IWasenderChatMessage,
   from: string,
 ) => Promise<void>
 

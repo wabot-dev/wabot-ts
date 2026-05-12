@@ -1,4 +1,4 @@
-export interface IWhatsAppByWasenderChannelConfig {
+export interface IWasenderChannelConfig {
   apiKey?: string
   webhookSecret?: string
   phoneNumber?: string

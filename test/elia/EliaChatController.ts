@@ -1,15 +1,14 @@
-import { chatBot, ChatBot, chatController, cmd, whatsAppByWasender } from '@'
+import { chatBot, ChatBot, chatController, cmd, type IWasenderReceivedMessage, wasender } from '@'
 
 import { EliaMindset } from './EliaMindset'
-import { type IWhatsAppByWasenderReceivedMessage } from '@/addon/chat-controller/wasender'
 
 @chatController()
 export class EliaChatController {
   constructor(@chatBot(EliaMindset) private eliaBot: ChatBot) {}
 
-  @whatsAppByWasender()
+  @wasender()
   @cmd()
-  onMessage(context: IWhatsAppByWasenderReceivedMessage) {
+  onMessage(context: IWasenderReceivedMessage) {
     const whatsAppNumber = context.message.metadata.whatsAppNumber
 
     this.eliaBot.sendMessage(context.message, async (response) => {

@@ -12,14 +12,15 @@ import { whatsAppChannelName } from './whatsAppChannelName'
 @injectable()
 export class WhatsAppChannel implements IChatChannel {
   static channelName = whatsAppChannelName
+  private sender: WhatsAppSender
+  private receiver: WhatsAppReceiver
 
   private logger = new Logger('wabot:whatsapp-channel')
 
-  constructor(
-    private config: WhatsappChannelConfig,
-    private sender: WhatsAppSender,
-    private receiver: WhatsAppReceiver,
-  ) {}
+  constructor(private config: WhatsappChannelConfig) {
+    this.sender = new WhatsAppSender()
+    this.receiver = new WhatsAppReceiver()
+  }
 
   listen(callback: (message: IWhatsAppChannelMessage) => Promise<void>): void {
     this.receiver.listenMessage({
@@ -31,7 +32,7 @@ export class WhatsAppChannel implements IChatChannel {
             chatConnection: message.chatConnection,
             message: message.message,
             reply: async (replyMessage: IChatMessage) => {
-              await this.sender.sendWhatsApp({
+              await this.sender.sendMessage({
                 from: this.config.number,
                 to: message.chatConnection.id,
                 message: replyMessage,

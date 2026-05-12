@@ -1,14 +1,12 @@
 import { Logger } from '@/core/logger'
 import { createWasender, TextOnlyMessage, type Wasender } from 'wasenderapi'
-import type { IChatMessage } from '@/feature/chat-bot'
+import {
+  ISendWhatsAppMessageReq,
+  ISendWhatsAppTemplateReq,
+  IWhatsAppSender,
+} from '../IWhatsAppSender'
 
-export interface ISendByWasenderRequest {
-  from: string
-  to: string
-  message: IChatMessage
-}
-
-export class WhatsAppSenderByWasender {
+export class WasenderSender implements IWhatsAppSender {
   private wasender: Wasender
   private logger = new Logger('wabot:whatsapp-sender-by-wasender')
 
@@ -16,7 +14,7 @@ export class WhatsAppSenderByWasender {
     this.wasender = createWasender(apiKey, undefined, undefined, undefined, retryOptions, undefined)
   }
 
-  async send(request: ISendByWasenderRequest): Promise<void> {
+  async sendMessage(request: ISendWhatsAppMessageReq): Promise<void> {
     try {
       const textPayload: TextOnlyMessage = {
         messageType: 'text',
@@ -34,5 +32,9 @@ export class WhatsAppSenderByWasender {
         throw new Error('error sending message')
       }
     }
+  }
+
+  sendTemplate(request: ISendWhatsAppTemplateReq): Promise<void> {
+    throw new Error('Method not implemented.')
   }
 }

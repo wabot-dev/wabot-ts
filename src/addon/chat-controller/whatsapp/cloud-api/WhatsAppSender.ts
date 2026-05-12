@@ -2,7 +2,7 @@ import {
   ISendWhatsAppMessageReq,
   ISendWhatsAppTemplateReq,
   IWhatsAppSender,
-} from './IWhatsAppSender'
+} from '../IWhatsAppSender'
 
 export class WhatsAppSender implements IWhatsAppSender {
   async sendMessage(request: ISendWhatsAppMessageReq): Promise<void> {

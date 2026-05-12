@@ -1,6 +1,6 @@
 import { Logger } from '@/core/logger'
 import type { IChatConnection } from '@/feature/chat-bot'
-import { whatsAppChannelName } from '../whatsAppChannelName'
+import { whatsAppChannelName } from './whatsAppChannelName'
 import type {
   IWhatsAppCloudContact,
   IWhatsAppCloudMessage,
@@ -14,8 +14,7 @@ import {
   IListenWhatsAppMessageRequest,
   IWhatsAppMessageListener,
   WhatsAppReceiver,
-} from '../WhatsAppReceiver'
-import { WhatsAppRepository } from '../WhatsAppRepository'
+} from './WhatsAppReceiver'
 
 export class WhatsAppReceiverByCloudApi extends WhatsAppReceiver {
   private listeners: Map<string, IWhatsAppMessageListener> = new Map()
@@ -24,10 +23,7 @@ export class WhatsAppReceiverByCloudApi extends WhatsAppReceiver {
 
   private webhookPath: string = '/whatsapp/web-hook/:slug'
 
-  constructor(
-    private expressProvider: ExpressProvider,
-    private whatsAppRepository: WhatsAppRepository,
-  ) {
+  constructor(private expressProvider: ExpressProvider) {
     super()
     this.expressApp = this.expressProvider.getExpress()
   }
@@ -44,7 +40,7 @@ export class WhatsAppReceiverByCloudApi extends WhatsAppReceiver {
           return
         }
 
-        const whatsApp = await this.whatsAppRepository.findBySlug(req.params.slug)
+        const whatsApp = 5 as any // TODO: await this.whatsAppRepository.findBySlug(req.params.slug)
 
         if (!whatsApp || mode !== 'subscribe' || token !== whatsApp.getVerifyToken()) {
           res.sendStatus(403)
