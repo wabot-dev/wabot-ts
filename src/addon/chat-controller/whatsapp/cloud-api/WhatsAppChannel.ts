@@ -1,24 +1,28 @@
 import { type IChatChannel } from '@/feature/chat-controller'
 import type { IChatMessage } from '@/feature/chat-bot'
-import { injectable } from '@/core/injection'
+import { injectable, inject } from '@/core/injection'
 
 import { Logger } from '@/core/logger'
+import { Env } from '@/core/env'
 import { WhatsappChannelConfig } from './WhatsAppChannelConfig'
 import { WhatsAppReceiver } from './WhatsAppReceiver'
-import { WhatsAppSender } from './WhatsAppSender'
+import { WhatsAppApiSender } from './WhatsAppApiSender'
 import { IWhatsAppChannelMessage } from './IWhatsAppChannelMessage'
 import { whatsAppChannelName } from './whatsAppChannelName'
 
 @injectable()
 export class WhatsAppChannel implements IChatChannel {
   static channelName = whatsAppChannelName
-  private sender: WhatsAppSender
+  private sender: WhatsAppApiSender
   private receiver: WhatsAppReceiver
 
   private logger = new Logger('wabot:whatsapp-channel')
 
-  constructor(private config: WhatsappChannelConfig) {
-    this.sender = new WhatsAppSender()
+  constructor(
+    private config: WhatsappChannelConfig,
+    @inject(Env) private env: Env,
+  ) {
+    this.sender = new WhatsAppApiSender(env)
     this.receiver = new WhatsAppReceiver()
   }
 
