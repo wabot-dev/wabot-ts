@@ -9,7 +9,7 @@ export interface ICronConfig {
   disabled?: boolean
 }
 
-export function cron(config: ICronConfig) {
+export function cronHandler(config: ICronConfig) {
   return function (target: IConstructor<ICronHandler>) {
     const metadataStore = container.resolve(AsyncMetadataStore)
     metadataStore.registerCron(target, {

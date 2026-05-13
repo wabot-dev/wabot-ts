@@ -1,5 +1,5 @@
 import test, { after, before } from 'node:test'
-import { cron } from './@cron'
+import { cronHandler } from './@cronHandler'
 import { runCronHandlers, stopCronHandlers } from './runCronHandlers'
 import {
   isValidCronSequence,
@@ -39,7 +39,7 @@ class SaveTestTagHandler {
 }
 
 //-----------------------  Crons ----------------------
-@cron({ name: 'cron-each-2s', cron: '*/2 * * * * *' })
+@cronHandler({ name: 'cron-each-2s', cron: '*/2 * * * * *' })
 class CronHandler2s {
   constructor(private testTagRepository: TestTagRepository) {}
 
@@ -49,7 +49,7 @@ class CronHandler2s {
   }
 }
 
-@cron({ name: 'cron-each-5s', cron: '*/5 * * * * *' })
+@cronHandler({ name: 'cron-each-5s', cron: '*/5 * * * * *' })
 class CronHandler5s {
   constructor(private testTagRepository: TestTagRepository) {}
 
