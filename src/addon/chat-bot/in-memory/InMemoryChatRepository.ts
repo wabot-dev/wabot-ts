@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from 'uuid'
 
-import { RamChatMemory } from './RamChatMemory'
+import { InMemoryChatMemory } from './InMemoryChatMemory'
 import { singleton } from '@/core/injection'
 import {
   ChatOperator,
@@ -12,11 +12,11 @@ import {
 
 interface IRamChatMemory {
   chatId: string
-  memory: RamChatMemory
+  memory: InMemoryChatMemory
 }
 
 @singleton()
-export class RamChatRepository implements IChatRepository {
+export class InMemoryChatRepository implements IChatRepository {
   private items: Chat[] = []
   private memories: IRamChatMemory[] = []
 
@@ -39,7 +39,7 @@ export class RamChatRepository implements IChatRepository {
 
     this.items.push(chat)
     const memory: IRamChatMemory = {
-      memory: new RamChatMemory(),
+      memory: new InMemoryChatMemory(),
       chatId: chat.id,
     }
     this.memories.push(memory)

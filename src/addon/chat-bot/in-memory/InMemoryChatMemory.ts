@@ -1,6 +1,6 @@
 import type { ChatItem, IChatMemory } from '@/feature/chat-bot'
 
-export class RamChatMemory implements IChatMemory {
+export class InMemoryChatMemory implements IChatMemory {
   private memory: ChatItem[] = []
 
   async findLastItems(count: number): Promise<ChatItem[]> {
