@@ -17,12 +17,7 @@ export class InMemoryCronJobRepository implements ICronJobRepository {
   async findDue(date?: Date): Promise<CronJob[]> {
     const now = (date ?? new Date()).getTime()
     return [...this.items.values()]
-      .filter(
-        (c) =>
-          c['data'].enabled &&
-          c['data'].nextRunAt != null &&
-          c['data'].nextRunAt <= now,
-      )
+      .filter((c) => c['data'].enabled && c['data'].nextRunAt != null && c['data'].nextRunAt <= now)
       .sort((a, b) => (a['data'].nextRunAt ?? 0) - (b['data'].nextRunAt ?? 0))
   }
 
