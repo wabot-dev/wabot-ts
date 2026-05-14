@@ -74,4 +74,12 @@ export class AsyncMetadataStore {
   getCommandForCommandName(commandName: string): IConstructor<any> | null {
     return this.commandsMap.get(commandName) ?? null
   }
+
+  getAllCommandHandlers(): IConstructor<ICommandHandler<any>>[] {
+    return Array.from(this.handlersInverseMap.keys())
+  }
+
+  getAllCronHandlers(): IConstructor<ICronHandler>[] {
+    return Array.from(this.cronsMap.keys())
+  }
 }

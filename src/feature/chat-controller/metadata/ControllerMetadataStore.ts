@@ -26,6 +26,10 @@ export class ControllerMetadataStore {
     this.chatControllers.set(controllerMetadata.controllerConstructor, controllerMetadata)
   }
 
+  getAllChatControllerConstructors(): Function[] {
+    return Array.from(this.chatControllers.keys())
+  }
+
   getChatControllerMetadata(controllerConstructor: Function) {
     const mainMetadata = this.chatControllers.get(controllerConstructor)
     if (!mainMetadata) return null

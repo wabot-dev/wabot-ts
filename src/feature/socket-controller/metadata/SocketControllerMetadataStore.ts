@@ -38,6 +38,10 @@ export class SocketControllerMetadataStore {
     controllerMiddlewares.unshift(handshakeMetadata)
   }
 
+  getAllSocketControllerConstructors(): IConstructor<any>[] {
+    return Array.from(this.socketControllers.keys()) as IConstructor<any>[]
+  }
+
   getSocketControllerInfo(controllerConstructor: IConstructor<any>) {
     const controller = this.socketControllers.get(controllerConstructor)
     if (!controller) {

@@ -16,6 +16,7 @@ export * from './core/description'
 export * from './core/lock'
 
 export * from './feature/async'
+export * from './feature/project-runner'
 export * from './feature/chat-bot'
 export * from './feature/chat-controller'
 export * from './feature/express'

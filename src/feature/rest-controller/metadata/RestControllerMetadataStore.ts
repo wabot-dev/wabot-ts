@@ -49,6 +49,10 @@ export class RestControllerMetadataStore {
     methodMiddlewares.unshift(middlewareMetadata)
   }
 
+  getAllRestControllerConstructors(): IConstructor<any>[] {
+    return Array.from(this.restControllers.keys()) as IConstructor<any>[]
+  }
+
   getControllerEndPointsInfo(controllerConstructor: IConstructor<any>) {
     const controller = this.restControllers.get(controllerConstructor)
     if (!controller) {
