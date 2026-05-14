@@ -19,4 +19,12 @@ export class TransactionMetadataStore {
     }
     return adapter
   }
+
+  requireAdapters(dbNames: readonly string[]): ITransactionAdapter[] {
+    return dbNames.map((name) => this.requireAdapter(name))
+  }
+
+  getAllAdapters(): ITransactionAdapter[] {
+    return Array.from(this.adapters.values())
+  }
 }
