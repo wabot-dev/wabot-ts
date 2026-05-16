@@ -26,6 +26,7 @@ import { SocketControllerMetadataStore } from '@/feature/socket-controller/metad
 import {
   MemoryRepositoryAdapter,
   RepositoryAdapterRegistry,
+  RepositoryMetadataStore,
 } from '@/feature/repository'
 
 export interface IProjectRunnerConfig {
@@ -191,14 +192,18 @@ export class ProjectRunner {
       needsJobs ? import('../../addon/async/in-memory') : Promise.resolve(null),
     ])
 
-    container.registerType(ChatRepository, chatBotMod.InMemoryChatRepository as any)
-    container.registerType(Locker, lockMod.InMemoryLocker as any)
-    container.resolve(RepositoryAdapterRegistry).setDefault(new MemoryRepositoryAdapter())
+    container.register(ChatRepository, { useToken: chatBotMod.InMemoryChatRepository as any })
+    container.register(Locker, { useToken: lockMod.InMemoryLocker as any })
+    const memoryAdapter = new MemoryRepositoryAdapter()
+    container.resolve(RepositoryAdapterRegistry).setDefault(memoryAdapter)
+    container.resolve(RepositoryMetadataStore).validateExtensionsRegistered(memoryAdapter.id)
 
     if (asyncMod) {
-      container.registerType(JobRepository, asyncMod.InMemoryJobRepository as any)
+      container.register(JobRepository, { useToken: asyncMod.InMemoryJobRepository as any })
       if (components.cronHandlers.length > 0) {
-        container.registerType(CronJobRepository, asyncMod.InMemoryCronJobRepository as any)
+        container.register(CronJobRepository, {
+          useToken: asyncMod.InMemoryCronJobRepository as any,
+        })
       }
     }
 
@@ -216,11 +221,11 @@ export class ProjectRunner {
       import('../../addon/async/pg'),
     ])
 
-    container.registerType(ChatRepository, chatBotMod.PgChatRepository as any)
-    container.registerType(Locker, pgMod.PgLocker as any)
-    container
-      .resolve(RepositoryAdapterRegistry)
-      .setDefault(new pgMod.PgJsonRepositoryAdapter(this.pool))
+    container.register(ChatRepository, { useToken: chatBotMod.PgChatRepository as any })
+    container.register(Locker, { useToken: pgMod.PgLocker as any })
+    const pgAdapter = new pgMod.PgJsonRepositoryAdapter(this.pool)
+    container.resolve(RepositoryAdapterRegistry).setDefault(pgAdapter)
+    container.resolve(RepositoryMetadataStore).validateExtensionsRegistered(pgAdapter.id)
 
     const transactionStore = container.resolve(TransactionMetadataStore)
     transactionStore.registerAdapter('default', new asyncMod.PgTransactionAdapter(this.pool))
@@ -229,10 +234,10 @@ export class ProjectRunner {
     const hasCronHandlers = components.cronHandlers.length > 0
 
     if (hasCommandHandlers || hasCronHandlers) {
-      container.registerType(JobRepository, asyncMod.PgJobRepository)
+      container.register(JobRepository, { useToken: asyncMod.PgJobRepository })
     }
     if (hasCronHandlers) {
-      container.registerType(CronJobRepository, asyncMod.PgCronJobRepository)
+      container.register(CronJobRepository, { useToken: asyncMod.PgCronJobRepository })
     }
 
     logger.info('Configured with PostgreSQL adapters')
