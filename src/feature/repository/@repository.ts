@@ -86,6 +86,20 @@ function getAst(self: any, methodName: string): IQueryAst {
   return ast
 }
 
+function makeExtensionImpl(methodName: string) {
+  return function (this: any, ...args: unknown[]): unknown {
+    const ext = getExtension(this) as Record<string, unknown>
+    const fn = ext[methodName]
+    if (typeof fn !== 'function') {
+      throw new Error(
+        `${this.constructor.name}.${methodName}: ` +
+          `the active adapter's extension does not implement this method.`,
+      )
+    }
+    return (fn as (...a: unknown[]) => unknown).apply(ext, args)
+  }
+}
+
 function makeQueryImpl(methodName: string) {
   return async function (this: any, ...args: unknown[]): Promise<unknown> {
     const ast = getAst(this, methodName)
@@ -159,6 +173,17 @@ export function repository<P extends Entity<IEntityData>>(config: IRepositoryCon
         }
       }
       target.prototype[meta.functionName] = makeQueryImpl(meta.functionName)
+    }
+
+    const extensionMethods = store.getExtensionMethods(target)
+    for (const meta of extensionMethods) {
+      if (Object.prototype.hasOwnProperty.call(target.prototype, meta.functionName)) {
+        const existing = target.prototype[meta.functionName]
+        if (typeof existing === 'function' && existing.length > 0) {
+          continue
+        }
+      }
+      target.prototype[meta.functionName] = makeExtensionImpl(meta.functionName)
     }
 
     singleton()(target)

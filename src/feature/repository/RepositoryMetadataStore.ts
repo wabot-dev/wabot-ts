@@ -11,6 +11,7 @@ export interface IQueryMethodMetadata {
 @singleton()
 export class RepositoryMetadataStore {
   private queryMethods = new Map<Function, Map<string, IQueryMethodMetadata>>()
+  private extensionMethods = new Map<Function, Map<string, IQueryMethodMetadata>>()
   private repositoryConfigs = new Map<Function, IRepositoryConfig<any>>()
   private extensions = new Map<Function, Map<symbol, IConstructor<any>>>()
 
@@ -19,6 +20,15 @@ export class RepositoryMetadataStore {
     if (!perClass) {
       perClass = new Map()
       this.queryMethods.set(metadata.repositoryConstructor, perClass)
+    }
+    perClass.set(metadata.functionName, metadata)
+  }
+
+  saveExtensionMethodMetadata(metadata: IQueryMethodMetadata) {
+    let perClass = this.extensionMethods.get(metadata.repositoryConstructor)
+    if (!perClass) {
+      perClass = new Map()
+      this.extensionMethods.set(metadata.repositoryConstructor, perClass)
     }
     perClass.set(metadata.functionName, metadata)
   }
@@ -35,6 +45,17 @@ export class RepositoryMetadataStore {
   }
 
   getQueryMethods(ctor: IConstructor<any>): IQueryMethodMetadata[] {
+    return this.collectMethodsFromHierarchy(ctor, this.queryMethods)
+  }
+
+  getExtensionMethods(ctor: IConstructor<any>): IQueryMethodMetadata[] {
+    return this.collectMethodsFromHierarchy(ctor, this.extensionMethods)
+  }
+
+  private collectMethodsFromHierarchy(
+    ctor: IConstructor<any>,
+    source: Map<Function, Map<string, IQueryMethodMetadata>>,
+  ): IQueryMethodMetadata[] {
     const collected = new Map<string, IQueryMethodMetadata>()
     const hierarchy: Function[] = []
     let proto: any = ctor.prototype
@@ -43,7 +64,7 @@ export class RepositoryMetadataStore {
       proto = Object.getPrototypeOf(proto)
     }
     for (const cls of hierarchy) {
-      const perClass = this.queryMethods.get(cls)
+      const perClass = source.get(cls)
       if (perClass) {
         for (const [name, meta] of perClass) {
           collected.set(name, meta)
@@ -88,5 +109,22 @@ export class RepositoryMetadataStore {
       proto = Object.getPrototypeOf(proto)
     }
     return undefined
+  }
+
+  validateExtensionsRegistered(adapterId: symbol): void {
+    const offenders: string[] = []
+    for (const ctor of this.extensionMethods.keys()) {
+      if (!this.getExtension(ctor as IConstructor<any>, adapterId)) {
+        offenders.push((ctor as Function).name)
+      }
+    }
+    if (offenders.length === 0) return
+    throw new Error(
+      `Repository extension wiring error: the following repositories declare ` +
+        `@queryExtension methods but no extension is registered for adapter ` +
+        `"${adapterId.description ?? 'unknown'}":\n  - ${offenders.join('\n  - ')}\n` +
+        `Did you forget to import the extension classes (so their decorators run), ` +
+        `or are you running with the wrong adapter?`,
+    )
   }
 }

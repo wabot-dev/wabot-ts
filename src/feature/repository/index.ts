@@ -1,4 +1,6 @@
+export * from './@memoryExtension'
 export * from './@query'
+export * from './@queryExtension'
 export * from './@repository'
 export * from './evaluateQueryAst'
 export * from './IRepositoryAdapter'

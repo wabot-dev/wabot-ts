@@ -2,6 +2,7 @@ import { generate as generateShortUuid } from 'short-uuid'
 
 import { Entity, IEntityData } from '@/core/entity'
 import { CustomError } from '@/core/error'
+import { IConstructor } from '@/core/generics'
 import { evaluateQueryAst } from './evaluateQueryAst'
 import { IRepositoryAdapter } from './IRepositoryAdapter'
 import { IRepositoryConfig } from './IRepositoryConfig'
@@ -16,10 +17,22 @@ function cloneEntity<P extends Entity<IEntityData>>(
   return new config.constructor(data)
 }
 
-class MemoryRepositoryRuntime<P extends Entity<IEntityData>> implements IRepositoryRuntime<P> {
-  private items = new Map<string, P>()
+export class MemoryRepositoryExtension<P extends Entity<IEntityData>> {
+  constructor(
+    protected readonly items: Map<string, P>,
+    protected readonly config: IRepositoryConfig<P>,
+  ) {}
 
-  constructor(private readonly config: IRepositoryConfig<P>) {}
+  protected clone(item: P): P {
+    return cloneEntity(this.config, item)
+  }
+}
+
+class MemoryRepositoryRuntime<P extends Entity<IEntityData>> implements IRepositoryRuntime<P> {
+  constructor(
+    private readonly items: Map<string, P>,
+    private readonly config: IRepositoryConfig<P>,
+  ) {}
 
   async find(id: string): Promise<P | null> {
     const item = this.items.get(id)
@@ -98,7 +111,24 @@ export const MEMORY_ADAPTER_ID = Symbol('wabot:memory-adapter')
 export class MemoryRepositoryAdapter implements IRepositoryAdapter {
   readonly id = MEMORY_ADAPTER_ID
 
+  private stores = new Map<unknown, Map<string, any>>()
+
+  private getStore<P extends Entity<IEntityData>>(
+    config: IRepositoryConfig<P>,
+  ): Map<string, P> {
+    let store = this.stores.get(config)
+    if (!store) {
+      store = new Map<string, P>()
+      this.stores.set(config, store)
+    }
+    return store as Map<string, P>
+  }
+
   build<P extends Entity<IEntityData>>(config: IRepositoryConfig<P>): IRepositoryRuntime<P> {
-    return new MemoryRepositoryRuntime(config)
+    return new MemoryRepositoryRuntime(this.getStore(config), config)
+  }
+
+  buildExtension<E>(config: IRepositoryConfig<any>, ExtensionCtor: IConstructor<E>): E {
+    return new ExtensionCtor(this.getStore(config), config)
   }
 }
