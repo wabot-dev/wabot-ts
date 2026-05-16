@@ -38,7 +38,7 @@ export interface IProjectRunnerConfig {
 
 const logger = new Logger('wabot:project-runner')
 const TEST_FILE_PATTERNS = /\.(test|spec|unit|integration|e2e|multiprocess)\.(ts|js)$/
-const DEFAULT_EXCLUDE = ['run.ts', 'cmd.ts']
+const DEFAULT_EXCLUDE = ['_run_.ts', '_cmd_.ts']
 
 const MODULE_EXT = import.meta.url.endsWith('.ts') ? '.ts' : '.js'
 
