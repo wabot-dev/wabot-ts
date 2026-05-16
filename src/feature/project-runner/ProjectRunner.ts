@@ -31,12 +31,14 @@ import {
 
 export interface IProjectRunnerConfig {
   directories?: string[]
+  exclude?: string[]
   connectionString?: string
   chatAdapters?: IConstructor<IChatAdapter>[]
 }
 
 const logger = new Logger('wabot:project-runner')
 const TEST_FILE_PATTERNS = /\.(test|spec|unit|integration|e2e|multiprocess)\.(ts|js)$/
+const DEFAULT_EXCLUDE = ['run.ts', 'cmd.ts']
 
 const DEFAULT_CHAT_ADAPTERS = [
   ['../../addon/chat-bot/openia', 'OpenaiChatAdapter'],
@@ -55,6 +57,7 @@ interface DiscoveredComponents {
 
 export class ProjectRunner {
   private directories: string[]
+  private exclude: string[]
   private chatAdapters: IConstructor<IChatAdapter>[] | undefined
   private connectionString: string | null
   private isPg: boolean
@@ -62,6 +65,7 @@ export class ProjectRunner {
 
   constructor(config: IProjectRunnerConfig = {}) {
     this.directories = config.directories ?? ['src']
+    this.exclude = [...DEFAULT_EXCLUDE, ...(config.exclude ?? [])]
     this.chatAdapters = config.chatAdapters
     this.connectionString = this.resolveConnectionString(config.connectionString)
     this.isPg = this.connectionString != null && isPostgresUrl(this.connectionString)
@@ -107,13 +111,31 @@ export class ProjectRunner {
         return true
       })
 
+    const excludedNames = new Set<string>()
+    const excludedPathsByRoot = new Map<string, Set<string>>()
+    for (const entry of this.exclude) {
+      if (entry.includes('/') || entry.includes('\\')) {
+        for (const root of roots) {
+          let paths = excludedPathsByRoot.get(root)
+          if (!paths) {
+            paths = new Set()
+            excludedPathsByRoot.set(root, paths)
+          }
+          paths.add(resolve(root, entry))
+        }
+      } else {
+        excludedNames.add(entry)
+      }
+    }
+
     const results = await Promise.all(
-      roots.map((dir) =>
-        scanDir(dir).catch((err: Error) => {
+      roots.map((dir) => {
+        const excludedPaths = excludedPathsByRoot.get(dir) ?? new Set<string>()
+        return scanDir(dir, excludedNames, excludedPaths).catch((err: Error) => {
           logger.warn(`Could not read directory ${dir}: ${err.message}`)
           return [] as string[]
-        }),
-      ),
+        })
+      }),
     )
     return results.flat()
   }
@@ -304,19 +326,25 @@ function isPostgresUrl(cs: string): boolean {
   return cs.startsWith('postgres://') || cs.startsWith('postgresql://')
 }
 
-async function scanDir(dir: string): Promise<string[]> {
+async function scanDir(
+  dir: string,
+  excludedNames: Set<string>,
+  excludedPaths: Set<string>,
+): Promise<string[]> {
   const entries = await readdir(dir, { withFileTypes: true })
   const subResults = await Promise.all(
     entries.map(async (entry) => {
       const name = entry.name
+      const fullPath = join(dir, name)
+      if (excludedNames.has(name)) return []
+      if (excludedPaths.has(fullPath)) return []
       if (entry.isDirectory()) {
         if (name.startsWith('__')) return []
-        return scanDir(join(dir, name))
+        return scanDir(fullPath, excludedNames, excludedPaths)
       }
       if (!entry.isFile()) return []
       if (!(name.endsWith('.ts') || name.endsWith('.js'))) return []
       if (name.endsWith('.d.ts')) return []
-      const fullPath = join(dir, name)
       if (TEST_FILE_PATTERNS.test(fullPath)) return []
       return [fullPath]
     }),
