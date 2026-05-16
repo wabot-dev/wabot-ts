@@ -1,7 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-
-import { parseQueryMethodName } from './parseQueryMethodName'
+import { parseQueryMethodName } from '@/feature/repository'
 
 test.describe('parseQueryMethodName', () => {
   test.describe('prefixes', () => {

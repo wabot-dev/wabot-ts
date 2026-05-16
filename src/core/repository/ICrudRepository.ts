@@ -1,4 +1,6 @@
-export interface ICrudRepository<T> {
+import { Entity, IEntityData } from '../entity'
+
+export interface ICrudRepository<T extends Entity<IEntityData>> {
   find(id: string): Promise<T | null>
   findOrThrow(id: string): Promise<T>
   findByIds(ids: string[]): Promise<T[]>

@@ -1,7 +1,7 @@
 import { singleton } from '@/core/injection'
 import { IConstructor } from '@/core/generics'
 import { Entity, IEntityData } from '@/core/entity'
-import { IPgRepositoryConfig } from '../IPgRepositoryConfig'
+import { IRepositoryConfig } from './IRepositoryConfig'
 
 export interface IQueryMethodMetadata {
   repositoryConstructor: IConstructor<any>
@@ -9,9 +9,9 @@ export interface IQueryMethodMetadata {
 }
 
 @singleton()
-export class PgRepositoryMetadataStore {
+export class RepositoryMetadataStore {
   private queryMethods = new Map<Function, Map<string, IQueryMethodMetadata>>()
-  private repositoryConfigs = new Map<Function, IPgRepositoryConfig<any>>()
+  private repositoryConfigs = new Map<Function, IRepositoryConfig<any>>()
 
   saveQueryMethodMetadata(metadata: IQueryMethodMetadata) {
     let perClass = this.queryMethods.get(metadata.repositoryConstructor)
@@ -24,12 +24,12 @@ export class PgRepositoryMetadataStore {
 
   saveRepositoryConfig<P extends Entity<IEntityData>>(
     ctor: IConstructor<any>,
-    config: IPgRepositoryConfig<P>,
+    config: IRepositoryConfig<P>,
   ) {
     this.repositoryConfigs.set(ctor, config)
   }
 
-  getRepositoryConfig(ctor: IConstructor<any>): IPgRepositoryConfig<any> | undefined {
+  getRepositoryConfig(ctor: IConstructor<any>): IRepositoryConfig<any> | undefined {
     return this.repositoryConfigs.get(ctor)
   }
 
