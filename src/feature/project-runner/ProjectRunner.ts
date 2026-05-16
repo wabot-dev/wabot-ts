@@ -43,10 +43,26 @@ const DEFAULT_EXCLUDE = ['run.ts', 'cmd.ts']
 const MODULE_EXT = import.meta.url.endsWith('.ts') ? '.ts' : '.js'
 
 const DEFAULT_CHAT_ADAPTERS = [
-  [`../../addon/chat-bot/openia/OpenaiChatAdapter${MODULE_EXT}`, 'OpenaiChatAdapter'],
-  [`../../addon/chat-bot/openrouter/OpenRouterChatAdapter${MODULE_EXT}`, 'OpenRouterChatAdapter'],
-  [`../../addon/chat-bot/anthropic/AnthropicChatAdapter${MODULE_EXT}`, 'AnthropicChatAdapter'],
-  [`../../addon/chat-bot/google/GoogleChatAdapter${MODULE_EXT}`, 'GoogleChatAdapter'],
+  {
+    path: `../../addon/chat-bot/openia/OpenaiChatAdapter${MODULE_EXT}`,
+    name: 'OpenaiChatAdapter',
+    apiKeyEnv: 'OPENAI_API_KEY',
+  },
+  {
+    path: `../../addon/chat-bot/openrouter/OpenRouterChatAdapter${MODULE_EXT}`,
+    name: 'OpenRouterChatAdapter',
+    apiKeyEnv: 'OPENROUTER_API_KEY',
+  },
+  {
+    path: `../../addon/chat-bot/anthropic/AnthropicChatAdapter${MODULE_EXT}`,
+    name: 'AnthropicChatAdapter',
+    apiKeyEnv: 'ANTHROPIC_API_KEY',
+  },
+  {
+    path: `../../addon/chat-bot/google/GoogleChatAdapter${MODULE_EXT}`,
+    name: 'GoogleChatAdapter',
+    apiKeyEnv: 'GOOGLE_API_KEY',
+  },
 ] as const
 
 interface DiscoveredComponents {
@@ -313,7 +329,11 @@ export class ProjectRunner {
 
   private async resolveDefaultChatAdapters(): Promise<IConstructor<IChatAdapter>[]> {
     const results = await Promise.all(
-      DEFAULT_CHAT_ADAPTERS.map(async ([path, name]) => {
+      DEFAULT_CHAT_ADAPTERS.map(async ({ path, name, apiKeyEnv }) => {
+        if (!process.env[apiKeyEnv]) {
+          logger.info(`Skipping ${name}: ${apiKeyEnv} is not set`)
+          return null
+        }
         try {
           const mod: any = await import(path)
           const adapter = mod[name]
