@@ -9,7 +9,7 @@ import {
 } from '@/feature/repository'
 import { IPgRepositoryConfig } from './IPgRepositoryConfig'
 import { PgCrudRepository } from './PgCrudRepository'
-import { buildQuerySql } from './query/buildQuerySql'
+import { buildQuerySql } from './buildQuerySql'
 import { withPgClient } from './withPgClient'
 
 class PgJsonRepositoryRuntime<P extends Entity<IEntityData>>
