@@ -7,11 +7,17 @@ export class EliaChatController {
   constructor(@chatBot(EliaMindset) private eliaBot: ChatBot) {}
 
   @wasender()
-  @cmd()
-  onMessage(context: IWasenderReceivedMessage) {
+  async onWhatsAppMessage(context: IWasenderReceivedMessage) {
     const whatsAppNumber = context.message.metadata.whatsAppNumber
 
-    this.eliaBot.sendMessage(context.message, async (response) => {
+    await this.eliaBot.sendMessage(context.message, async (response) => {
+      await context.reply(response)
+    })
+  }
+
+  @cmd()
+  async onCmdMessage(context: IWasenderReceivedMessage) {
+    await this.eliaBot.sendMessage(context.message, async (response) => {
       await context.reply(response)
     })
   }

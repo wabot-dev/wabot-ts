@@ -6,6 +6,7 @@ export interface IEliaEventData extends IEntityData {
   description?: string
   dateTime: number
   durationInMinutes: number
+  category?: string
 }
 
 export class EliaEvent extends Entity<IEliaEventData> {}

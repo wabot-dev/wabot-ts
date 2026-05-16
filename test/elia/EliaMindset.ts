@@ -1,5 +1,5 @@
 import { IMindset, type IMindsetIdentity, mindset } from '@'
-import { EliaEventsModule } from './modules/events/EliaEventsModule'
+import { EliaEventsModule } from './EliaEventsModule'
 
 @mindset({
   modules: [EliaEventsModule],
@@ -39,10 +39,7 @@ export class EliaMindset implements IMindset {
     return {
       llm: [
         { provider: 'openai', model: 'gpt-4.1' },
-        // fallback: same provider, smaller model
-        { provider: 'openai', model: 'gpt-4o' },
-        // fallback: different provider
-        { provider: 'anthropic', model: 'claude-3-5-haiku-20241022' },
+        { provider: 'anthropic', model: 'claude-haiku-4-5-20251001' },
       ],
     }
   }
