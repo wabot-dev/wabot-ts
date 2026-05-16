@@ -23,6 +23,10 @@ import { runSocketControllers } from '@/feature/socket-controller'
 import { ControllerMetadataStore } from '@/feature/chat-controller/metadata'
 import { RestControllerMetadataStore } from '@/feature/rest-controller/metadata'
 import { SocketControllerMetadataStore } from '@/feature/socket-controller/metadata'
+import {
+  MemoryRepositoryAdapter,
+  RepositoryAdapterRegistry,
+} from '@/feature/repository'
 
 export interface IProjectRunnerConfig {
   directories?: string[]
@@ -125,15 +129,26 @@ export class ProjectRunner {
 
     let imported = 0
     let failed = 0
+    const errorGroups = new Map<string, string[]>()
     for (let i = 0; i < results.length; i++) {
       const result = results[i]
       if (result.status === 'fulfilled') {
         imported++
       } else {
         failed++
-        const reason = result.reason as Error
-        logger.error(`Failed to import ${files[i]}: ${reason.message}`)
+        const message = (result.reason as Error).message
+        const group = errorGroups.get(message)
+        if (group) {
+          group.push(files[i])
+        } else {
+          errorGroups.set(message, [files[i]])
+        }
       }
+    }
+    for (const [message, affected] of errorGroups) {
+      const [first, ...rest] = affected
+      const suffix = rest.length > 0 ? ` (also affects ${rest.length} more file(s))` : ''
+      logger.error(`Failed to import ${first}: ${message}${suffix}`)
     }
 
     if (failed > 0) {
@@ -178,6 +193,7 @@ export class ProjectRunner {
 
     container.registerType(ChatRepository, chatBotMod.InMemoryChatRepository as any)
     container.registerType(Locker, lockMod.InMemoryLocker as any)
+    container.resolve(RepositoryAdapterRegistry).setDefault(new MemoryRepositoryAdapter())
 
     if (asyncMod) {
       container.registerType(JobRepository, asyncMod.InMemoryJobRepository as any)
@@ -202,6 +218,9 @@ export class ProjectRunner {
 
     container.registerType(ChatRepository, chatBotMod.PgChatRepository as any)
     container.registerType(Locker, pgMod.PgLocker as any)
+    container
+      .resolve(RepositoryAdapterRegistry)
+      .setDefault(new pgMod.PgJsonRepositoryAdapter(this.pool))
 
     const transactionStore = container.resolve(TransactionMetadataStore)
     transactionStore.registerAdapter('default', new asyncMod.PgTransactionAdapter(this.pool))
