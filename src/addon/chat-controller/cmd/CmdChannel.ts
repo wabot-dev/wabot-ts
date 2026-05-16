@@ -76,11 +76,11 @@ export class CmdChannel implements IChatChannel {
   }
 
   private chatIdPath(): string {
-    return path.join('.cmd-channel', this.routeSlug(), 'id.json')
+    return path.join('.wabot', 'cmd-channel', this.routeSlug(), 'id.json')
   }
 
   private authInfoPath(): string {
-    return path.join('.cmd-channel', this.routeSlug(), 'auth-info.json')
+    return path.join('.wabot', 'cmd-channel', this.routeSlug(), 'auth-info.json')
   }
 
   private ensureChatId(): void {

@@ -10,5 +10,5 @@ export function cmdChannelSocketPath(): string {
       .slice(0, 12)
     return `\\\\.\\pipe\\wabot-cmd-channel-${cwdHash}`
   }
-  return path.resolve(process.cwd(), '.cmd-channel/socket')
+  return path.resolve(process.cwd(), '.wabot/cmd-channel/socket')
 }

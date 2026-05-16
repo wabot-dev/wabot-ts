@@ -1,11 +1,15 @@
+import * as fs from 'node:fs'
+import * as path from 'node:path'
 import { v4 as uuidv4 } from 'uuid'
 
 import { InMemoryChatMemory } from './InMemoryChatMemory'
 import { singleton } from '@/core/injection'
+import { Logger } from '@/core/logger'
 import {
+  Chat,
   ChatOperator,
-  type Chat,
   type IChatConnection,
+  type IChatData,
   type IChatMemory,
   type IChatRepository,
 } from '@/feature/chat-bot'
@@ -15,10 +19,21 @@ interface IRamChatMemory {
   memory: InMemoryChatMemory
 }
 
+const CHATS_FILE = '.wabot/in-memory/chats.json'
+const MEMORY_DIR = '.wabot/in-memory'
+const MAX_CHATS = 10
+
+const logger = new Logger('wabot:in-memory-chat-repository')
+
 @singleton()
 export class InMemoryChatRepository implements IChatRepository {
+  // Ordered least-recently-active first, most-recent last.
   private items: Chat[] = []
   private memories: IRamChatMemory[] = []
+
+  constructor() {
+    this.load()
+  }
 
   async update(chat: Chat): Promise<void> {
     if (!chat.wasCreated()) {
@@ -26,6 +41,7 @@ export class InMemoryChatRepository implements IChatRepository {
     }
 
     chat.validate()
+    this.persist()
   }
 
   async create(chat: Chat): Promise<void> {
@@ -38,11 +54,12 @@ export class InMemoryChatRepository implements IChatRepository {
     chat.validate()
 
     this.items.push(chat)
-    const memory: IRamChatMemory = {
-      memory: new InMemoryChatMemory(),
+    this.memories.push({
       chatId: chat.id,
-    }
-    this.memories.push(memory)
+      memory: new InMemoryChatMemory(chat.id, () => this.touch(chat.id)),
+    })
+    this.enforceLimit()
+    this.persist()
   }
 
   async findByConnection(query: IChatConnection): Promise<Chat | null> {
@@ -67,5 +84,72 @@ export class InMemoryChatRepository implements IChatRepository {
 
   private getMemory(chatId: string): IRamChatMemory | null {
     return this.memories.find((r) => r.chatId === chatId) ?? null
+  }
+
+  private touch(chatId: string): void {
+    const idx = this.items.findIndex((c) => c.id === chatId)
+    if (idx === -1 || idx === this.items.length - 1) {
+      if (idx !== -1) this.persist()
+      return
+    }
+    const [chat] = this.items.splice(idx, 1)
+    this.items.push(chat)
+    this.persist()
+  }
+
+  private enforceLimit(): void {
+    while (this.items.length > MAX_CHATS) {
+      const evicted = this.items.shift()!
+      const memIdx = this.memories.findIndex((m) => m.chatId === evicted.id)
+      if (memIdx !== -1) this.memories.splice(memIdx, 1)
+      this.deleteMemoryFile(evicted.id)
+    }
+  }
+
+  private deleteMemoryFile(chatId: string): void {
+    const file = path.resolve(process.cwd(), MEMORY_DIR, `${chatId}.json`)
+    if (!fs.existsSync(file)) return
+    try {
+      fs.unlinkSync(file)
+    } catch (err) {
+      logger.warn(`Failed to delete ${file}:`, err)
+    }
+  }
+
+  private chatsFilePath(): string {
+    return path.resolve(process.cwd(), CHATS_FILE)
+  }
+
+  private load(): void {
+    const file = this.chatsFilePath()
+    if (!fs.existsSync(file)) return
+    try {
+      const raw = fs.readFileSync(file, 'utf-8')
+      const parsed = JSON.parse(raw) as IChatData[]
+      if (!Array.isArray(parsed)) return
+      for (const data of parsed) {
+        if (!data?.id) continue
+        const chat = new Chat(data)
+        this.items.push(chat)
+        this.memories.push({
+          chatId: chat.id,
+          memory: new InMemoryChatMemory(chat.id, () => this.touch(chat.id)),
+        })
+      }
+      this.enforceLimit()
+    } catch (err) {
+      logger.warn(`Failed to load ${file}:`, err)
+    }
+  }
+
+  private persist(): void {
+    const file = this.chatsFilePath()
+    try {
+      fs.mkdirSync(path.dirname(file), { recursive: true })
+      const data = this.items.map((c) => c['data'] as IChatData)
+      fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf-8')
+    } catch (err) {
+      logger.warn(`Failed to persist ${file}:`, err)
+    }
   }
 }
