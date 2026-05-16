@@ -330,20 +330,14 @@ export class ProjectRunner {
   private async resolveDefaultChatAdapters(): Promise<IConstructor<IChatAdapter>[]> {
     const results = await Promise.all(
       DEFAULT_CHAT_ADAPTERS.map(async ({ path, name, apiKeyEnv }) => {
-        if (!process.env[apiKeyEnv]) {
-          logger.info(`Skipping ${name}: ${apiKeyEnv} is not set`)
-          return null
-        }
+        if (!process.env[apiKeyEnv]) return null
         try {
           const mod: any = await import(path)
           const adapter = mod[name]
-          if (!adapter) {
-            logger.warn(`Skipping ${name}: module loaded but no '${name}' export found`)
-            return null
-          }
+          if (!adapter) return null
+          logger.info(`Using ${name}`)
           return adapter as IConstructor<IChatAdapter>
         } catch {
-          logger.warn(`Skipping ${name}: missing peer dependency`)
           return null
         }
       }),
