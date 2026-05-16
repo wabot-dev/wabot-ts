@@ -1,4 +1,4 @@
-import { CrudRepository, query, repository } from '@'
+import { CrudRepository, query, queryExtension, repository } from '@'
 import { EliaEvent } from './EliaEvent'
 import { IEliaEventPgQueries } from './IEliaEventPgQueries'
 
@@ -9,15 +9,11 @@ export class EliaEventRepository
 {
   @query() declare findByCategory: (category: string) => Promise<EliaEvent[]>
 
-  findUpcoming(fromMillis: number, limit: number): Promise<EliaEvent[]> {
-    return this.extension.findUpcoming(fromMillis, limit)
-  }
+  @queryExtension() declare findUpcoming: (fromMillis: number, limit: number) => Promise<EliaEvent[]>
 
-  findByUserInRange(
+  @queryExtension() declare findByUserInRange: (
     userId: string,
     fromMillis: number,
     toMillis: number,
-  ): Promise<EliaEvent[]> {
-    return this.extension.findByUserInRange(userId, fromMillis, toMillis)
-  }
+  ) => Promise<EliaEvent[]>
 }
