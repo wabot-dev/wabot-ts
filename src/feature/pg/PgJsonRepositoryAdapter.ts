@@ -1,6 +1,7 @@
 import { Pool } from 'pg'
 
 import { Entity, IEntityData } from '@/core/entity'
+import { IConstructor } from '@/core/generics'
 import {
   IQueryAst,
   IRepositoryAdapter,
@@ -9,6 +10,7 @@ import {
 } from '@/feature/repository'
 import { IPgRepositoryConfig } from './IPgRepositoryConfig'
 import { PgCrudRepository } from './PgCrudRepository'
+import { PG_ADAPTER_ID } from './@pgExtension'
 import { buildQuerySql } from './buildQuerySql'
 import { withPgClient } from './withPgClient'
 
@@ -50,9 +52,15 @@ class PgJsonRepositoryRuntime<P extends Entity<IEntityData>>
 }
 
 export class PgJsonRepositoryAdapter implements IRepositoryAdapter {
+  readonly id = PG_ADAPTER_ID
+
   constructor(private readonly pool: Pool) {}
 
   build<P extends Entity<IEntityData>>(config: IRepositoryConfig<P>): IRepositoryRuntime<P> {
     return new PgJsonRepositoryRuntime<P>(this.pool, config as unknown as IPgRepositoryConfig<P>)
+  }
+
+  buildExtension<E>(config: IRepositoryConfig<any>, ExtensionCtor: IConstructor<E>): E {
+    return new ExtensionCtor(this.pool, config as unknown as IPgRepositoryConfig<any>)
   }
 }

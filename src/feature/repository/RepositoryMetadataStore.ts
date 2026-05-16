@@ -12,6 +12,7 @@ export interface IQueryMethodMetadata {
 export class RepositoryMetadataStore {
   private queryMethods = new Map<Function, Map<string, IQueryMethodMetadata>>()
   private repositoryConfigs = new Map<Function, IRepositoryConfig<any>>()
+  private extensions = new Map<Function, Map<symbol, IConstructor<any>>>()
 
   saveQueryMethodMetadata(metadata: IQueryMethodMetadata) {
     let perClass = this.queryMethods.get(metadata.repositoryConstructor)
@@ -50,5 +51,42 @@ export class RepositoryMetadataStore {
       }
     }
     return [...collected.values()]
+  }
+
+  saveExtension(
+    repositoryConstructor: IConstructor<any>,
+    adapterId: symbol,
+    extensionConstructor: IConstructor<any>,
+  ): void {
+    let perRepo = this.extensions.get(repositoryConstructor)
+    if (!perRepo) {
+      perRepo = new Map()
+      this.extensions.set(repositoryConstructor, perRepo)
+    }
+    const existing = perRepo.get(adapterId)
+    if (existing && existing !== extensionConstructor) {
+      throw new Error(
+        `Extension conflict on ${repositoryConstructor.name}: ` +
+          `adapter "${adapterId.description ?? 'unknown'}" already has ` +
+          `extension ${existing.name}; cannot register ${extensionConstructor.name}.`,
+      )
+    }
+    perRepo.set(adapterId, extensionConstructor)
+  }
+
+  getExtension(
+    ctor: IConstructor<any>,
+    adapterId: symbol,
+  ): IConstructor<any> | undefined {
+    let proto: any = ctor.prototype
+    while (proto && proto.constructor !== Object) {
+      const perRepo = this.extensions.get(proto.constructor)
+      if (perRepo) {
+        const ext = perRepo.get(adapterId)
+        if (ext) return ext
+      }
+      proto = Object.getPrototypeOf(proto)
+    }
+    return undefined
   }
 }

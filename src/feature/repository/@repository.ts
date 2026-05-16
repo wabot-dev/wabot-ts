@@ -9,22 +9,67 @@ import { RepositoryAdapterRegistry } from './RepositoryAdapterRegistry'
 import { RepositoryMetadataStore } from './RepositoryMetadataStore'
 
 const RUNTIME_KEY = Symbol('wabot:repositoryRuntime')
+const EXTENSION_KEY = Symbol('wabot:repositoryExtension')
 const AST_CACHE_KEY = Symbol('wabot:repositoryAstCache')
+
+function getConfig(self: any): IRepositoryConfig<any> {
+  const ctor = self.constructor as IConstructor<any>
+  const config = container.resolve(RepositoryMetadataStore).getRepositoryConfig(ctor)
+  if (!config) {
+    throw new Error(`${ctor.name} must be decorated with @repository`)
+  }
+  return config
+}
 
 function getRuntime<P extends Entity<IEntityData>>(self: any): IRepositoryRuntime<P> {
   let runtime: IRepositoryRuntime<P> | undefined = self[RUNTIME_KEY]
   if (runtime) return runtime
 
-  const ctor = self.constructor as IConstructor<any>
-  const store = container.resolve(RepositoryMetadataStore)
-  const config = store.getRepositoryConfig(ctor)
-  if (!config) {
-    throw new Error(`${ctor.name} must be decorated with @repository`)
-  }
+  const config = getConfig(self)
   const adapter = container.resolve(RepositoryAdapterRegistry).getDefault()
   runtime = adapter.build(config) as IRepositoryRuntime<P>
   Object.defineProperty(self, RUNTIME_KEY, { value: runtime, enumerable: false })
   return runtime
+}
+
+function getExtension(self: any): unknown {
+  const cached = self[EXTENSION_KEY]
+  if (cached !== undefined) return cached
+
+  const ctor = self.constructor as IConstructor<any>
+  const adapter = container.resolve(RepositoryAdapterRegistry).getDefault()
+  const store = container.resolve(RepositoryMetadataStore)
+  const ExtensionCtor = store.getExtension(ctor, adapter.id)
+  if (!ExtensionCtor) {
+    throw new Error(
+      `${ctor.name}.extension is not available: no extension registered ` +
+        `for adapter "${adapter.id.description ?? 'unknown'}". ` +
+        `Import the extension class so its @<adapter>Extension decorator runs, ` +
+        `or check the active adapter.`,
+    )
+  }
+  if (typeof adapter.buildExtension !== 'function') {
+    throw new Error(
+      `${ctor.name}.extension cannot be built: adapter ` +
+        `"${adapter.id.description ?? 'unknown'}" does not implement buildExtension().`,
+    )
+  }
+  const config = getConfig(self)
+  const ext = adapter.buildExtension(config, ExtensionCtor)
+  Object.defineProperty(self, EXTENSION_KEY, { value: ext, enumerable: false })
+  return ext
+}
+
+function installExtensionAccessor(target: IConstructor<any>) {
+  const proto = target.prototype
+  if (Object.getOwnPropertyDescriptor(proto, 'extension')) return
+  Object.defineProperty(proto, 'extension', {
+    get(this: any) {
+      return getExtension(this)
+    },
+    configurable: true,
+    enumerable: false,
+  })
 }
 
 function getAst(self: any, methodName: string): IQueryAst {
@@ -103,6 +148,7 @@ export function repository<P extends Entity<IEntityData>>(config: IRepositoryCon
     store.saveRepositoryConfig(target, config)
 
     installCrudMethods(target)
+    installExtensionAccessor(target)
 
     const queryMethods = store.getQueryMethods(target)
     for (const meta of queryMethods) {

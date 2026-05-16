@@ -93,7 +93,11 @@ class MemoryRepositoryRuntime<P extends Entity<IEntityData>> implements IReposit
   }
 }
 
+export const MEMORY_ADAPTER_ID = Symbol('wabot:memory-adapter')
+
 export class MemoryRepositoryAdapter implements IRepositoryAdapter {
+  readonly id = MEMORY_ADAPTER_ID
+
   build<P extends Entity<IEntityData>>(config: IRepositoryConfig<P>): IRepositoryRuntime<P> {
     return new MemoryRepositoryRuntime(config)
   }

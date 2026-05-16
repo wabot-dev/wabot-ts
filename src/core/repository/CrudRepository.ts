@@ -1,7 +1,9 @@
 import { Entity, IEntityData } from "../entity";
 import { ICrudRepository } from "./ICrudRepository";
 
-export class CrudRepository<T extends Entity<IEntityData>> implements ICrudRepository<T> {
+export class CrudRepository<T extends Entity<IEntityData>, Ext = never> implements ICrudRepository<T> {
+  protected declare readonly extension: Ext
+
   find(id: string): Promise<T | null> {
     throw new Error("Method not implemented.");
   }
