@@ -41,10 +41,10 @@ const TEST_FILE_PATTERNS = /\.(test|spec|unit|integration|e2e|multiprocess)\.(ts
 const DEFAULT_EXCLUDE = ['run.ts', 'cmd.ts']
 
 const DEFAULT_CHAT_ADAPTERS = [
-  ['../../addon/chat-bot/openia', 'OpenaiChatAdapter'],
-  ['../../addon/chat-bot/openrouter', 'OpenRouterChatAdapter'],
-  ['../../addon/chat-bot/anthropic', 'AnthropicChatAdapter'],
-  ['../../addon/chat-bot/google', 'GoogleChatAdapter'],
+  ['../../addon/chat-bot/openia/OpenaiChatAdapter', 'OpenaiChatAdapter'],
+  ['../../addon/chat-bot/openrouter/OpenRouterChatAdapter', 'OpenRouterChatAdapter'],
+  ['../../addon/chat-bot/anthropic/AnthropicChatAdapter', 'AnthropicChatAdapter'],
+  ['../../addon/chat-bot/google/GoogleChatAdapter', 'GoogleChatAdapter'],
 ] as const
 
 interface DiscoveredComponents {
@@ -208,10 +208,15 @@ export class ProjectRunner {
     const needsJobs =
       components.commandHandlers.length > 0 || components.cronHandlers.length > 0
 
-    const [chatBotMod, lockMod, asyncMod] = await Promise.all([
-      import('../../addon/chat-bot/in-memory'),
-      import('../../addon/lock'),
-      needsJobs ? import('../../addon/async/in-memory') : Promise.resolve(null),
+    const [chatBotMod, lockMod, jobMod, cronJobMod] = await Promise.all([
+      import('../../addon/chat-bot/in-memory/InMemoryChatRepository'),
+      import('../../addon/lock/InMemoryLocker'),
+      needsJobs
+        ? import('../../addon/async/in-memory/InMemoryJobRepository')
+        : Promise.resolve(null),
+      components.cronHandlers.length > 0
+        ? import('../../addon/async/in-memory/InMemoryCronJobRepository')
+        : Promise.resolve(null),
     ])
 
     container.register(ChatRepository, { useToken: chatBotMod.InMemoryChatRepository as any })
@@ -220,13 +225,13 @@ export class ProjectRunner {
     container.resolve(RepositoryAdapterRegistry).setDefault(memoryAdapter)
     container.resolve(RepositoryMetadataStore).validateExtensionsRegistered(memoryAdapter.id)
 
-    if (asyncMod) {
-      container.register(JobRepository, { useToken: asyncMod.InMemoryJobRepository as any })
-      if (components.cronHandlers.length > 0) {
-        container.register(CronJobRepository, {
-          useToken: asyncMod.InMemoryCronJobRepository as any,
-        })
-      }
+    if (jobMod) {
+      container.register(JobRepository, { useToken: jobMod.InMemoryJobRepository as any })
+    }
+    if (cronJobMod) {
+      container.register(CronJobRepository, {
+        useToken: cronJobMod.InMemoryCronJobRepository as any,
+      })
     }
 
     logger.info('Configured with in-memory adapters')
@@ -237,29 +242,36 @@ export class ProjectRunner {
       throw new Error('Postgres pool was not initialized')
     }
 
-    const [chatBotMod, pgMod, asyncMod] = await Promise.all([
-      import('../../addon/chat-bot/pg'),
-      import('../../feature/pg'),
-      import('../../addon/async/pg'),
+    const hasCommandHandlers = components.commandHandlers.length > 0
+    const hasCronHandlers = components.cronHandlers.length > 0
+
+    const [chatBotMod, lockerMod, repoAdapterMod, txMod, jobMod, cronJobMod] = await Promise.all([
+      import('../../addon/chat-bot/pg/PgChatRepository'),
+      import('../../feature/pg/PgLocker'),
+      import('../../feature/pg/PgJsonRepositoryAdapter'),
+      import('../../addon/async/pg/PgTransactionAdapter'),
+      hasCommandHandlers || hasCronHandlers
+        ? import('../../addon/async/pg/PgJobRepository')
+        : Promise.resolve(null),
+      hasCronHandlers
+        ? import('../../addon/async/pg/PgCronJobRepository')
+        : Promise.resolve(null),
     ])
 
     container.register(ChatRepository, { useToken: chatBotMod.PgChatRepository as any })
-    container.register(Locker, { useToken: pgMod.PgLocker as any })
-    const pgAdapter = new pgMod.PgJsonRepositoryAdapter(this.pool)
+    container.register(Locker, { useToken: lockerMod.PgLocker as any })
+    const pgAdapter = new repoAdapterMod.PgJsonRepositoryAdapter(this.pool)
     container.resolve(RepositoryAdapterRegistry).setDefault(pgAdapter)
     container.resolve(RepositoryMetadataStore).validateExtensionsRegistered(pgAdapter.id)
 
     const transactionStore = container.resolve(TransactionMetadataStore)
-    transactionStore.registerAdapter('default', new asyncMod.PgTransactionAdapter(this.pool))
+    transactionStore.registerAdapter('default', new txMod.PgTransactionAdapter(this.pool))
 
-    const hasCommandHandlers = components.commandHandlers.length > 0
-    const hasCronHandlers = components.cronHandlers.length > 0
-
-    if (hasCommandHandlers || hasCronHandlers) {
-      container.register(JobRepository, { useToken: asyncMod.PgJobRepository })
+    if (jobMod) {
+      container.register(JobRepository, { useToken: jobMod.PgJobRepository })
     }
-    if (hasCronHandlers) {
-      container.register(CronJobRepository, { useToken: asyncMod.PgCronJobRepository })
+    if (cronJobMod) {
+      container.register(CronJobRepository, { useToken: cronJobMod.PgCronJobRepository })
     }
 
     logger.info('Configured with PostgreSQL adapters')
