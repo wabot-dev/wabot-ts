@@ -40,11 +40,13 @@ const logger = new Logger('wabot:project-runner')
 const TEST_FILE_PATTERNS = /\.(test|spec|unit|integration|e2e|multiprocess)\.(ts|js)$/
 const DEFAULT_EXCLUDE = ['run.ts', 'cmd.ts']
 
+const MODULE_EXT = import.meta.url.endsWith('.ts') ? '.ts' : '.js'
+
 const DEFAULT_CHAT_ADAPTERS = [
-  ['../../addon/chat-bot/openia/OpenaiChatAdapter', 'OpenaiChatAdapter'],
-  ['../../addon/chat-bot/openrouter/OpenRouterChatAdapter', 'OpenRouterChatAdapter'],
-  ['../../addon/chat-bot/anthropic/AnthropicChatAdapter', 'AnthropicChatAdapter'],
-  ['../../addon/chat-bot/google/GoogleChatAdapter', 'GoogleChatAdapter'],
+  [`../../addon/chat-bot/openia/OpenaiChatAdapter${MODULE_EXT}`, 'OpenaiChatAdapter'],
+  [`../../addon/chat-bot/openrouter/OpenRouterChatAdapter${MODULE_EXT}`, 'OpenRouterChatAdapter'],
+  [`../../addon/chat-bot/anthropic/AnthropicChatAdapter${MODULE_EXT}`, 'AnthropicChatAdapter'],
+  [`../../addon/chat-bot/google/GoogleChatAdapter${MODULE_EXT}`, 'GoogleChatAdapter'],
 ] as const
 
 interface DiscoveredComponents {
