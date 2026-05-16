@@ -1,0 +1,3 @@
+import { runCmdClient } from '@'
+
+runCmdClient()

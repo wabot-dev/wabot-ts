@@ -49,7 +49,8 @@
     "fmt": "prettier --write .",
     "fmt:check": "prettier --check .",
     "types:check": "tsc --noEmit",
-    "elia:dev": "node --import @yucacodes/ts --import ./env.mjs  ./test/elia/run.ts"
+    "elia:dev": "node --import @yucacodes/ts --import ./env.mjs  ./test/elia/run.ts",
+    "cmd:channel": "node --import @yucacodes/ts ./test/cmd.ts"
   },
   "devDependencies": {
     "@rollup/plugin-alias": "5.1.1",

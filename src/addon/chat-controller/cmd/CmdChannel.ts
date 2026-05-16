@@ -1,99 +1,119 @@
-import { type IChatChannel } from '@/feature/chat-controller'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
 
 import { injectable } from '@/core/injection'
 import { Logger } from '@/core/logger'
-
-import { type IChatConnection, type IChatMessage } from '@/feature/chat-bot'
-import { ICmdChannelMessage } from './ICmdChannelMessage'
-import { cmdChannelName } from './cmdChannelName'
-import * as readline from 'node:readline'
-
-import * as fs from 'node:fs'
-import * as path from 'node:path'
 import { Random } from '@/core/random'
 import { Auth } from '@/core/auth'
 
-const chatIdPath = '.cmd-channel/id.json'
-const authInfoPath = '.cmd-channel/auth-info.json'
+import { type IChatChannel } from '@/feature/chat-controller'
+import { type IChatConnection, type IChatMessage } from '@/feature/chat-bot'
+
+import { CmdChannelConfig } from './CmdChannelConfig'
+import { CmdChannelServer } from './CmdChannelServer'
+import { ICmdChannelMessage } from './ICmdChannelMessage'
+import { cmdChannelName } from './cmdChannelName'
+
+const fileLogger = new Logger('wabot:cmd-channel')
 
 @injectable()
 export class CmdChannel implements IChatChannel {
-  private chatId: string | undefined = undefined
-
-  private rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  })
-
   static channelName = cmdChannelName
 
+  private chatId: string | undefined = undefined
   private callBack: ((message: ICmdChannelMessage) => Promise<void>) | null = null
 
-  constructor(private auth: Auth<any>) {}
+  constructor(
+    private auth: Auth<any>,
+    private server: CmdChannelServer,
+    private config: CmdChannelConfig,
+  ) {}
 
   listen(callback: (message: ICmdChannelMessage) => Promise<void>): void {
     this.callBack = callback
   }
 
   disconnect(): void {
-    this.rl.removeAllListeners('line')
-    this.rl.close()
+    this.server.unregister(this.config.route)
     this.callBack = null
   }
 
   connect(): void {
-    this.rl.on('line', async (input: string) => {
-      const trimmedInput = input.trim()
-      if (!trimmedInput) {
-        this.rl.prompt()
-        return
-      }
+    this.server.register(this.config.route, {
+      onMessage: async (text, reply) => {
+        if (!this.callBack) return
 
-      if (trimmedInput.toLowerCase() === 'exit') {
-        this.rl.close()
-        return
-      }
+        this.ensureChatId()
+        this.ensureAuthLoaded()
 
-      if (this.chatId === undefined) {
-        this.chatId = readJsonFromFile(chatIdPath) ?? undefined
-        if (!this.chatId) {
-          this.chatId = Random.alphaNumericLowerCase(10)
-          writeJsonToFile(chatIdPath, this.chatId)
+        const chatConnection: IChatConnection = {
+          id: this.chatId!,
+          chatType: 'PRIVATE',
+          channelName: CmdChannel.channelName,
         }
-      }
 
-      const chatConnection: IChatConnection = {
-        id: this.chatId,
-        chatType: 'PRIVATE',
-        channelName: CmdChannel.channelName,
-      }
-
-      if (!this.callBack) return
-
-      if (!this.auth.isAssigned()) {
-        const authInfo = readJsonFromFile(authInfoPath)
-        if (authInfo) {
-          this.auth.assign(authInfo)
-        }
-      }
-
-      await this.callBack({
-        channel: cmdChannelName,
-        chatConnection,
-        message: {
-          text: trimmedInput,
-        },
-        reply: async (message: IChatMessage) => {
-          console.log(`\n[${message.senderName}]: ${message.text}\n`)
-          this.rl.prompt()
-          if (this.auth.isAssigned()) {
-            writeJsonToFile(authInfoPath, this.auth.require())
-          }
-        },
-        injectInstances: [[Auth, this.auth]],
-      })
+        await this.callBack({
+          channel: cmdChannelName,
+          chatConnection,
+          message: { text },
+          reply: async (message: IChatMessage) => {
+            reply({
+              senderName: message.senderName,
+              text: extractDisplayText(message),
+            })
+            if (this.auth.isAssigned()) {
+              writeJsonToFile(this.authInfoPath(), this.auth.require())
+            }
+          },
+          injectInstances: [[Auth, this.auth]],
+        })
+      },
     })
   }
+
+  private routeSlug(): string {
+    return this.config.route.replace(/[^a-zA-Z0-9._-]/g, '_')
+  }
+
+  private chatIdPath(): string {
+    return path.join('.cmd-channel', this.routeSlug(), 'id.json')
+  }
+
+  private authInfoPath(): string {
+    return path.join('.cmd-channel', this.routeSlug(), 'auth-info.json')
+  }
+
+  private ensureChatId(): void {
+    if (this.chatId !== undefined) return
+    this.chatId = readJsonFromFile<string>(this.chatIdPath()) ?? undefined
+    if (!this.chatId) {
+      this.chatId = Random.alphaNumericLowerCase(10)
+      writeJsonToFile(this.chatIdPath(), this.chatId)
+    }
+  }
+
+  private ensureAuthLoaded(): void {
+    if (this.auth.isAssigned()) return
+    const authInfo = readJsonFromFile(this.authInfoPath())
+    if (authInfo) {
+      this.auth.assign(authInfo)
+    }
+  }
+}
+
+function extractDisplayText(message: IChatMessage): string {
+  const raw = message.text ?? ''
+  const trimmed = raw.trim()
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) return raw
+  try {
+    const parsed = JSON.parse(trimmed)
+    if (parsed && typeof parsed === 'object' && typeof parsed.text === 'string') {
+      return parsed.text
+    }
+  } catch {
+    // not JSON — fall through and return raw
+  }
+  return raw
 }
 
 export function writeJsonToFile<T>(filename: string, data: T): void {
@@ -102,8 +122,6 @@ export function writeJsonToFile<T>(filename: string, data: T): void {
   fs.mkdirSync(dir, { recursive: true })
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8')
 }
-
-const fileLogger = new Logger('wabot:cmd-channel')
 
 export function readJsonFromFile<T>(filename: string): T | null {
   const filePath = path.resolve(process.cwd(), filename)
