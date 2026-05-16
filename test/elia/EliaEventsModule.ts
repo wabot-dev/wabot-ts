@@ -32,6 +32,14 @@ export class EliaReadEventsByCategoryRequest {
   category: string = ''
 }
 
+export class EliaReadUpcomingRequest {
+  @isNumber()
+  @min(1)
+  @max(50)
+  @description('Cantidad máxima de eventos a devolver')
+  limit: number = 10
+}
+
 @mindsetModule()
 export class EliaEventsModule {
   constructor(private repository: EliaEventRepository) {}
@@ -54,5 +62,10 @@ export class EliaEventsModule {
   async readEventsByCategory(req: EliaReadEventsByCategoryRequest) {
     const result = await this.repository.findByCategory(req.category)
     return result
+  }
+
+  @description('Próximos eventos ordenados por fecha')
+  async readUpcomingEvents(req: EliaReadUpcomingRequest) {
+    return this.repository.findUpcoming(Date.now(), req.limit)
   }
 }
