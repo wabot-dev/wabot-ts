@@ -2,7 +2,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 
 import { Logger } from '@/core/logger'
-import type { ChatItem, IChatMemory } from '@/feature/chat-bot'
+import { ChatItem, type IChatItemData, type IChatMemory } from '@/feature/chat-bot'
 
 const PERSIST_LIMIT = 32
 const PERSIST_DIR = '.wabot/in-memory'
@@ -50,9 +50,9 @@ export class InMemoryChatMemory implements IChatMemory {
     if (!this.filePath || !fs.existsSync(this.filePath)) return
     try {
       const raw = fs.readFileSync(this.filePath, 'utf-8')
-      const parsed = JSON.parse(raw) as ChatItem[]
+      const parsed = JSON.parse(raw) as Array<{ data: IChatItemData }>
       if (Array.isArray(parsed)) {
-        this.memory = parsed.slice(-PERSIST_LIMIT)
+        this.memory = parsed.slice(-PERSIST_LIMIT).map((entry) => new ChatItem(entry.data))
       }
     } catch (err) {
       logger.warn(`Failed to load ${this.filePath}:`, err)
