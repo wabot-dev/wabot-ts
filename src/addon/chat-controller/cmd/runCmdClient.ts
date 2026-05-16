@@ -45,6 +45,7 @@ export function runCmdClient(): void {
   let reconnectTimer: NodeJS.Timeout | null = null
   let waitingNoticeShown = false
   let exiting = false
+  let restoring = false
 
   const completer = (line: string): [string[], string] => {
     if (line.startsWith('/')) {
@@ -67,7 +68,7 @@ export function runCmdClient(): void {
   })
 
   const send = (msg: CmdClientMessage): boolean => {
-    if (!socket || state === 'disconnected') {
+    if (!socket) {
       process.stderr.write(
         red('not connected to framework — waiting for server...') + '\n',
       )
@@ -85,6 +86,10 @@ export function runCmdClient(): void {
         yellow('No cmd channels are registered on the server yet.') + '\n',
       )
       rl.prompt()
+      return
+    }
+    if (list.length === 1) {
+      send({ type: 'select', route: list[0].route })
       return
     }
     process.stdout.write(bold('Available cmd channels:') + '\n')
@@ -105,7 +110,10 @@ export function runCmdClient(): void {
       case 'selected':
         selected = msg.route
         state = 'chatting'
-        process.stdout.write(green(`[connected to ${msg.route}]`) + '\n')
+        if (!restoring) {
+          process.stdout.write(green(`[connected to ${msg.route}]`) + '\n')
+        }
+        restoring = false
         rl.setPrompt(cyan(msg.route) + dim(' > '))
         rl.prompt()
         return
@@ -138,14 +146,16 @@ export function runCmdClient(): void {
 
     socket.on('connect', () => {
       waitingNoticeShown = false
-      process.stdout.write(green('[connected to framework]') + '\n')
-      // Try to restore prior selection; otherwise the server will reply with channels.
+      // Silent reconnect when we're restoring a prior selection;
+      // otherwise announce the connection and ask for channels.
       if (selected) {
+        restoring = true
         socket!.write(JSON.stringify({ type: 'select', route: selected }) + '\n')
         state = 'chatting'
         rl.setPrompt(cyan(selected) + dim(' > '))
         rl.prompt()
       } else {
+        process.stdout.write(green('[connected to framework]') + '\n')
         socket!.write(JSON.stringify({ type: 'hello' }) + '\n')
       }
     })
@@ -187,7 +197,7 @@ export function runCmdClient(): void {
         process.stdout.write(
           yellow('\n[disconnected — waiting for framework to come back...]') + '\n',
         )
-      } else if (!waitingNoticeShown) {
+      } else if (!waitingNoticeShown && !selected) {
         waitingNoticeShown = true
         process.stdout.write(dim('Waiting for framework...') + '\n')
       }
