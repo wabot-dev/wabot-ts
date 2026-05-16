@@ -50,6 +50,7 @@
     "fmt:check": "prettier --check .",
     "types:check": "tsc --noEmit",
     "elia:dev": "node --import @yucacodes/ts --import ./env.mjs  ./test/elia/run.ts",
+    "elia:watch": "node --watch --import @yucacodes/ts --import ./env.mjs  ./test/elia/run.ts",
     "cmd:channel": "node --import @yucacodes/ts ./test/cmd.ts"
   },
   "devDependencies": {
