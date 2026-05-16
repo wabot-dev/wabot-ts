@@ -1,5 +1,6 @@
 export * from './IPgRepositoryConfig'
 export * from './PgCrudRepository'
+export * from './PgJsonRepositoryAdapter'
 export * from './PgLocker'
 export * from './PgLockKey'
 export * from './PgRepositoryBase'

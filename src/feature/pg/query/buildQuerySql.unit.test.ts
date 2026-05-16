@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import { buildQuerySql } from './buildQuerySql'
-import { parseQueryMethodName } from './parseQueryMethodName'
+import { parseQueryMethodName } from '@/feature/repository'
 
 const TABLE = '"public"."job"'
 const COLUMNS = '"id", "created_at", "data"'

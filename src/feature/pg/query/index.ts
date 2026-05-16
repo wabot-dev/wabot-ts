@@ -1,7 +1,2 @@
 export * from './@pgJsonRepository'
-export * from './@query'
-export * from './PgJsonRepository'
-export * from './PgRepositoryMetadataStore'
 export * from './buildQuerySql'
-export * from './parseQueryMethodName'
-export * from './types'

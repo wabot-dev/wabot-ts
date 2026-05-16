@@ -4,9 +4,9 @@ import assert from 'node:assert/strict'
 import { Entity, IEntityData } from '@/core/entity'
 import { container } from '@/core/injection'
 import { pgJsonRepository } from './@pgJsonRepository'
-import { query } from './@query'
-import { PgJsonRepository } from './PgJsonRepository'
-import { PgRepositoryMetadataStore } from './PgRepositoryMetadataStore'
+import { query, RepositoryAdapterRegistry, RepositoryMetadataStore } from '@/feature/repository'
+import { PgJsonRepositoryAdapter } from '../PgJsonRepositoryAdapter'
+import { CrudRepository, ICrudRepository } from '@/core/repository'
 
 interface IThingData extends IEntityData {
   status?: string
@@ -18,7 +18,7 @@ interface IThingData extends IEntityData {
 class Thing extends Entity<IThingData> {}
 
 @pgJsonRepository({ schema: 'wabot', table: 'thing', constructor: Thing })
-class TestThingRepository extends PgJsonRepository<Thing> {
+class ThingRepository extends CrudRepository<Thing> {
   @query() declare findByStatus: (status: string) => Promise<Thing[]>
   @query() declare findOneByEmail: (email: string) => Promise<Thing | null>
   @query() declare countByStatusAndAge: (status: string, age: number) => Promise<number>
@@ -27,67 +27,76 @@ class TestThingRepository extends PgJsonRepository<Thing> {
   @query() declare findByEmailIsNull: () => Promise<Thing[]>
 }
 
-interface ICapturedCall {
-  kind: 'query' | 'exec' | 'rawQuery'
+interface ICapturedQuery {
   sql: string
   params: any[]
 }
 
-interface IFakeRow {
-  count?: number
-  exists?: boolean
-}
-
-class FakeClient {
-  constructor(private rows: IFakeRow[]) {}
-  async query(_sql: string, _params: any[]) {
-    return { rows: this.rows, rowCount: this.rows.length }
+function makeFakePool(matchers: Array<{ match: RegExp; rows: any[] }> = []) {
+  const captured: ICapturedQuery[] = []
+  const schemaReadyRows = [
+    { column_name: 'id' },
+    { column_name: 'created_at' },
+    { column_name: 'data' },
+  ]
+  const client = {
+    async query(sql: string, params: any[] = []) {
+      captured.push({ sql, params })
+      for (const m of matchers) {
+        if (m.match.test(sql)) {
+          return { rows: m.rows, rowCount: m.rows.length }
+        }
+      }
+      if (/information_schema\.columns/.test(sql)) {
+        return { rows: schemaReadyRows, rowCount: schemaReadyRows.length }
+      }
+      return { rows: [], rowCount: 0 }
+    },
+    release() {},
   }
-}
-
-function makeStub(opts: { entities?: Thing[]; rawRows?: IFakeRow[] } = {}) {
-  const calls: ICapturedCall[] = []
-  const proto: any = TestThingRepository.prototype
-  const fakeClient = new FakeClient(opts.rawRows ?? [])
-  const stub: any = {
-    table: '"wabot"."thing"',
-    columns: '"id", "created_at", "data"',
-    pool: {
-      /* sentinel; never connected */
-    },
-    async query(sql: string, params: any[]) {
-      calls.push({ kind: 'query', sql, params })
-      return opts.entities ?? []
-    },
-    async exec(sql: string, params: any[]) {
-      calls.push({ kind: 'exec', sql, params })
-    },
-    async ensureTable() {
-      /* no-op */
+  const pool: any = {
+    async connect() {
+      return client
     },
   }
-  // Re-bind every prototype method onto stub for this scenario
-  Object.setPrototypeOf(stub, proto)
-  return { stub, calls, fakeClient }
+  return { pool, captured }
+}
+
+function appCalls(captured: ICapturedQuery[]): ICapturedQuery[] {
+  return captured.filter(
+    (c) =>
+      !/pg_advisory_(un)?lock/.test(c.sql) &&
+      !/CREATE SCHEMA/.test(c.sql) &&
+      !/CREATE TABLE/.test(c.sql) &&
+      !/ALTER TABLE/.test(c.sql) &&
+      !/information_schema/.test(c.sql),
+  )
 }
 
 function squash(s: string) {
   return s.replace(/\s+/g, ' ').trim()
 }
 
-test.describe('@pgJsonRepository + @query', () => {
+function setupRepo(pool: any): ThingRepository {
+  const registry = container.resolve(RepositoryAdapterRegistry)
+  registry.clear()
+  registry.setDefault(new PgJsonRepositoryAdapter(pool))
+  return new ThingRepository()
+}
+
+test.describe('@pgJsonRepository', () => {
   test('saves repository config in the metadata store', () => {
-    const store = container.resolve(PgRepositoryMetadataStore)
-    const config = store.getRepositoryConfig(TestThingRepository as any)
-    assert.ok(config, 'repository config should be saved')
+    const store = container.resolve(RepositoryMetadataStore)
+    const config = store.getRepositoryConfig(ThingRepository as any)
+    assert.ok(config)
     assert.equal(config!.schema, 'wabot')
     assert.equal(config!.table, 'thing')
     assert.equal(config!.constructor, Thing)
   })
 
-  test('registers each @query method in the metadata store', () => {
-    const store = container.resolve(PgRepositoryMetadataStore)
-    const methods = store.getQueryMethods(TestThingRepository as any).map((m) => m.functionName)
+  test('registers each @autoQuery method in the metadata store', () => {
+    const store = container.resolve(RepositoryMetadataStore)
+    const methods = store.getQueryMethods(ThingRepository as any).map((m) => m.functionName)
     for (const expected of [
       'findByStatus',
       'findOneByEmail',
@@ -100,111 +109,84 @@ test.describe('@pgJsonRepository + @query', () => {
     }
   })
 
-  test('installs query methods on the prototype', () => {
-    const proto = TestThingRepository.prototype as any
-    assert.equal(typeof proto.findByStatus, 'function')
-    assert.equal(typeof proto.findOneByEmail, 'function')
-    assert.equal(typeof proto.countByStatusAndAge, 'function')
-    assert.equal(typeof proto.existsByName, 'function')
-    assert.equal(typeof proto.deleteByStatus, 'function')
-    assert.equal(typeof proto.findByEmailIsNull, 'function')
+  test('installs CRUD and query methods on the prototype', () => {
+    const proto = ThingRepository.prototype as any
+    for (const m of ['find', 'findOrThrow', 'findByIds', 'findAll', 'create', 'update', 'delete']) {
+      assert.equal(typeof proto[m], 'function', `${m} should be installed`)
+    }
+    for (const m of [
+      'findByStatus',
+      'findOneByEmail',
+      'countByStatusAndAge',
+      'existsByName',
+      'deleteByStatus',
+      'findByEmailIsNull',
+    ]) {
+      assert.equal(typeof proto[m], 'function', `${m} should be installed`)
+    }
   })
 
-  test('find* delegates to this.query with correct SQL and params', async () => {
-    const expected = [new Thing({ status: 'active' } as any)]
-    const { stub, calls } = makeStub({ entities: expected })
-    const result = await stub.findByStatus('active')
-    assert.equal(result, expected)
+  test('findByStatus issues SELECT with correct WHERE clause and params', async () => {
+    const { pool, captured } = makeFakePool()
+    const repo = setupRepo(pool)
+    await repo.findByStatus('active')
+    const calls = appCalls(captured)
     assert.equal(calls.length, 1)
-    assert.equal(calls[0].kind, 'query')
     assert.match(squash(calls[0].sql), /WHERE data->>'status' = \$1$/)
     assert.deepEqual(calls[0].params, ['active'])
   })
 
-  test('findOne* returns first row or null', async () => {
-    const only = new Thing({ email: 'a@b.com' } as any)
-    const { stub: stub1 } = makeStub({ entities: [only] })
-    assert.equal(await stub1.findOneByEmail('a@b.com'), only)
+  test('findOneByEmail returns first row or null', async () => {
+    const { pool: pool1 } = makeFakePool([
+      { match: /SELECT .* FROM "wabot"\."thing"/, rows: [{ data: { email: 'a@b.com' } }] },
+    ])
+    const repo1 = setupRepo(pool1)
+    const r1 = await repo1.findOneByEmail('a@b.com')
+    assert.equal(r1?.['data'].email, 'a@b.com')
 
-    const { stub: stub2 } = makeStub({ entities: [] })
-    assert.equal(await stub2.findOneByEmail('missing@b.com'), null)
+    const { pool: pool2 } = makeFakePool()
+    const repo2 = setupRepo(pool2)
+    assert.equal(await repo2.findOneByEmail('missing@b.com'), null)
   })
 
-  test('count* runs raw SQL via the pool client and returns count', async () => {
-    const { stub, fakeClient } = makeStub({ rawRows: [{ count: 42 }] })
-    // Force withPgClient to use our fake client by stubbing pool.connect.
-    let releaseCalls = 0
-    stub.pool = {
-      async connect() {
-        return Object.assign(fakeClient, {
-          release() {
-            releaseCalls += 1
-          },
-        })
-      },
-    }
-    const n = await stub.countByStatusAndAge('active', 30)
-    assert.equal(n, 42)
-    assert.equal(releaseCalls, 1)
+  test('countByStatusAndAge returns count from raw row', async () => {
+    const { pool } = makeFakePool([{ match: /COUNT\(\*\)/, rows: [{ count: 42 }] }])
+    const repo = setupRepo(pool)
+    assert.equal(await repo.countByStatusAndAge('active', 30), 42)
   })
 
-  test('exists* runs raw SQL and coerces to boolean', async () => {
-    const { stub, fakeClient } = makeStub({ rawRows: [{ exists: true }] })
-    stub.pool = {
-      async connect() {
-        return Object.assign(fakeClient, { release() {} })
-      },
-    }
-    const r = await stub.existsByName('foo')
-    assert.equal(r, true)
+  test('existsByName coerces raw row to boolean', async () => {
+    const { pool } = makeFakePool([{ match: /EXISTS/, rows: [{ exists: true }] }])
+    const repo = setupRepo(pool)
+    assert.equal(await repo.existsByName('foo'), true)
   })
 
-  test('delete* delegates to this.exec', async () => {
-    const { stub, calls } = makeStub()
-    await stub.deleteByStatus('archived')
+  test('deleteByStatus issues DELETE with correct params', async () => {
+    const { pool, captured } = makeFakePool()
+    const repo = setupRepo(pool)
+    await repo.deleteByStatus('archived')
+    const calls = appCalls(captured)
     assert.equal(calls.length, 1)
-    assert.equal(calls[0].kind, 'exec')
     assert.match(squash(calls[0].sql), /^DELETE FROM "wabot"\."thing" WHERE data->>'status' = \$1$/)
     assert.deepEqual(calls[0].params, ['archived'])
   })
 
-  test('IsNull conditions take zero arguments', async () => {
-    const { stub, calls } = makeStub({ entities: [] })
-    await stub.findByEmailIsNull()
+  test('findByEmailIsNull takes zero arguments', async () => {
+    const { pool, captured } = makeFakePool()
+    const repo = setupRepo(pool)
+    await repo.findByEmailIsNull()
+    const calls = appCalls(captured)
     assert.equal(calls.length, 1)
     assert.match(squash(calls[0].sql), /WHERE data->>'email' IS NULL$/)
     assert.deepEqual(calls[0].params, [])
   })
 
   test('argument-count mismatch surfaces a clear error', async () => {
-    const { stub } = makeStub({ entities: [] })
+    const { pool } = makeFakePool()
+    const repo = setupRepo(pool)
     await assert.rejects(
-      () => stub.countByStatusAndAge('only-one' as any),
+      () => (repo as any).countByStatusAndAge('only-one'),
       /expected 2 argument\(s\), received 1/,
     )
-  })
-})
-
-test.describe('invalid @query method names', () => {
-  test('throws at decoration time when method name does not match grammar', () => {
-    assert.throws(() => {
-      class _Bad extends PgJsonRepository<Thing> {
-        @query() declare fetchByName: () => Promise<unknown>
-      }
-      @pgJsonRepository({ schema: 's', table: 't', constructor: Thing })
-      class _BadRepo extends _Bad {}
-      // reference to avoid unused warnings
-      void _BadRepo
-    }, /must start with one of/)
-  })
-})
-
-test.describe('@pgJsonRepository extends check', () => {
-  test('throws when target does not extend PgJsonRepository', () => {
-    assert.throws(() => {
-      @pgJsonRepository({ schema: 's', table: 't', constructor: Thing })
-      class _NotARepo {}
-      void _NotARepo
-    }, /must extend PgJsonRepository/)
   })
 })
