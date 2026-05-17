@@ -12,6 +12,7 @@ import {
   IFunctionCall,
   ILanguageModelUsage,
   isChatMessageEmpty,
+  isRetryableError,
 } from '@/feature/chat-bot'
 import { IMindsetTool } from '@/feature/mindset'
 import { OpenRouter } from '@openrouter/sdk'
@@ -51,16 +52,29 @@ export class OpenRouterChatAdapter implements IChatAdapter {
       `Call OpenRouter with model: ${primary}, fallbacks: ${fallbacks.length}, messages: ${messages.length}, tools: ${tools.length}`,
     )
 
-    const response = await this.openRouter.chat.send({
-      chatRequest: {
-        model: primary,
-        models: fallbacks.length > 0 ? fallbacks : undefined,
-        messages,
-        tools: tools.length > 0 ? tools : undefined,
-      },
-    })
-
-    return this.mapResponse(response)
+    const maxAttempts = 3
+    const backoffMs = [500, 1000, 2000]
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const response = await this.openRouter.chat.send({
+          chatRequest: {
+            model: primary,
+            models: fallbacks.length > 0 ? fallbacks : undefined,
+            messages,
+            tools: tools.length > 0 ? tools : undefined,
+          },
+        })
+        return this.mapResponse(response)
+      } catch (err) {
+        if (attempt === maxAttempts || !isRetryableError(err)) throw err
+        const message = err instanceof Error ? err.message : String(err)
+        this.logger.warn(
+          `OpenRouter call failed (attempt ${attempt}/${maxAttempts}), retrying in ${backoffMs[attempt - 1]}ms: ${message}`,
+        )
+        await new Promise((resolve) => setTimeout(resolve, backoffMs[attempt - 1]))
+      }
+    }
+    throw new Error('OpenRouter retry loop exited without result')
   }
 
   private mapChatItems(
