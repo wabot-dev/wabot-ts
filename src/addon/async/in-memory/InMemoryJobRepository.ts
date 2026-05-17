@@ -1,10 +1,23 @@
+import * as fs from 'node:fs'
+import * as path from 'node:path'
 import { generate as generateShortUuid } from 'short-uuid'
 import { singleton } from '@/core/injection'
-import { Job, type IJobRepository } from '@/feature/async'
+import { Logger } from '@/core/logger'
+import { Job, type IJobData, type IJobRepository } from '@/feature/async'
+
+const JOBS_FILE = '.wabot/in-memory/jobs.json'
+const MAX_JOBS = 32
+
+const logger = new Logger('wabot:in-memory-job-repository')
 
 @singleton()
 export class InMemoryJobRepository implements IJobRepository {
+  // Insertion order acts as LRU: most-recently-touched at the end.
   private items = new Map<string, Job>()
+
+  constructor() {
+    this.load()
+  }
 
   async find(id: string): Promise<Job | null> {
     return this.items.get(id) ?? null
@@ -30,16 +43,20 @@ export class InMemoryJobRepository implements IJobRepository {
     item['data'].createdAt = new Date().getTime()
     item.validate()
     this.items.set(item.id, item)
+    this.enforceLimit()
+    this.persist()
   }
 
   async update(item: Job): Promise<void> {
     if (!item.wasCreated()) throw new Error('Job was not created')
     item.validate()
-    this.items.set(item.id, item)
+    this.touch(item)
+    this.persist()
   }
 
   async delete(item: Job): Promise<void> {
     this.items.delete(item.id)
+    this.persist()
   }
 
   async findPendingForRunFrom(date: Date, limit: number): Promise<Job[]> {
@@ -74,5 +91,51 @@ export class InMemoryJobRepository implements IJobRepository {
       }
     }
     return count
+  }
+
+  private touch(item: Job): void {
+    this.items.delete(item.id)
+    this.items.set(item.id, item)
+  }
+
+  private enforceLimit(): void {
+    while (this.items.size > MAX_JOBS) {
+      const oldestKey = this.items.keys().next().value
+      if (oldestKey === undefined) break
+      this.items.delete(oldestKey)
+    }
+  }
+
+  private filePath(): string {
+    return path.resolve(process.cwd(), JOBS_FILE)
+  }
+
+  private load(): void {
+    const file = this.filePath()
+    if (!fs.existsSync(file)) return
+    try {
+      const raw = fs.readFileSync(file, 'utf-8')
+      const parsed = JSON.parse(raw) as IJobData[]
+      if (!Array.isArray(parsed)) return
+      for (const data of parsed) {
+        if (!data?.id) continue
+        const job = new Job(data)
+        this.items.set(job.id, job)
+      }
+      this.enforceLimit()
+    } catch (err) {
+      logger.warn(`Failed to load ${file}:`, err)
+    }
+  }
+
+  private persist(): void {
+    const file = this.filePath()
+    try {
+      fs.mkdirSync(path.dirname(file), { recursive: true })
+      const data = [...this.items.values()].map((j) => j['data'] as IJobData)
+      fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf-8')
+    } catch (err) {
+      logger.warn(`Failed to persist ${file}:`, err)
+    }
   }
 }

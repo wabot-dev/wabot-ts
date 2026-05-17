@@ -21,7 +21,7 @@ interface IRamChatMemory {
 
 const CHATS_FILE = '.wabot/in-memory/chats.json'
 const MEMORY_DIR = '.wabot/in-memory'
-const MAX_CHATS = 10
+const MAX_CHATS = 32
 
 const logger = new Logger('wabot:in-memory-chat-repository')
 

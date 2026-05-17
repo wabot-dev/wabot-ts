@@ -42,7 +42,7 @@ class ThingRepository {
 function newRepo(): ThingRepository {
   const registry = container.resolve(RepositoryAdapterRegistry)
   registry.clear()
-  registry.setDefault(new MemoryRepositoryAdapter())
+  registry.setDefault(new MemoryRepositoryAdapter({ persist: false }))
   return new ThingRepository()
 }
 
