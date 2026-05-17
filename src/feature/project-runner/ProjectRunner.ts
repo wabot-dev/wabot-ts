@@ -307,10 +307,16 @@ export class ProjectRunner {
 
   private async resolveDefaultChatAdapters(): Promise<IConstructor<IChatAdapter>[]> {
     const keys = Object.keys(DEFAULT_ADAPTER_LOADERS) as DefaultAdapterKey[]
+    const emptyKeys: string[] = []
     const results = await Promise.all(
       keys.map(async (key) => {
         const { apiKeyEnv, load } = DEFAULT_ADAPTER_LOADERS[key]
-        if (!process.env[apiKeyEnv]) return null
+        const value = process.env[apiKeyEnv]
+        if (value === undefined) return null
+        if (value.trim() === '') {
+          emptyKeys.push(apiKeyEnv)
+          return null
+        }
         try {
           const adapter = await load()
           if (!adapter) return null
@@ -321,6 +327,12 @@ export class ProjectRunner {
         }
       }),
     )
+    if (emptyKeys.length > 0) {
+      throw new Error(
+        `Chat adapter API key(s) defined but empty: ${emptyKeys.join(', ')}. ` +
+          `Set a value in your .env or remove the variable entirely.`,
+      )
+    }
     return results.filter((a): a is IConstructor<IChatAdapter> => a != null)
   }
 }
