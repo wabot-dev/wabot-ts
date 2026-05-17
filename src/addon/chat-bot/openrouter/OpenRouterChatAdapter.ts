@@ -169,8 +169,12 @@ export class OpenRouterChatAdapter implements IChatAdapter {
   }
 
   private mapResponse(response: ChatResult): IChatAdapterNextItemsRes {
-    const { toolCalls: responseToolCalls, content: responseText } =
-      response.choices?.[0]?.message ?? {}
+    const choice = response.choices?.[0]
+    const message = choice?.message
+    const finishReason = choice?.finishReason ?? null
+    const responseText = typeof message?.content === 'string' ? message.content : undefined
+    const responseToolCalls = message?.toolCalls
+    const refusal = message?.refusal
 
     const nextItems: IChatItem[] = []
 
@@ -194,7 +198,20 @@ export class OpenRouterChatAdapter implements IChatAdapter {
     }
 
     if (nextItems.length === 0) {
-      throw new Error('Not supported OpenRouter Response')
+      const diagnostics = {
+        model: response.model,
+        finishReason,
+        hasChoices: (response.choices?.length ?? 0) > 0,
+        hasMessage: !!message,
+        contentType: message?.content === undefined ? 'undefined' : typeof message.content,
+        hasReasoning: !!message?.reasoning,
+        refusal: refusal ?? null,
+        toolCallsCount: responseToolCalls?.length ?? 0,
+      }
+      this.logger.warn(`Empty OpenRouter response: ${JSON.stringify(diagnostics)}`)
+      throw new Error(
+        `Empty OpenRouter response (model: ${response.model}, finishReason: ${finishReason ?? 'null'}${refusal ? ', refused' : ''})`,
+      )
     }
 
     let usage: ILanguageModelUsage

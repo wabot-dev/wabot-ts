@@ -8,6 +8,6 @@ describe('OpenRouterChatAdapter', () => {
 
   testChatAdapter({
     adapter,
-    model: 'openrouter/free',
+    model: 'qwen/qwen3.6-flash',
   })
 })
