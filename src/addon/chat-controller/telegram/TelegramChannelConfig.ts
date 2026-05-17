@@ -1,7 +1,9 @@
+import type { ConfigReference } from '@/core/config'
+
 export interface ITelegramChannelConfig {
-  botToken: string
+  botToken: string | ConfigReference<string>
 }
 
-export class TelegramChannelConfig implements ITelegramChannelConfig {
+export class TelegramChannelConfig {
   constructor(public botToken: string) {}
 }
