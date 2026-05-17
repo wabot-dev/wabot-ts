@@ -56,24 +56,24 @@ const DEFAULT_ADAPTER_LOADERS: Record<
   openai: {
     apiKeyEnv: 'OPENAI_API_KEY',
     load: async () =>
-      (await import('../../addon/chat-bot/openia/OpenaiChatAdapter.js')).OpenaiChatAdapter,
+      (await import('../../addon/chat-bot/openia/OpenaiChatAdapter')).OpenaiChatAdapter,
   },
   openrouter: {
     apiKeyEnv: 'OPENROUTER_API_KEY',
     load: async () =>
-      (await import('../../addon/chat-bot/openrouter/OpenRouterChatAdapter.js'))
+      (await import('../../addon/chat-bot/openrouter/OpenRouterChatAdapter'))
         .OpenRouterChatAdapter,
   },
   anthropic: {
     apiKeyEnv: 'ANTHROPIC_API_KEY',
     load: async () =>
-      (await import('../../addon/chat-bot/anthropic/AnthropicChatAdapter.js'))
+      (await import('../../addon/chat-bot/anthropic/AnthropicChatAdapter'))
         .AnthropicChatAdapter,
   },
   google: {
     apiKeyEnv: 'GOOGLE_API_KEY',
     load: async () =>
-      (await import('../../addon/chat-bot/google/GoogleChatAdapter.js')).GoogleChatAdapter,
+      (await import('../../addon/chat-bot/google/GoogleChatAdapter')).GoogleChatAdapter,
   },
 }
 
@@ -306,13 +306,6 @@ export class ProjectRunner {
   }
 
   private async resolveDefaultChatAdapters(): Promise<IConstructor<IChatAdapter>[]> {
-    if (this.preloaded) {
-      logger.warn(
-        'preloaded mode is enabled but no chatAdapters were provided in config; ' +
-          'default adapters will not be auto-loaded. Pass chatAdapters explicitly.',
-      )
-      return []
-    }
     const keys = Object.keys(DEFAULT_ADAPTER_LOADERS) as DefaultAdapterKey[]
     const results = await Promise.all(
       keys.map(async (key) => {

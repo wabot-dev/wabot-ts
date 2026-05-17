@@ -1,6 +1,6 @@
 {
   "name": "@wabot-dev/framework",
-  "version": "0.9.14",
+  "version": "0.9.15",
   "description": "Framework for IA Chat Bots",
   "type": "module",
   "main": "dist/src/index.js",
@@ -50,9 +50,9 @@
     "fmt": "prettier --write .",
     "fmt:check": "prettier --check .",
     "types:check": "tsc --noEmit",
-    "elia:dev": "node --import @yucacodes/ts --import ./env.mjs  ./test/elia/run.ts",
-    "elia:watch": "node --watch --import @yucacodes/ts --import ./env.mjs  ./test/elia/run.ts",
-    "cmd:channel": "node --import @yucacodes/ts ./test/cmd.ts"
+    "elia:dev": "node --import @yucacodes/ts --import ./env.mjs  ./test/elia/_run_.ts",
+    "elia:watch": "node --watch --import @yucacodes/ts --import ./env.mjs  ./test/elia/_run_.ts",
+    "elia:cmd:channel": "node --import @yucacodes/ts ./test/elia/_cmd_.ts"
   },
   "devDependencies": {
     "@rollup/plugin-alias": "5.1.1",
