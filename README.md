@@ -38,6 +38,71 @@ visita nuestra documentación 📘 **[Ver guía completa de inicio →](https://
 
 ---
 
+## 📦 Building for production
+
+En modo dev, el framework descubre módulos escaneando el disco. Para producción, el framework incluye un script que empaqueta tu proyecto en un único `dist/entry.js` autocontenido usando `tsup`.
+
+### 1. Instala `tsup` como dev dependency del consumidor
+
+```bash
+npm i -D tsup
+```
+
+### 2. Cambia `_run_.ts` para exportar la config
+
+En vez de invocar `run()` directamente, exporta `config` para que tanto dev como build la puedan usar:
+
+```ts
+// src/_run_.ts
+import { run, IProjectRunnerConfig } from '@wabot-dev/framework'
+
+export const config: IProjectRunnerConfig = {
+  directories: ['src'],
+}
+
+// Solo en dev: arrancar inmediatamente.
+if (process.env.WABOT_BUNDLED !== '1') {
+  run(config)
+}
+```
+
+### 3. Configura el build (opcional)
+
+Crea `wabot.build.json` en la raíz del proyecto o agrega un campo `wabot` al `package.json`:
+
+```json
+{
+  "entry": "./src/_run_.ts",
+  "directories": ["src"],
+  "exclude": ["_run_.ts", "_cmd_.ts"],
+  "outDir": "./dist",
+  "sourcemap": true,
+  "minify": false,
+  "external": ["pg"]
+}
+```
+
+### 4. Agrega los scripts
+
+```json
+"scripts": {
+  "dev": "node --import @yucacodes/ts ./src/_run_.ts",
+  "build": "node ./node_modules/@wabot-dev/framework/dist/build/build.js",
+  "start": "WABOT_BUNDLED=1 node ./dist/entry.js"
+}
+```
+
+El script de build:
+
+1. Escanea las `directories` configuradas (saltando tests y `_run_.ts`/`_cmd_.ts`).
+2. Genera un manifiesto temporal en `.wabot/` con imports estáticos a cada módulo.
+3. Empaqueta todo con `tsup` (ESM, single-file) en `dist/entry.js`.
+4. Arranca el runtime en modo `preloaded: true`, así que **no hay `readdir` ni imports dinámicos por template literal** en el bundle final.
+
+Los addons opcionales (`pg`, SDKs de IA) se mantienen como `peerDependencies` y solo entran al bundle si tu proyecto los usa.
+
+---
+
 ## 💬 Plataformas Soportadas
 
 Wabot se integra nativamente con las principales plataformas de mensajería:

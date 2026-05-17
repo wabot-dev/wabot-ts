@@ -1,6 +1,6 @@
 {
   "name": "@wabot-dev/framework",
-  "version": "0.9.13",
+  "version": "0.9.14",
   "description": "Framework for IA Chat Bots",
   "type": "module",
   "main": "dist/src/index.js",
@@ -39,6 +39,7 @@
   ],
   "files": [
     "dist/src",
+    "dist/build",
     "LICENSE.md"
   ],
   "scripts": {

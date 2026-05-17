@@ -1,5 +1,3 @@
-import { readdir } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { Pool } from 'pg'
 import { container } from '@/core/injection'
@@ -28,42 +26,56 @@ import {
   RepositoryAdapterRegistry,
   RepositoryMetadataStore,
 } from '@/feature/repository'
+import { scanProjectFiles } from './scanner'
 
 export interface IProjectRunnerConfig {
   directories?: string[]
   exclude?: string[]
   connectionString?: string
   chatAdapters?: IConstructor<IChatAdapter>[]
+  /**
+   * When true, skip filesystem discovery (no readdir, no dynamic import of
+   * source files) and start directly from the metadata that was registered
+   * during the host module's import-time side effects.
+   *
+   * The caller is responsible for having imported every module that registers
+   * controllers, handlers, adapters, etc. before invoking run(). This is the
+   * mode used by the bundled output produced by src/build/build.ts.
+   */
+  preloaded?: boolean
 }
 
 const logger = new Logger('wabot:project-runner')
-const TEST_FILE_PATTERNS = /\.(test|spec|unit|integration|e2e|multiprocess)\.(ts|js)$/
-const DEFAULT_EXCLUDE = ['_run_.ts', '_cmd_.ts']
 
-const MODULE_EXT = import.meta.url.endsWith('.ts') ? '.ts' : '.js'
+type DefaultAdapterKey = 'openai' | 'openrouter' | 'anthropic' | 'google'
 
-const DEFAULT_CHAT_ADAPTERS = [
-  {
-    path: `../../addon/chat-bot/openia/OpenaiChatAdapter${MODULE_EXT}`,
-    name: 'OpenaiChatAdapter',
+const DEFAULT_ADAPTER_LOADERS: Record<
+  DefaultAdapterKey,
+  { apiKeyEnv: string; load: () => Promise<IConstructor<IChatAdapter> | null> }
+> = {
+  openai: {
     apiKeyEnv: 'OPENAI_API_KEY',
+    load: async () =>
+      (await import('../../addon/chat-bot/openia/OpenaiChatAdapter.js')).OpenaiChatAdapter,
   },
-  {
-    path: `../../addon/chat-bot/openrouter/OpenRouterChatAdapter${MODULE_EXT}`,
-    name: 'OpenRouterChatAdapter',
+  openrouter: {
     apiKeyEnv: 'OPENROUTER_API_KEY',
+    load: async () =>
+      (await import('../../addon/chat-bot/openrouter/OpenRouterChatAdapter.js'))
+        .OpenRouterChatAdapter,
   },
-  {
-    path: `../../addon/chat-bot/anthropic/AnthropicChatAdapter${MODULE_EXT}`,
-    name: 'AnthropicChatAdapter',
+  anthropic: {
     apiKeyEnv: 'ANTHROPIC_API_KEY',
+    load: async () =>
+      (await import('../../addon/chat-bot/anthropic/AnthropicChatAdapter.js'))
+        .AnthropicChatAdapter,
   },
-  {
-    path: `../../addon/chat-bot/google/GoogleChatAdapter${MODULE_EXT}`,
-    name: 'GoogleChatAdapter',
+  google: {
     apiKeyEnv: 'GOOGLE_API_KEY',
+    load: async () =>
+      (await import('../../addon/chat-bot/google/GoogleChatAdapter.js')).GoogleChatAdapter,
   },
-] as const
+}
 
 interface DiscoveredComponents {
   chatControllers: IConstructor<any>[]
@@ -79,23 +91,28 @@ export class ProjectRunner {
   private chatAdapters: IConstructor<IChatAdapter>[] | undefined
   private connectionString: string | null
   private isPg: boolean
+  private preloaded: boolean
   private pool: Pool | null = null
 
   constructor(config: IProjectRunnerConfig = {}) {
     this.directories = config.directories ?? ['src']
-    this.exclude = [...DEFAULT_EXCLUDE, ...(config.exclude ?? [])]
+    this.exclude = config.exclude ?? []
     this.chatAdapters = config.chatAdapters
     this.connectionString = this.resolveConnectionString(config.connectionString)
     this.isPg = this.connectionString != null && isPostgresUrl(this.connectionString)
+    this.preloaded = config.preloaded === true
   }
 
   async run(): Promise<void> {
-    const [, files] = await Promise.all([
-      this.isPg ? this.initPool() : Promise.resolve(),
-      this.scanDirectories(),
-    ])
-
-    await this.importFiles(files)
+    if (this.preloaded) {
+      if (this.isPg) await this.initPool()
+    } else {
+      const [, files] = await Promise.all([
+        this.isPg ? this.initPool() : Promise.resolve(),
+        scanProjectFiles({ directories: this.directories, exclude: this.exclude }),
+      ])
+      await this.importFiles(files as string[])
+    }
 
     const components = this.discoverComponents()
 
@@ -117,45 +134,6 @@ export class ProjectRunner {
     const { Pool } = await import('pg')
     this.pool = new Pool({ connectionString: this.connectionString! })
     container.registerInstance(Pool, this.pool)
-  }
-
-  private async scanDirectories(): Promise<string[]> {
-    const seen = new Set<string>()
-    const roots = this.directories
-      .map((d) => resolve(d))
-      .filter((d) => {
-        if (seen.has(d)) return false
-        seen.add(d)
-        return true
-      })
-
-    const excludedNames = new Set<string>()
-    const excludedPathsByRoot = new Map<string, Set<string>>()
-    for (const entry of this.exclude) {
-      if (entry.includes('/') || entry.includes('\\')) {
-        for (const root of roots) {
-          let paths = excludedPathsByRoot.get(root)
-          if (!paths) {
-            paths = new Set()
-            excludedPathsByRoot.set(root, paths)
-          }
-          paths.add(resolve(root, entry))
-        }
-      } else {
-        excludedNames.add(entry)
-      }
-    }
-
-    const results = await Promise.all(
-      roots.map((dir) => {
-        const excludedPaths = excludedPathsByRoot.get(dir) ?? new Set<string>()
-        return scanDir(dir, excludedNames, excludedPaths).catch((err: Error) => {
-          logger.warn(`Could not read directory ${dir}: ${err.message}`)
-          return [] as string[]
-        })
-      }),
-    )
-    return results.flat()
   }
 
   private async importFiles(files: string[]): Promise<void> {
@@ -328,15 +306,23 @@ export class ProjectRunner {
   }
 
   private async resolveDefaultChatAdapters(): Promise<IConstructor<IChatAdapter>[]> {
+    if (this.preloaded) {
+      logger.warn(
+        'preloaded mode is enabled but no chatAdapters were provided in config; ' +
+          'default adapters will not be auto-loaded. Pass chatAdapters explicitly.',
+      )
+      return []
+    }
+    const keys = Object.keys(DEFAULT_ADAPTER_LOADERS) as DefaultAdapterKey[]
     const results = await Promise.all(
-      DEFAULT_CHAT_ADAPTERS.map(async ({ path, name, apiKeyEnv }) => {
+      keys.map(async (key) => {
+        const { apiKeyEnv, load } = DEFAULT_ADAPTER_LOADERS[key]
         if (!process.env[apiKeyEnv]) return null
         try {
-          const mod: any = await import(path)
-          const adapter = mod[name]
+          const adapter = await load()
           if (!adapter) return null
-          logger.info(`Using ${name}`)
-          return adapter as IConstructor<IChatAdapter>
+          logger.info(`Using ${adapter.name}`)
+          return adapter
         } catch {
           return null
         }
@@ -352,30 +338,4 @@ export function run(config?: IProjectRunnerConfig): Promise<void> {
 
 function isPostgresUrl(cs: string): boolean {
   return cs.startsWith('postgres://') || cs.startsWith('postgresql://')
-}
-
-async function scanDir(
-  dir: string,
-  excludedNames: Set<string>,
-  excludedPaths: Set<string>,
-): Promise<string[]> {
-  const entries = await readdir(dir, { withFileTypes: true })
-  const subResults = await Promise.all(
-    entries.map(async (entry) => {
-      const name = entry.name
-      const fullPath = join(dir, name)
-      if (excludedNames.has(name)) return []
-      if (excludedPaths.has(fullPath)) return []
-      if (entry.isDirectory()) {
-        if (name.startsWith('__')) return []
-        return scanDir(fullPath, excludedNames, excludedPaths)
-      }
-      if (!entry.isFile()) return []
-      if (!(name.endsWith('.ts') || name.endsWith('.js'))) return []
-      if (name.endsWith('.d.ts')) return []
-      if (TEST_FILE_PATTERNS.test(fullPath)) return []
-      return [fullPath]
-    }),
-  )
-  return subResults.flat()
 }
