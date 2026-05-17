@@ -1,9 +1,9 @@
-import { memoryExtension, MemoryRepositoryExtension } from '@'
+import { memExtension, MemoryRepositoryExtension } from '@'
 import { EliaEvent } from './EliaEvent'
 import { EliaEventRepository } from './EliaEventRepository'
 import { IEliaEventPgQueries } from './IEliaEventPgQueries'
 
-@memoryExtension(EliaEventRepository)
+@memExtension(EliaEventRepository)
 export class EliaEventMemoryQueries
   extends MemoryRepositoryExtension<EliaEvent>
   implements IEliaEventPgQueries

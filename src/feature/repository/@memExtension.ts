@@ -15,7 +15,7 @@ function inheritsFrom(ctor: Function, base: Function): boolean {
   return false
 }
 
-export function memoryExtension<R extends CrudRepository<any, any>>(
+export function memExtension<R extends CrudRepository<any, any>>(
   repositoryClass: IConstructor<R>,
 ) {
   if (typeof repositoryClass !== 'function') {

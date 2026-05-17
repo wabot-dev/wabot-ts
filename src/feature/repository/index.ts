@@ -1,4 +1,4 @@
-export * from './@memoryExtension'
+export * from './@memExtension'
 export * from './@query'
 export * from './@queryExtension'
 export * from './@repository'
