@@ -101,13 +101,25 @@ export function testChatAdapter({ adapter, model }: ItestChatAdapterReq) {
       {
         language: 'english',
         name: 'getCountryTime',
-        parameters: [{ name: 'country', type: 'string', description: 'the country iso code' }],
+        parameters: [
+          {
+            name: 'country',
+            required: true,
+            schema: { type: 'string', description: 'the country iso code' },
+          },
+        ],
         description: 'return the current time of a country',
       },
       {
         language: 'english',
         name: 'getCountryMainLanguage',
-        parameters: [{ name: 'country', type: 'string', description: 'the country iso code' }],
+        parameters: [
+          {
+            name: 'country',
+            required: true,
+            schema: { type: 'string', description: 'the country iso code' },
+          },
+        ],
         description: 'return the main language of a country',
       },
     ]
@@ -159,13 +171,25 @@ export function testChatAdapter({ adapter, model }: ItestChatAdapterReq) {
       {
         language: 'english',
         name: 'getCountryTime',
-        parameters: [{ name: 'country', type: 'string', description: 'the country iso code' }],
+        parameters: [
+          {
+            name: 'country',
+            required: true,
+            schema: { type: 'string', description: 'the country iso code' },
+          },
+        ],
         description: 'return the current time of a country',
       },
       {
         language: 'english',
         name: 'getCountryMainLanguage',
-        parameters: [{ name: 'country', type: 'string', description: 'the country iso code' }],
+        parameters: [
+          {
+            name: 'country',
+            required: true,
+            schema: { type: 'string', description: 'the country iso code' },
+          },
+        ],
         description: 'return the main language of a country',
       },
     ]

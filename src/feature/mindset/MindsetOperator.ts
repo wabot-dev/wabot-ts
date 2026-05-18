@@ -14,6 +14,8 @@ import { IMindsetTool } from './IMindsetTool'
 import { validateModel } from '@/core/validation'
 import { CustomError, errorToPlainObject } from '@/core/error'
 import { Logger } from '@/core/logger'
+import { DescriptionMetadataStore } from '@/core/description'
+import { buildPropertySchema } from './buildParameterSchema'
 
 const MODEL_KIND_FALLBACK: Partial<Record<IMindsetModelKind, IMindsetModelKind>> = {
   visionLlm: 'llm',
@@ -29,6 +31,7 @@ export class MindsetOperator implements IMindset {
     private mindset: Mindset,
     private container: Container,
     metadataStore: MindsetMetadataStore,
+    private descriptionStore: DescriptionMetadataStore,
   ) {
     this.metadata = metadataStore.getMindsetInfo(this.mindset.constructor as any)
   }
@@ -126,18 +129,32 @@ export class MindsetOperator implements IMindset {
   }
 
   tools(): IMindsetTool[] {
+    const deps = {
+      descriptionStore: this.descriptionStore,
+    }
     return this.metadata.modules
       .map((module) =>
         module.functions.map((fn) => {
+          const argsValidatorsInfo = fn.argsValidatorsInfo
+          const propertyValidators = argsValidatorsInfo?.properties ?? {}
+
           return {
             language: module.config?.language ?? 'english',
             name: fn.name,
             description: fn.description,
-            parameters: fn.argsDescriptions.map((x) => ({
-              type: this.paramType(x.typeDescriptor),
-              name: x.propertyName,
-              description: this.paramDescription(x.description, x.typeDescriptor),
-            })),
+            parameters: fn.argsDescriptions.map((arg) => {
+              const propInfo = propertyValidators[arg.propertyName]
+              const schema = buildPropertySchema(
+                propInfo?.validators ?? [],
+                this.paramDescription(arg.description, arg.typeDescriptor),
+                deps,
+              )
+              return {
+                name: arg.propertyName,
+                required: !propInfo?.isOptional,
+                schema,
+              }
+            }),
           }
         }),
       )
@@ -145,23 +162,11 @@ export class MindsetOperator implements IMindset {
   }
 
   protected paramDescription(rawDescription: string, rawType: string) {
-    let description = `
-      ### description (in your main language)
-      ${rawDescription.replaceAll('#', ' ')}
-    `
-
+    let description = rawDescription.replaceAll('#', ' ').trim()
     if (rawType === 'date') {
-      description = `${description}
-          ### format: ISO 8681 - YYYY-MM-DDTHH:mm:ssZ
-      `
+      description = `${description}\nFormat: ISO 8601 - YYYY-MM-DDTHH:mm:ssZ`
     }
-
     return description
-  }
-
-  protected paramType(rawType: string) {
-    if (rawType === 'date') return 'string'
-    return rawType
   }
 
   async callFunction(name: string, params: string): Promise<string> {
@@ -178,19 +183,40 @@ export class MindsetOperator implements IMindset {
       })
     }
 
+    let paramsObj: any
     try {
-      let paramsObj = JSON.parse(params)
+      paramsObj = JSON.parse(params)
+    } catch (parseError) {
+      const aiResponse = JSON.stringify({
+        error: 'INVALID_JSON_ARGUMENTS',
+        message:
+          'The function call arguments are not valid JSON. Re-issue the call with a valid JSON object.',
+        details: parseError instanceof Error ? parseError.message : String(parseError),
+      })
+      this.logger.error(`Function '${name}' received non-JSON arguments`, { params, parseError })
+      return aiResponse
+    }
 
-      const modelValidationInfo = fnMetadata.argsValidatorsInfo
-
-      if (modelValidationInfo) {
-        const validation = validateModel(paramsObj, modelValidationInfo)
-        if (validation.error) {
-          throw new CustomError({ message: 'IA Params Are invalid', info: validation.error })
-        }
-        paramsObj = validation.value
+    const modelValidationInfo = fnMetadata.argsValidatorsInfo
+    if (modelValidationInfo) {
+      const validation = validateModel(paramsObj, modelValidationInfo)
+      if (validation.error) {
+        const aiResponse = JSON.stringify({
+          error: 'INVALID_ARGUMENTS',
+          message:
+            'The provided arguments did not pass validation. Inspect the errors below and re-issue the call with corrected arguments.',
+          details: this.flattenValidationError(validation.error),
+        })
+        this.logger.warn(`Function '${name}' received invalid arguments`, {
+          params,
+          errors: validation.error,
+        })
+        return aiResponse
       }
+      paramsObj = validation.value
+    }
 
+    try {
       const module = this.container.resolve<any>(fnMetadata.moduleConstructor as any)
 
       const response = await module[name](paramsObj)
@@ -207,6 +233,40 @@ export class MindsetOperator implements IMindset {
       }
       return aiResponse
     }
+  }
+
+  private flattenValidationError(
+    error: any,
+    path = '',
+  ): { path: string; message: string }[] {
+    const out: { path: string; message: string }[] = []
+    if (!error) return out
+    if (Array.isArray(error?.items)) {
+      error.items.forEach((itemErrors: any, idx: number) => {
+        if (!itemErrors) return
+        const itemPath = `${path}[${idx}]`
+        if (Array.isArray(itemErrors)) {
+          itemErrors.forEach((ie) => out.push(...this.flattenValidationError(ie, itemPath)))
+        } else {
+          out.push(...this.flattenValidationError(itemErrors, itemPath))
+        }
+      })
+      if (out.length > 0) return out
+    }
+    if (error?.properties && typeof error.properties === 'object') {
+      for (const propName in error.properties) {
+        const propErrors = error.properties[propName]
+        const propPath = path ? `${path}.${propName}` : propName
+        if (Array.isArray(propErrors)) {
+          propErrors.forEach((pe: any) => out.push(...this.flattenValidationError(pe, propPath)))
+        }
+      }
+      if (out.length > 0) return out
+    }
+    if (typeof error.description === 'string') {
+      out.push({ path: path || '(root)', message: error.description })
+    }
+    return out
   }
 
   async functionResponseToString(response: any): Promise<string> {

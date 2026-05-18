@@ -140,16 +140,12 @@ export class DeepSeekChatAdapter implements IChatAdapter {
         parameters: {
           type: 'object',
           properties: tool.parameters.reduce(
-            (prev, param) => ({
-              ...prev,
-              [param.name]: { type: param.type, description: param.description },
-            }),
+            (prev, param) => ({ ...prev, [param.name]: param.schema }),
             {},
           ),
-          required: tool.parameters.map((param) => param.name),
+          required: tool.parameters.filter((p) => p.required).map((p) => p.name),
           additionalProperties: false,
         },
-        strict: true,
       },
     } as const
   }

@@ -168,16 +168,12 @@ export class OpenRouterChatAdapter implements IChatAdapter {
         parameters: {
           type: 'object',
           properties: tool.parameters.reduce(
-            (prev, param) => ({
-              ...prev,
-              [param.name]: { type: param.type, description: param.description },
-            }),
-            {} as Record<string, { type: string; description: string }>,
+            (prev, param) => ({ ...prev, [param.name]: param.schema }),
+            {} as Record<string, unknown>,
           ),
-          required: tool.parameters.map((param) => param.name),
+          required: tool.parameters.filter((p) => p.required).map((p) => p.name),
           additionalProperties: false,
         },
-        strict: true,
       },
     }
   }

@@ -193,13 +193,10 @@ export class AnthropicChatAdapter implements IChatAdapter {
       input_schema: {
         type: 'object' as const,
         properties: tool.parameters.reduce(
-          (prev, param) => ({
-            ...prev,
-            [param.name]: { type: param.type, description: param.description },
-          }),
+          (prev, param) => ({ ...prev, [param.name]: param.schema }),
           {},
         ),
-        required: tool.parameters.map((param) => param.name),
+        required: tool.parameters.filter((p) => p.required).map((p) => p.name),
       },
     }
   }

@@ -5,9 +5,22 @@ import { ChatMemory } from './ChatMemory'
 import { IChatBot } from './IChatBot'
 import { IChatMessage } from './IChatMessage'
 import { injectable } from '@/core/injection'
+import { Logger } from '@/core/logger'
+
+const MAX_CONSECUTIVE_INVALID_ARGS = 2
+
+function isInvalidArgsResult(result: string | undefined): boolean {
+  if (!result) return false
+  return (
+    result.startsWith('{"error":"INVALID_ARGUMENTS"') ||
+    result.startsWith('{"error":"INVALID_JSON_ARGUMENTS"')
+  )
+}
 
 @injectable()
 export class ChatBot implements IChatBot {
+  private logger = new Logger('wabot:chat-bot')
+
   constructor(
     private memory: ChatMemory,
     private adapter: ChatAdapter,
@@ -23,10 +36,13 @@ export class ChatBot implements IChatBot {
       humanMessage: message,
     })
     await this.memory.create(newChatItem)
-    await this.processLoop(callback)
+    await this.processLoop(callback, 0)
   }
 
-  protected async processLoop(callback: (message: IChatMessage) => Promise<void>) {
+  protected async processLoop(
+    callback: (message: IChatMessage) => Promise<void>,
+    invalidArgsCount: number,
+  ) {
     const prevItems = await this.memory.findLastItems(16)
     if (prevItems.length === 0) {
       return
@@ -65,6 +81,11 @@ export class ChatBot implements IChatBot {
           newItemData.functionCall.name,
           newItemData.functionCall.arguments ?? '{}',
         )
+        if (isInvalidArgsResult(newItemData.functionCall.result)) {
+          invalidArgsCount++
+        } else {
+          invalidArgsCount = 0
+        }
       } else if (newItemData.type === 'botMessage') {
         newItemData.botMessage.senderName = identity.name
       }
@@ -77,9 +98,16 @@ export class ChatBot implements IChatBot {
       }
     }
 
+    if (invalidArgsCount >= MAX_CONSECUTIVE_INVALID_ARGS) {
+      this.logger.warn(
+        `Aborting chat loop after ${invalidArgsCount} consecutive invalid-argument function calls`,
+      )
+      return
+    }
+
     if (newItemsData.length == 0 || newItemsData[newItemsData.length - 1].type === 'botMessage') {
       return
     }
-    await this.processLoop(callback)
+    await this.processLoop(callback, invalidArgsCount)
   }
 }

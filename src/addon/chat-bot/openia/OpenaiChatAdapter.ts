@@ -140,6 +140,7 @@ export class OpenaiChatAdapter implements IChatAdapter {
   }
 
   private mapTool(tool: IMindsetTool) {
+    const allRequired = tool.parameters.every((p) => p.required)
     return {
       type: 'function',
       name: tool.name,
@@ -147,16 +148,13 @@ export class OpenaiChatAdapter implements IChatAdapter {
       parameters: {
         type: 'object',
         properties: tool.parameters.reduce(
-          (prev, param) => ({
-            ...prev,
-            [param.name]: { type: param.type, description: param.description },
-          }),
+          (prev, param) => ({ ...prev, [param.name]: param.schema }),
           {},
         ),
-        required: tool.parameters.map((param) => param.name),
+        required: tool.parameters.filter((p) => p.required).map((p) => p.name),
         additionalProperties: false,
       },
-      strict: true,
+      strict: allRequired,
     } as const
   }
 
