@@ -5,6 +5,7 @@ import { injectable } from '@/core/injection'
 import { IChatChannel } from '@/feature/chat-controller'
 import { IChatConnection, IChatMessage } from '@/feature/chat-bot'
 import { ITelegramChannelMessage } from './ITelegramChannelMessage'
+import { markdownToTelegramHtml } from './markdownToTelegramHtml'
 import { telegramChannelName } from './telegramChannelName'
 
 @injectable()
@@ -39,7 +40,9 @@ export class TelegramChannel implements IChatChannel {
         },
         reply: async (replyMessage: IChatMessage) => {
           if (!replyMessage.text) return
-          await ctx.reply(replyMessage.text)
+          await ctx.reply(markdownToTelegramHtml(replyMessage.text), {
+            parse_mode: 'HTML',
+          })
         },
       })
     })
