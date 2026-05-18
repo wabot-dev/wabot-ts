@@ -1,4 +1,5 @@
 export * from './cloud-api'
+export * from './kapso'
 export * from './wasender'
 export * from './IWhatsAppSender'
 export * from './WhatsAppSender'
