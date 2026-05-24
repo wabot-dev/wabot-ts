@@ -73,14 +73,12 @@ export class GoogleChatAdapter implements IChatAdapter {
     let lastError: unknown
     for (const ref of req.models) {
       try {
-        const response = await this.ai.models.generateContent({
-          model: ref.model,
+        const response = await this.callGenerate(
+          ref.model,
           contents,
-          config: {
-            tools: [{ functionDeclarations }],
-            ...(hasUnsignedFunctionCall ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
-          },
-        })
+          functionDeclarations,
+          hasUnsignedFunctionCall,
+        )
         return this.mapResponse(response, ref.model)
       } catch (err) {
         if (!isRetryableError(err)) throw err
@@ -92,6 +90,33 @@ export class GoogleChatAdapter implements IChatAdapter {
       }
     }
     throw lastError ?? new Error('No Google model could handle the request')
+  }
+
+  private async callGenerate(
+    model: string,
+    contents: Content[],
+    functionDeclarations: FunctionDeclaration[],
+    hasUnsignedFunctionCall: boolean,
+  ): Promise<GenerateContentResponse> {
+    const baseConfig = { tools: [{ functionDeclarations }] }
+
+    if (!hasUnsignedFunctionCall) {
+      return this.ai.models.generateContent({ model, contents, config: baseConfig })
+    }
+
+    try {
+      return await this.ai.models.generateContent({
+        model,
+        contents,
+        config: { ...baseConfig, thinkingConfig: { thinkingBudget: 0 } },
+      })
+    } catch (err) {
+      if (!isThinkingModeRequiredError(err)) throw err
+      this.logger.warn(
+        `Google model '${model}' requires thinking mode; retrying without thinkingBudget override`,
+      )
+      return this.ai.models.generateContent({ model, contents, config: baseConfig })
+    }
   }
 
   private async mapChatItems(chatItems: IChatItem[]): Promise<Content[]> {
@@ -216,11 +241,7 @@ export class GoogleChatAdapter implements IChatAdapter {
       throw new Error('No candidates in response')
     }
 
-    if (
-      !response.usageMetadata ||
-      !response.usageMetadata.promptTokenCount ||
-      !response.usageMetadata.candidatesTokenCount
-    ) {
+    if (!response.usageMetadata) {
       throw new Error('Not usage metadata')
     }
 
@@ -253,9 +274,10 @@ export class GoogleChatAdapter implements IChatAdapter {
     }
 
     const cachedTokens = response.usageMetadata.cachedContentTokenCount ?? 0
+    const thoughtsTokens = response.usageMetadata.thoughtsTokenCount ?? 0
     let usage: ILanguageModelUsage = {
-      inputTokens: response.usageMetadata.promptTokenCount,
-      outputTokens: response.usageMetadata.candidatesTokenCount,
+      inputTokens: response.usageMetadata.promptTokenCount ?? 0,
+      outputTokens: (response.usageMetadata.candidatesTokenCount ?? 0) + thoughtsTokens,
       cacheReadTokens: cachedTokens || undefined,
       provider: 'google',
       model: response.modelVersion ?? modelName,
@@ -263,6 +285,12 @@ export class GoogleChatAdapter implements IChatAdapter {
 
     return { usage, nextItems }
   }
+}
+
+function isThinkingModeRequiredError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false
+  const message = (err as { message?: unknown }).message
+  return typeof message === 'string' && /only works in thinking mode/i.test(message)
 }
 
 function stripDataUrlPrefix(dataUrl: string): string {
