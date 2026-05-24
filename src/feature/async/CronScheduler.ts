@@ -155,7 +155,15 @@ export class CronScheduler {
       let cronJob = await this.cronRepo.findByName(config.name)
       if (cronJob) {
         this.logger.debug(`found cron job for name='${config.name}'`)
-        cronJob.update({ cron: config.cron, enabled: config.enabled })
+        cronJob.update({
+          cron: config.cron,
+          enabled: config.enabled,
+          maxRunningJobs: config.maxRunningJobs,
+          misfirePolicy: config.misfirePolicy,
+          reintentsDelaysInSeconds: config.reintentsDelaysInSeconds,
+          aceptableRunningTimeSeconds: config.aceptableRunningTimeSeconds,
+          stuckRetryAttempts: config.stuckRetryAttempts,
+        })
         await this.cronRepo.update(cronJob)
         this.logger.debug(`cron job for name='${config.name}' updated`)
       } else {
@@ -164,6 +172,11 @@ export class CronScheduler {
           cron: config.cron,
           commandName: config.commandName,
           enabled: config.enabled,
+          maxRunningJobs: config.maxRunningJobs,
+          misfirePolicy: config.misfirePolicy,
+          reintentsDelaysInSeconds: config.reintentsDelaysInSeconds,
+          aceptableRunningTimeSeconds: config.aceptableRunningTimeSeconds,
+          stuckRetryAttempts: config.stuckRetryAttempts,
         })
         await this.cronRepo.create(cronJob)
       }

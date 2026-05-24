@@ -50,10 +50,15 @@ export class Async {
 
     const scheduledDate = this.resolveScheduledDate(scheduledAt)
 
+    const options = this.metadataStore.getJobOptionsForCommandName(commandName)
+
     const job = new Job({
       commandName,
       commandData,
       scheduledAt: scheduledDate.getTime(),
+      reintentsDelaysInSeconds: options.reintentsDelaysInSeconds,
+      aceptableRunningTimeSeconds: options.aceptableRunningTimeSeconds,
+      stuckRetryAttempts: options.stuckRetryAttempts,
     })
 
     await this.jobRepository.create(job)

@@ -5,6 +5,7 @@ import { IStorableData } from '@/core/storable'
 import { ICronHandler } from './ICronHandler'
 import { ICronMetadata } from './ICronMetadata'
 import { ICronJobScheduleConfig } from './ICronJobScheduleConfig'
+import { IJobOptions } from './IJobOptions'
 
 @singleton()
 export class AsyncMetadataStore {
@@ -12,6 +13,7 @@ export class AsyncMetadataStore {
   private handlersInverseMap = new Map<IConstructor<ICommandHandler<any>>, string>()
   private commandsMap = new Map<string, IConstructor<any>>()
   private commandsInverseMap = new Map<IConstructor<any>, string>()
+  private handlerOptionsMap = new Map<string, IJobOptions>()
 
   private cronsMap = new Map<IConstructor<ICronHandler>, ICronMetadata[]>()
 
@@ -41,6 +43,7 @@ export class AsyncMetadataStore {
   registerCommandHandler<C extends object>(
     command: IConstructor<IStorableData<C>>,
     handlerConstructor: IConstructor<ICommandHandler<C>>,
+    options: IJobOptions = {},
   ) {
     let commandName = this.commandsInverseMap.get(command)
 
@@ -50,6 +53,7 @@ export class AsyncMetadataStore {
 
     this.handlersMap.set(commandName, handlerConstructor)
     this.handlersInverseMap.set(handlerConstructor, commandName)
+    this.handlerOptionsMap.set(commandName, options)
   }
 
   getHandlerForCommandName(commandName: string): IConstructor<ICommandHandler<any>> | null {
@@ -73,6 +77,10 @@ export class AsyncMetadataStore {
 
   getCommandForCommandName(commandName: string): IConstructor<any> | null {
     return this.commandsMap.get(commandName) ?? null
+  }
+
+  getJobOptionsForCommandName(commandName: string): IJobOptions {
+    return this.handlerOptionsMap.get(commandName) ?? {}
   }
 
   getAllCommandHandlers(): IConstructor<ICommandHandler<any>>[] {
