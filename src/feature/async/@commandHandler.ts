@@ -4,9 +4,11 @@ import { ICommandHandler } from './ICommandHandler'
 import { container, injectable } from '@/core/injection'
 import { IStorableData } from '@/core/storable'
 import { IJobOptions } from './IJobOptions'
+import { IDedupConfig } from './IDedupConfig'
 
 export interface ICommandHandlerConfig<C extends object> extends IJobOptions {
   command: IConstructor<IStorableData<C>>
+  dedup?: IDedupConfig
 }
 
 export function commandHandler<C extends object>(
@@ -23,7 +25,8 @@ export function commandHandler<C extends object>(
           aceptableRunningTimeSeconds: config.aceptableRunningTimeSeconds,
           stuckRetryAttempts: config.stuckRetryAttempts,
         }
-    metadataStore.registerCommandHandler(command, target, options)
+    const dedup = isCtor ? undefined : config.dedup
+    metadataStore.registerCommandHandler(command, target, options, dedup)
     injectable()(target)
   }
 }

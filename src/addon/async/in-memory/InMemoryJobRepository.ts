@@ -81,6 +81,24 @@ export class InMemoryJobRepository implements IJobRepository {
     })
   }
 
+  async findActiveByDedupKey(
+    commandName: string,
+    dedupKey: string,
+    succeededSinceTimestamp: number,
+  ): Promise<Job | null> {
+    const candidates = [...this.items.values()]
+      .filter((j) => {
+        const d = j['data']
+        if (d.commandName !== commandName) return false
+        if (d.dedupKey !== dedupKey) return false
+        if (d.failedAt != null) return false
+        if (d.successAt != null && d.successAt < succeededSinceTimestamp) return false
+        return true
+      })
+      .sort((a, b) => (b['data'].createdAt ?? 0) - (a['data'].createdAt ?? 0))
+    return candidates[0] ?? null
+  }
+
   async countRunningByCommand(commandName: string): Promise<number> {
     let count = 0
     for (const j of this.items.values()) {

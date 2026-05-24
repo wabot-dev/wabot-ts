@@ -34,4 +34,11 @@ export class JobRepository implements IJobRepository {
   countRunningByCommand(commandName: string): Promise<number> {
     throw new Error('Method not implemented.')
   }
+  findActiveByDedupKey(
+    commandName: string,
+    dedupKey: string,
+    succeededSinceTimestamp: number,
+  ): Promise<Job | null> {
+    throw new Error('Method not implemented.')
+  }
 }

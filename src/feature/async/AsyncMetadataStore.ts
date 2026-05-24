@@ -6,6 +6,7 @@ import { ICronHandler } from './ICronHandler'
 import { ICronMetadata } from './ICronMetadata'
 import { ICronJobScheduleConfig } from './ICronJobScheduleConfig'
 import { IJobOptions } from './IJobOptions'
+import { IDedupConfig } from './IDedupConfig'
 
 @singleton()
 export class AsyncMetadataStore {
@@ -14,6 +15,7 @@ export class AsyncMetadataStore {
   private commandsMap = new Map<string, IConstructor<any>>()
   private commandsInverseMap = new Map<IConstructor<any>, string>()
   private handlerOptionsMap = new Map<string, IJobOptions>()
+  private dedupConfigMap = new Map<string, IDedupConfig>()
 
   private cronsMap = new Map<IConstructor<ICronHandler>, ICronMetadata[]>()
 
@@ -44,6 +46,7 @@ export class AsyncMetadataStore {
     command: IConstructor<IStorableData<C>>,
     handlerConstructor: IConstructor<ICommandHandler<C>>,
     options: IJobOptions = {},
+    dedup?: IDedupConfig,
   ) {
     let commandName = this.commandsInverseMap.get(command)
 
@@ -54,6 +57,11 @@ export class AsyncMetadataStore {
     this.handlersMap.set(commandName, handlerConstructor)
     this.handlersInverseMap.set(handlerConstructor, commandName)
     this.handlerOptionsMap.set(commandName, options)
+    if (dedup !== undefined) {
+      this.dedupConfigMap.set(commandName, dedup)
+    } else {
+      this.dedupConfigMap.delete(commandName)
+    }
   }
 
   getHandlerForCommandName(commandName: string): IConstructor<ICommandHandler<any>> | null {
@@ -81,6 +89,10 @@ export class AsyncMetadataStore {
 
   getJobOptionsForCommandName(commandName: string): IJobOptions {
     return this.handlerOptionsMap.get(commandName) ?? {}
+  }
+
+  getDedupConfigForCommandName(commandName: string): IDedupConfig | undefined {
+    return this.dedupConfigMap.get(commandName)
   }
 
   getAllCommandHandlers(): IConstructor<ICommandHandler<any>>[] {

@@ -6,6 +6,8 @@ import { JobRepository } from './JobRepository'
 import { JobScheduler } from './JobScheduler'
 import { IValidateInputShape, validateAndTransform } from '@/core/validation'
 import { IConstructor } from '@/core/generics'
+import { Locker } from '@/core/lock'
+import { computeDedupKey } from './computeDedupKey'
 
 export type IScheduleDelay =
   | { seconds: number }
@@ -21,6 +23,7 @@ export class Async {
     private jobRepository: JobRepository,
     private metadataStore: AsyncMetadataStore,
     private jobScheduler: JobScheduler,
+    private locker: Locker,
   ) {}
 
   async runCommand<T>(ctor: IConstructor<T>, data: IValidateInputShape<T>): Promise<Job> {
@@ -49,20 +52,44 @@ export class Async {
     }
 
     const scheduledDate = this.resolveScheduledDate(scheduledAt)
-
     const options = this.metadataStore.getJobOptionsForCommandName(commandName)
+    const dedupConfig = this.metadataStore.getDedupConfigForCommandName(commandName)
 
-    const job = new Job({
-      commandName,
-      commandData,
-      scheduledAt: scheduledDate.getTime(),
-      reintentsDelaysInSeconds: options.reintentsDelaysInSeconds,
-      aceptableRunningTimeSeconds: options.aceptableRunningTimeSeconds,
-      stuckRetryAttempts: options.stuckRetryAttempts,
-    })
+    const buildJob = (dedupKey?: string) =>
+      new Job({
+        commandName,
+        commandData,
+        scheduledAt: scheduledDate.getTime(),
+        reintentsDelaysInSeconds: options.reintentsDelaysInSeconds,
+        aceptableRunningTimeSeconds: options.aceptableRunningTimeSeconds,
+        stuckRetryAttempts: options.stuckRetryAttempts,
+        dedupKey,
+      })
 
-    await this.jobRepository.create(job)
-    return job
+    if (!dedupConfig) {
+      const job = buildJob()
+      await this.jobRepository.create(job)
+      return job
+    }
+
+    const dedupKey = computeDedupKey(commandData)
+    const succeededSinceTimestamp =
+      dedupConfig === 'forever' ? 0 : Date.now() - dedupConfig.windowSeconds * 1000
+
+    return await this.locker
+      .withKey(`wabot-async-dedup-${commandName}-${dedupKey}`)
+      .run(async () => {
+        const existing = await this.jobRepository.findActiveByDedupKey(
+          commandName,
+          dedupKey,
+          succeededSinceTimestamp,
+        )
+        if (existing) return existing
+
+        const job = buildJob(dedupKey)
+        await this.jobRepository.create(job)
+        return job
+      })
   }
 
   private resolveScheduledDate(scheduledAt: IScheduleAt): Date {

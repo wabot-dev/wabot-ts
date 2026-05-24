@@ -19,6 +19,7 @@ export interface IJobData extends IEntityData {
   }
   aceptableRunningTimeSeconds?: number
   stuckRetryAttempts?: number
+  dedupKey?: string
 }
 
 export class Job extends Entity<IJobData> {
@@ -40,6 +41,10 @@ export class Job extends Entity<IJobData> {
 
   get stuckRetryAttempts() {
     return this.data.stuckRetryAttempts
+  }
+
+  get dedupKey() {
+    return this.data.dedupKey
   }
 
   get runningSeconds() {

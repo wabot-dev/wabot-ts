@@ -44,6 +44,28 @@ export class PgJobRepository extends PgCrudRepository<Job> implements IJobReposi
     return items
   }
 
+  async findActiveByDedupKey(
+    commandName: string,
+    dedupKey: string,
+    succeededSinceTimestamp: number,
+  ): Promise<Job | null> {
+    const sql = `
+      SELECT ${this.columns}
+      FROM ${this.table}
+      WHERE data->>'commandName' = $1
+        AND data->>'dedupKey' = $2
+        AND data->>'failedAt' IS NULL
+        AND (
+          data->>'successAt' IS NULL
+          OR (data->>'successAt')::bigint >= $3
+        )
+      ORDER BY (data->>'createdAt')::bigint DESC
+      LIMIT 1
+    `
+    const items = await this.query(sql, [commandName, dedupKey, succeededSinceTimestamp])
+    return items[0] ?? null
+  }
+
   async countRunningByCommand(commandName: string): Promise<number> {
     const sql = `
       SELECT COUNT(*)::int AS count

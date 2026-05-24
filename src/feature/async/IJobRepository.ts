@@ -5,4 +5,9 @@ export interface IJobRepository extends ICrudRepository<Job> {
   findPendingForRunFrom(date: Date, limit: number): Promise<Job[]>
   findRunningJobs(): Promise<Job[]>
   countRunningByCommand(commandName: string): Promise<number>
+  findActiveByDedupKey(
+    commandName: string,
+    dedupKey: string,
+    succeededSinceTimestamp: number,
+  ): Promise<Job | null>
 }
