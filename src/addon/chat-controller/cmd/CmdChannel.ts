@@ -68,6 +68,10 @@ export class CmdChannel implements IChatChannel {
           injectInstances: [[Auth, this.auth]],
         })
       },
+      onClear: () => {
+        this.chatId = Random.alphaNumericLowerCase(10)
+        writeJsonToFile(this.chatIdPath(), this.chatId)
+      },
     })
   }
 

@@ -11,6 +11,7 @@ export interface ICmdChannelHandlers {
     text: string,
     reply: (response: { senderName?: string; text: string }) => void,
   ) => Promise<void> | void
+  onClear?: () => Promise<void> | void
 }
 
 const logger = new Logger('wabot:cmd-channel-server')
@@ -165,6 +166,23 @@ export class CmdChannelServer {
         await handlers.onMessage(msg.text, (reply) => {
           this.sendToClient({ type: 'reply', ...reply })
         })
+        return
+      }
+      case 'clear': {
+        if (!this.activeRoute) {
+          this.sendToClient({ type: 'error', message: 'no channel selected' })
+          return
+        }
+        const handlers = this.channels.get(this.activeRoute)
+        if (!handlers) {
+          this.sendToClient({ type: 'error', message: 'channel no longer available' })
+          this.activeRoute = null
+          return
+        }
+        if (handlers.onClear) {
+          await handlers.onClear()
+        }
+        this.sendToClient({ type: 'cleared', route: this.activeRoute })
         return
       }
     }

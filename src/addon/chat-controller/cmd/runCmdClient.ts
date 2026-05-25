@@ -23,11 +23,12 @@ const greenText = ansi('32')
 const red = ansi('1;31')
 const yellow = ansi('33')
 
-const COMMANDS = ['/channels', '/help', '/exit'] as const
+const COMMANDS = ['/channels', '/clear', '/help', '/exit'] as const
 
 const HELP_LINES = [
   'Commands:',
   '  /channels   list channels and switch',
+  '  /clear      start a fresh conversation on the current channel',
   '  /help       show this help',
   '  /exit       quit',
 ]
@@ -121,6 +122,10 @@ export function runCmdClient(): void {
         process.stdout.write(
           `\n${green(`[${msg.senderName ?? 'bot'}]:`)} ${greenText(msg.text)}\n\n`,
         )
+        rl.prompt()
+        return
+      case 'cleared':
+        process.stdout.write(green(`[conversation cleared on ${msg.route}]`) + '\n')
         rl.prompt()
         return
       case 'error':
@@ -234,6 +239,15 @@ export function runCmdClient(): void {
     }
     if (trimmed === '/channels') {
       send({ type: 'hello' })
+      return
+    }
+    if (trimmed === '/clear') {
+      if (state !== 'chatting') {
+        process.stderr.write(red('select a channel before clearing the conversation.') + '\n')
+        rl.prompt()
+        return
+      }
+      send({ type: 'clear' })
       return
     }
 
