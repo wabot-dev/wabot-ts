@@ -69,6 +69,34 @@ test.describe('ImageDescriber.describe', () => {
     )
     assert.equal(await describer.describe(image(), models), undefined)
   })
+
+  test('includes the mindset context, skills and limits in the system prompt', async () => {
+    const calls: IChatAdapterNextItemsReq[] = []
+    const describer = new ImageDescriber(fakeAdapter(() => botRes('d'), calls))
+
+    await describer.describe(image(), models, {
+      context: 'Handles expense receipts',
+      skills: 'Extract totals and dates',
+      limits: 'Never invent amounts',
+    })
+
+    const prompt = calls[0].systemPrompt
+    assert.match(prompt, /Handles expense receipts/)
+    assert.match(prompt, /Extract totals and dates/)
+    assert.match(prompt, /Never invent amounts/)
+  })
+
+  test('omits mindset sections that are empty or whitespace', async () => {
+    const calls: IChatAdapterNextItemsReq[] = []
+    const describer = new ImageDescriber(fakeAdapter(() => botRes('d'), calls))
+
+    await describer.describe(image(), models, { context: 'Only context', skills: '   ' })
+
+    const prompt = calls[0].systemPrompt
+    assert.match(prompt, /Only context/)
+    assert.doesNotMatch(prompt, /Assistant skills/)
+    assert.doesNotMatch(prompt, /Assistant limits/)
+  })
 })
 
 test.describe('ImageDescriber.describeMessageImages', () => {

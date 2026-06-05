@@ -5,15 +5,47 @@ import { ChatAdapter } from './ChatAdapter'
 import { IChatMessage } from './IChatMessage'
 import { IChatMessageImage } from './IChatMessageImage'
 
-const DESCRIBE_SYSTEM_PROMPT = `
-You describe images so they can be referenced later in a conversation without
-seeing the image again.
+const DESCRIBE_INSTRUCTIONS = `
+You describe images so an assistant can reference them later in a conversation
+without seeing the image again.
 
 Write a single, factual, self-contained paragraph covering the visible content:
 objects, people, scene, layout, colors, and any readable text. Be thorough but
 concise. Do not add opinions, greetings, or markdown — output only the
 description.
 `.trim()
+
+/** Slice of the mindset used to focus the description on what the assistant cares about. */
+export interface IImageDescribeContext {
+  context?: string
+  skills?: string
+  limits?: string
+}
+
+function buildSystemPrompt(describeContext: IImageDescribeContext): string {
+  const sections = [DESCRIBE_INSTRUCTIONS]
+
+  const mindsetSections = (
+    [
+      ['Assistant context', describeContext.context],
+      ['Assistant skills', describeContext.skills],
+      ['Assistant limits', describeContext.limits],
+    ] as const
+  ).filter(([, value]) => value && value.trim())
+
+  if (mindsetSections.length > 0) {
+    sections.push(
+      'The assistant you describe images for is outlined below. Use it only to ' +
+        'decide which details deserve emphasis; still describe anything else that ' +
+        'is clearly visible.',
+    )
+    for (const [title, value] of mindsetSections) {
+      sections.push(`## ${title}\n${value!.trim()}`)
+    }
+  }
+
+  return sections.join('\n\n')
+}
 
 /**
  * Generates a text description for images so the conversation can recall their
@@ -35,13 +67,17 @@ export class ImageDescriber {
    * it simply does nothing. Failures are logged and leave the image undescribed
    * rather than aborting the message.
    */
-  async describeMessageImages(message: IChatMessage, models: IMindsetModelRef[]): Promise<void> {
+  async describeMessageImages(
+    message: IChatMessage,
+    models: IMindsetModelRef[],
+    describeContext: IImageDescribeContext = {},
+  ): Promise<void> {
     const pending = message.images?.filter((image) => !image.description)
     if (!pending || pending.length === 0 || models.length === 0) return
 
     await Promise.all(
       pending.map(async (image) => {
-        const description = await this.describe(image, models)
+        const description = await this.describe(image, models, describeContext)
         if (description) image.description = description
       }),
     )
@@ -50,12 +86,13 @@ export class ImageDescriber {
   async describe(
     image: IChatMessageImage,
     models: IMindsetModelRef[],
+    describeContext: IImageDescribeContext = {},
   ): Promise<string | undefined> {
     if (models.length === 0) return undefined
     try {
       const { nextItems } = await this.adapter.nextItems({
         models,
-        systemPrompt: DESCRIBE_SYSTEM_PROMPT,
+        systemPrompt: buildSystemPrompt(describeContext),
         tools: [],
         prevItems: [
           {

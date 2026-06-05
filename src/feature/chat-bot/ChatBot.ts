@@ -44,11 +44,17 @@ export class ChatBot implements IChatBot {
   }
 
   // Caption incoming images once, before persisting, so later turns can recall
-  // them from the stored description instead of re-sending the binary.
+  // them from the stored description instead of re-sending the binary. The
+  // mindset's context/skills/limits focus the description on what matters here.
   private async describeImages(message: IChatMessage) {
     if (!message.images?.some((image) => !image.description)) return
-    const models = await this.mindset.resolveModels('visionLlm')
-    await this.imageDescriber.describeMessageImages(message, models)
+    const [models, context, skills, limits] = await Promise.all([
+      this.mindset.resolveModels('visionLlm'),
+      this.mindset.context(),
+      this.mindset.skills(),
+      this.mindset.limits(),
+    ])
+    await this.imageDescriber.describeMessageImages(message, models, { context, skills, limits })
   }
 
   protected async processLoop(
