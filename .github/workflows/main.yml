@@ -16,9 +16,9 @@ jobs:
       publishedVersion: ${{ steps.versions.outputs.publishedVersion }}
       pushedVersion: ${{ steps.versions.outputs.pushedVersion }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         name: Checkout
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
         name: Setup Node.js
@@ -46,10 +46,10 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ needs.check-versions.outputs.publishedVersion != needs.check-versions.outputs.pushedVersion }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         name: Checkout
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
         name: Setup Node.js
