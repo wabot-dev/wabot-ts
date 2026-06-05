@@ -59,7 +59,12 @@ test.describe('AnthropicChatAdapter media gating', () => {
     assert.equal(imageBlocks(messages[2]), 1, 'current image still sent')
   })
 
-  test('keeps the image across the active tool-calling loop (no bot reply yet)', () => {
+  test('sends the image on the first call of a turn (before any tool call)', () => {
+    const [userMsg] = mapChatItems([humanWithImage('analyze this')])
+    assert.equal(imageBlocks(userMsg), 1)
+  })
+
+  test('drops the image once the model has reacted with a tool call', () => {
     const messages = mapChatItems([
       humanWithImage('analyze this'),
       {
@@ -67,6 +72,9 @@ test.describe('AnthropicChatAdapter media gating', () => {
         functionCall: { id: 'c1', name: 'tool', arguments: '{}', result: 'ok' },
       },
     ])
-    assert.equal(imageBlocks(messages[0]), 1, 'image stays available until the turn is answered')
+    // The model already saw the image on the previous call; re-sending its bytes
+    // would analyze the same file again on every tool-loop iteration.
+    assert.equal(imageBlocks(messages[0]), 0, 'consumed image must not be re-sent')
+    assert.equal(textBlocks(messages[0]), 1, 'text (with image metadata) is preserved')
   })
 })

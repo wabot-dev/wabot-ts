@@ -15,7 +15,7 @@ import {
   ILanguageModelUsage,
   isChatMessageEmpty,
   isRetryableError,
-  pendingMediaStartIndex,
+  unconsumedMediaStartIndex,
   safeJsonParse,
 } from '@/feature/chat-bot'
 import { IMindsetTool } from '@/feature/mindset'
@@ -122,7 +122,7 @@ export class GoogleChatAdapter implements IChatAdapter {
 
   private async mapChatItems(chatItems: IChatItem[]): Promise<Content[]> {
     const contents: Content[] = []
-    const mediaStart = pendingMediaStartIndex(chatItems)
+    const mediaStart = unconsumedMediaStartIndex(chatItems)
     for (const [index, chatItem] of chatItems.entries()) {
       switch (chatItem.type) {
         case 'humanMessage':

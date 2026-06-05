@@ -13,7 +13,7 @@ import {
   ILanguageModelUsage,
   isChatMessageEmpty,
   isRetryableError,
-  pendingMediaStartIndex,
+  unconsumedMediaStartIndex,
 } from '@/feature/chat-bot'
 import { IMindsetTool } from '@/feature/mindset'
 import { OpenRouter } from '@openrouter/sdk'
@@ -82,7 +82,7 @@ export class OpenRouterChatAdapter implements IChatAdapter {
     chatItems: IChatItem[],
   ): Parameters<typeof this.openRouter.chat.send>[0]['chatRequest']['messages'] {
     const messages: Parameters<typeof this.openRouter.chat.send>[0]['chatRequest']['messages'] = []
-    const mediaStart = pendingMediaStartIndex(chatItems)
+    const mediaStart = unconsumedMediaStartIndex(chatItems)
 
     chatItems.forEach((chatItem, index) => {
       switch (chatItem.type) {

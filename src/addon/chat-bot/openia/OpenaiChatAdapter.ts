@@ -10,7 +10,7 @@ import {
   extractChatMessageText,
   isChatMessageEmpty,
   isRetryableError,
-  pendingMediaStartIndex,
+  unconsumedMediaStartIndex,
 } from '@/feature/chat-bot'
 import { Logger } from '@/core/logger'
 import { OpenAI } from 'openai'
@@ -62,7 +62,7 @@ export class OpenaiChatAdapter implements IChatAdapter {
 
   private mapChatItems(chatItems: IChatItem[]): OpenAI.Responses.ResponseInput {
     const openIaInput: OpenAI.Responses.ResponseInput = []
-    const mediaStart = pendingMediaStartIndex(chatItems)
+    const mediaStart = unconsumedMediaStartIndex(chatItems)
     chatItems.forEach((chatItem, index) => {
       switch (chatItem.type) {
         case 'humanMessage':

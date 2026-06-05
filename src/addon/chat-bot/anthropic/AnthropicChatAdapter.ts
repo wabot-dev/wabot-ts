@@ -15,7 +15,7 @@ import {
   ILanguageModelUsage,
   isChatMessageEmpty,
   isRetryableError,
-  pendingMediaStartIndex,
+  unconsumedMediaStartIndex,
   safeJsonParse,
 } from '@/feature/chat-bot'
 import { IMindsetTool } from '@/feature/mindset'
@@ -76,7 +76,7 @@ export class AnthropicChatAdapter implements IChatAdapter {
 
   private mapChatItems(chatItems: IChatItem[]): Anthropic.Messages.MessageParam[] {
     const messages: Anthropic.Messages.MessageParam[] = []
-    const mediaStart = pendingMediaStartIndex(chatItems)
+    const mediaStart = unconsumedMediaStartIndex(chatItems)
 
     chatItems.forEach((chatItem, index) => {
       switch (chatItem.type) {
