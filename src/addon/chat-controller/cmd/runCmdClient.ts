@@ -1,19 +1,22 @@
 import * as net from 'node:net'
 import * as readline from 'node:readline'
 import { cmdChannelSocketPath } from './cmdChannelSocketPath'
+import { imageFromPath, readClipboardImage } from './cmdClientImages'
 import type {
   CmdClientMessage,
   CmdServerMessage,
   ICmdChannelEntry,
+  ICmdImage,
 } from './cmdWireProtocol'
 
 type ClientState = 'disconnected' | 'choosing' | 'chatting'
 
-const useColor =
-  process.stdout.isTTY && !process.env.NO_COLOR && process.env.TERM !== 'dumb'
+const useColor = process.stdout.isTTY && !process.env.NO_COLOR && process.env.TERM !== 'dumb'
 
-const ansi = (code: string) => (text: string): string =>
-  useColor ? `\x1b[${code}m${text}\x1b[0m` : text
+const ansi =
+  (code: string) =>
+  (text: string): string =>
+    useColor ? `\x1b[${code}m${text}\x1b[0m` : text
 
 const bold = ansi('1')
 const dim = ansi('2')
@@ -23,12 +26,14 @@ const greenText = ansi('32')
 const red = ansi('1;31')
 const yellow = ansi('33')
 
-const COMMANDS = ['/channels', '/clear', '/help', '/exit'] as const
+const COMMANDS = ['/channels', '/clear', '/help', '/image', '/paste', '/exit'] as const
 
 const HELP_LINES = [
   'Commands:',
   '  /channels   list channels and switch',
   '  /clear      start a fresh conversation on the current channel',
+  '  /image <p>  attach an image file (or drag a file into the terminal)',
+  '  /paste      attach an image from the clipboard (or press Ctrl+V)',
   '  /help       show this help',
   '  /exit       quit',
 ]
@@ -47,6 +52,12 @@ export function runCmdClient(): void {
   let waitingNoticeShown = false
   let exiting = false
   let restoring = false
+  let pendingImages: ICmdImage[] = []
+
+  const chattingPrompt = (route: string): string => {
+    const tag = pendingImages.length > 0 ? yellow(` [${pendingImages.length} img]`) : ''
+    return cyan(route) + tag + dim(' > ')
+  }
 
   const completer = (line: string): [string[], string] => {
     if (line.startsWith('/')) {
@@ -70,9 +81,7 @@ export function runCmdClient(): void {
 
   const send = (msg: CmdClientMessage): boolean => {
     if (!socket) {
-      process.stderr.write(
-        red('not connected to framework — waiting for server...') + '\n',
-      )
+      process.stderr.write(red('not connected to framework — waiting for server...') + '\n')
       rl.prompt()
       return false
     }
@@ -80,12 +89,50 @@ export function runCmdClient(): void {
     return true
   }
 
+  const refreshChatPrompt = (): void => {
+    if (state === 'chatting' && selected) rl.setPrompt(chattingPrompt(selected))
+  }
+
+  const attachImage = (image: ICmdImage, label: string): void => {
+    pendingImages.push(image)
+    process.stdout.write(
+      green(`[attached ${label}]`) + dim(' — press Enter to send, or type a caption first') + '\n',
+    )
+    refreshChatPrompt()
+    rl.prompt()
+  }
+
+  const attachFromClipboard = (): void => {
+    if (state !== 'chatting') {
+      process.stderr.write(red('select a channel before pasting an image.') + '\n')
+      rl.prompt()
+      return
+    }
+    const image = readClipboardImage()
+    if (!image) {
+      process.stdout.write(yellow('No image found on the clipboard.') + '\n')
+      rl.prompt()
+      return
+    }
+    attachImage(image, 'clipboard image')
+  }
+
+  const sendChatMessage = (text: string): void => {
+    const images = pendingImages.length > 0 ? pendingImages : undefined
+    if (!text && !images) {
+      rl.prompt()
+      return
+    }
+    if (send({ type: 'message', text: text || undefined, images })) {
+      pendingImages = []
+      refreshChatPrompt()
+    }
+  }
+
   const printChannels = (list: ICmdChannelEntry[]): void => {
     routes = list
     if (list.length === 0) {
-      process.stdout.write(
-        yellow('No cmd channels are registered on the server yet.') + '\n',
-      )
+      process.stdout.write(yellow('No cmd channels are registered on the server yet.') + '\n')
       rl.prompt()
       return
     }
@@ -115,7 +162,7 @@ export function runCmdClient(): void {
           process.stdout.write(green(`[connected to ${msg.route}]`) + '\n')
         }
         restoring = false
-        rl.setPrompt(cyan(msg.route) + dim(' > '))
+        rl.setPrompt(chattingPrompt(msg.route))
         rl.prompt()
         return
       case 'reply':
@@ -157,7 +204,7 @@ export function runCmdClient(): void {
         restoring = true
         socket!.write(JSON.stringify({ type: 'select', route: selected }) + '\n')
         state = 'chatting'
-        rl.setPrompt(cyan(selected) + dim(' > '))
+        rl.setPrompt(chattingPrompt(selected))
         rl.prompt()
       } else {
         process.stdout.write(green('[connected to framework]') + '\n')
@@ -175,9 +222,7 @@ export function runCmdClient(): void {
         try {
           handleServerMessage(JSON.parse(line) as CmdServerMessage)
         } catch (err) {
-          process.stderr.write(
-            red(`invalid server message: ${(err as Error).message}`) + '\n',
-          )
+          process.stderr.write(red(`invalid server message: ${(err as Error).message}`) + '\n')
         }
       }
     })
@@ -221,10 +266,14 @@ export function runCmdClient(): void {
     process.exit(code)
   }
 
-  rl.on('line', (input) => {
+  rl.on('line', (rawInput) => {
+    // Strip stray control chars (e.g. a ^V left behind by the Ctrl+V shortcut).
+    const input = rawInput.replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '')
     const trimmed = input.trim()
+
     if (!trimmed) {
-      rl.prompt()
+      if (state === 'chatting' && pendingImages.length > 0) sendChatMessage('')
+      else rl.prompt()
       return
     }
 
@@ -247,7 +296,34 @@ export function runCmdClient(): void {
         rl.prompt()
         return
       }
+      pendingImages = []
+      refreshChatPrompt()
       send({ type: 'clear' })
+      return
+    }
+    if (trimmed === '/paste') {
+      attachFromClipboard()
+      return
+    }
+    if (trimmed === '/image' || trimmed.startsWith('/image ')) {
+      if (state !== 'chatting') {
+        process.stderr.write(red('select a channel before attaching an image.') + '\n')
+        rl.prompt()
+        return
+      }
+      const rawPath = trimmed.slice('/image'.length).trim()
+      if (!rawPath) {
+        process.stderr.write(red('usage: /image <path-to-image>') + '\n')
+        rl.prompt()
+        return
+      }
+      const image = imageFromPath(rawPath)
+      if (!image) {
+        process.stderr.write(red(`not a readable image file: ${rawPath}`) + '\n')
+        rl.prompt()
+        return
+      }
+      attachImage(image, image.name ?? 'image')
       return
     }
 
@@ -270,10 +346,30 @@ export function runCmdClient(): void {
       return
     }
 
-    send({ type: 'message', text: trimmed })
+    // A bare path to an image file — from drag-and-drop, or a terminal that
+    // pastes a file path on Cmd+V — attaches instead of being sent as text.
+    const dropped = imageFromPath(trimmed)
+    if (dropped) {
+      attachImage(dropped, dropped.name ?? 'image')
+      return
+    }
+
+    sendChatMessage(trimmed)
   })
 
   rl.on('close', () => cleanup(0))
+
+  // Ctrl+V pastes a clipboard image. (Cmd+V is handled by the terminal itself,
+  // which pastes text/a file path — the latter is picked up as a dropped path.)
+  if (process.stdin.isTTY) {
+    readline.emitKeypressEvents(process.stdin)
+    process.stdin.on('keypress', (_str, key) => {
+      if (key && key.ctrl && key.name === 'v') {
+        process.stdout.write('\n')
+        attachFromClipboard()
+      }
+    })
+  }
 
   connect()
 }

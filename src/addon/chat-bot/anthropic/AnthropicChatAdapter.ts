@@ -15,6 +15,7 @@ import {
   ILanguageModelUsage,
   isChatMessageEmpty,
   isRetryableError,
+  unconsumedMediaStartIndex,
   safeJsonParse,
 } from '@/feature/chat-bot'
 import { IMindsetTool } from '@/feature/mindset'
@@ -75,11 +76,12 @@ export class AnthropicChatAdapter implements IChatAdapter {
 
   private mapChatItems(chatItems: IChatItem[]): Anthropic.Messages.MessageParam[] {
     const messages: Anthropic.Messages.MessageParam[] = []
+    const mediaStart = unconsumedMediaStartIndex(chatItems)
 
-    for (const chatItem of chatItems) {
+    chatItems.forEach((chatItem, index) => {
       switch (chatItem.type) {
         case 'humanMessage':
-          messages.push(this.mapHumanMessage(chatItem.humanMessage))
+          messages.push(this.mapHumanMessage(chatItem.humanMessage, index >= mediaStart))
           break
         case 'botMessage':
           messages.push(this.mapBotMessage(chatItem.botMessage))
@@ -88,12 +90,15 @@ export class AnthropicChatAdapter implements IChatAdapter {
           messages.push(...this.mapFunctionCall(chatItem.functionCall))
           break
       }
-    }
+    })
 
     return messages
   }
 
-  private mapHumanMessage(item: IChatMessage): Anthropic.Messages.MessageParam {
+  private mapHumanMessage(
+    item: IChatMessage,
+    includeMedia: boolean,
+  ): Anthropic.Messages.MessageParam {
     if (isChatMessageEmpty(item)) {
       throw new Error('User message content is empty')
     }
@@ -105,13 +110,13 @@ export class AnthropicChatAdapter implements IChatAdapter {
         supportedDocumentMimeTypes: ANTHROPIC_SUPPORTED_DOCUMENT_MIME_TYPES,
       }),
     })
-    if (item.images) {
+    if (includeMedia && item.images) {
       for (const image of item.images) {
         if (!ANTHROPIC_SUPPORTED_IMAGE_MIME_TYPES.includes(image.mimeType as never)) continue
         blocks.push({ type: 'image', source: this.toAnthropicImageSource(image) })
       }
     }
-    if (item.documents) {
+    if (includeMedia && item.documents) {
       for (const doc of item.documents) {
         if (!ANTHROPIC_SUPPORTED_DOCUMENT_MIME_TYPES.includes(doc.mimeType as never)) continue
         blocks.push({ type: 'document', source: this.toAnthropicDocumentSource(doc) })

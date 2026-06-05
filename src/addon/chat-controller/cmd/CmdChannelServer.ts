@@ -4,11 +4,16 @@ import * as path from 'node:path'
 import { singleton } from '@/core/injection'
 import { Logger } from '@/core/logger'
 import { cmdChannelSocketPath } from './cmdChannelSocketPath'
-import type { CmdClientMessage, CmdServerMessage } from './cmdWireProtocol'
+import type { CmdClientMessage, CmdServerMessage, ICmdImage } from './cmdWireProtocol'
+
+export interface ICmdIncomingMessage {
+  text?: string
+  images?: ICmdImage[]
+}
 
 export interface ICmdChannelHandlers {
   onMessage: (
-    text: string,
+    message: ICmdIncomingMessage,
     reply: (response: { senderName?: string; text: string }) => void,
   ) => Promise<void> | void
   onClear?: () => Promise<void> | void
@@ -163,7 +168,7 @@ export class CmdChannelServer {
           this.activeRoute = null
           return
         }
-        await handlers.onMessage(msg.text, (reply) => {
+        await handlers.onMessage({ text: msg.text, images: msg.images }, (reply) => {
           this.sendToClient({ type: 'reply', ...reply })
         })
         return

@@ -4,6 +4,8 @@ import { ChatItem } from './ChatItem'
 import { ChatMemory } from './ChatMemory'
 import { IChatBot } from './IChatBot'
 import { IChatMessage } from './IChatMessage'
+import { ImageDescriber } from './ImageDescriber'
+import { pendingMediaStartIndex } from './pendingMediaStartIndex'
 import { injectable } from '@/core/injection'
 import { Logger } from '@/core/logger'
 
@@ -25,18 +27,34 @@ export class ChatBot implements IChatBot {
     private memory: ChatMemory,
     private adapter: ChatAdapter,
     private mindset: MindsetOperator,
+    private imageDescriber: ImageDescriber,
   ) {}
 
   public async sendMessage(
     message: IChatMessage,
     callback: (message: IChatMessage) => Promise<void>,
   ) {
+    await this.describeImages(message)
     const newChatItem = new ChatItem({
       type: 'humanMessage',
       humanMessage: message,
     })
     await this.memory.create(newChatItem)
     await this.processLoop(callback, 0)
+  }
+
+  // Caption incoming images once, before persisting, so later turns can recall
+  // them from the stored description instead of re-sending the binary. The
+  // mindset's context/skills/limits focus the description on what matters here.
+  private async describeImages(message: IChatMessage) {
+    if (!message.images?.some((image) => !image.description)) return
+    const [models, context, skills, limits] = await Promise.all([
+      this.mindset.resolveModels('visionLlm'),
+      this.mindset.context(),
+      this.mindset.skills(),
+      this.mindset.limits(),
+    ])
+    await this.imageDescriber.describeMessageImages(message, models, { context, skills, limits })
   }
 
   protected async processLoop(
@@ -56,10 +74,17 @@ export class ChatBot implements IChatBot {
     const tools = this.mindset.tools()
     const identity = await this.mindset.identity()
 
-    const needsVision = prevItems.some((item) => {
-      const data = item.getData()
-      return data.type === 'humanMessage' && (data.humanMessage.images?.length ?? 0) > 0
-    })
+    const prevItemsData = prevItems.map((x) => x.getData())
+
+    // Only media from the pending exchange is actually sent to the model; images
+    // in already-answered messages are not, so they must not force a vision model.
+    const mediaStart = pendingMediaStartIndex(prevItemsData)
+    const needsVision = prevItemsData.some(
+      (data, index) =>
+        index >= mediaStart &&
+        data.type === 'humanMessage' &&
+        (data.humanMessage.images?.length ?? 0) > 0,
+    )
     const kind = needsVision ? 'visionLlm' : 'llm'
     const candidates = await this.mindset.resolveModels(kind)
     if (candidates.length === 0) {
@@ -72,7 +97,7 @@ export class ChatBot implements IChatBot {
       models: candidates,
       systemPrompt,
       tools,
-      prevItems: prevItems.map((x) => x.getData()),
+      prevItems: prevItemsData,
     })
 
     for (const newItemData of newItemsData) {
