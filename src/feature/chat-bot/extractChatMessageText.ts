@@ -19,6 +19,7 @@ export function extractChatMessageText(
       id: x.id,
       name: x.name,
       mimeType: x.mimeType,
+      description: x.description,
       notAnalyzed: isAnalyzed(x.mimeType, options.supportedImageMimeTypes) ? undefined : true,
     })),
     documents: message.documents?.map((x) => ({

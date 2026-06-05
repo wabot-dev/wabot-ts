@@ -4,6 +4,7 @@ import { ChatItem } from './ChatItem'
 import { ChatMemory } from './ChatMemory'
 import { IChatBot } from './IChatBot'
 import { IChatMessage } from './IChatMessage'
+import { ImageDescriber } from './ImageDescriber'
 import { pendingMediaStartIndex } from './pendingMediaStartIndex'
 import { injectable } from '@/core/injection'
 import { Logger } from '@/core/logger'
@@ -26,18 +27,28 @@ export class ChatBot implements IChatBot {
     private memory: ChatMemory,
     private adapter: ChatAdapter,
     private mindset: MindsetOperator,
+    private imageDescriber: ImageDescriber,
   ) {}
 
   public async sendMessage(
     message: IChatMessage,
     callback: (message: IChatMessage) => Promise<void>,
   ) {
+    await this.describeImages(message)
     const newChatItem = new ChatItem({
       type: 'humanMessage',
       humanMessage: message,
     })
     await this.memory.create(newChatItem)
     await this.processLoop(callback, 0)
+  }
+
+  // Caption incoming images once, before persisting, so later turns can recall
+  // them from the stored description instead of re-sending the binary.
+  private async describeImages(message: IChatMessage) {
+    if (!message.images?.some((image) => !image.description)) return
+    const models = await this.mindset.resolveModels('visionLlm')
+    await this.imageDescriber.describeMessageImages(message, models)
   }
 
   protected async processLoop(
