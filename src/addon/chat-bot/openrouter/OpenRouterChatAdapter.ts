@@ -13,6 +13,7 @@ import {
   ILanguageModelUsage,
   isChatMessageEmpty,
   isRetryableError,
+  pendingMediaStartIndex,
 } from '@/feature/chat-bot'
 import { IMindsetTool } from '@/feature/mindset'
 import { OpenRouter } from '@openrouter/sdk'
@@ -81,11 +82,12 @@ export class OpenRouterChatAdapter implements IChatAdapter {
     chatItems: IChatItem[],
   ): Parameters<typeof this.openRouter.chat.send>[0]['chatRequest']['messages'] {
     const messages: Parameters<typeof this.openRouter.chat.send>[0]['chatRequest']['messages'] = []
+    const mediaStart = pendingMediaStartIndex(chatItems)
 
-    for (const chatItem of chatItems) {
+    chatItems.forEach((chatItem, index) => {
       switch (chatItem.type) {
         case 'humanMessage':
-          messages.push(this.mapHumanMessage(chatItem.humanMessage))
+          messages.push(this.mapHumanMessage(chatItem.humanMessage, index >= mediaStart))
           break
         case 'botMessage':
           messages.push(this.mapBotMessage(chatItem.botMessage))
@@ -94,12 +96,12 @@ export class OpenRouterChatAdapter implements IChatAdapter {
           messages.push(...this.mapFunctionCall(chatItem.functionCall))
           break
       }
-    }
+    })
 
     return messages
   }
 
-  private mapHumanMessage(item: IChatMessage) {
+  private mapHumanMessage(item: IChatMessage, includeMedia: boolean) {
     if (isChatMessageEmpty(item)) {
       throw new Error('User message content is empty')
     }
@@ -110,14 +112,14 @@ export class OpenRouterChatAdapter implements IChatAdapter {
         supportedDocumentMimeTypes: OPENROUTER_SUPPORTED_DOCUMENT_MIME_TYPES,
       }),
     )
-    if (item.images) {
+    if (includeMedia && item.images) {
       for (const image of item.images) {
         if (!OPENROUTER_SUPPORTED_IMAGE_MIME_TYPES.includes(image.mimeType as never)) continue
         const imageUrl = image.publicUrl ?? image.base64Url
         if (imageUrl) contentParts.push(imageUrl)
       }
     }
-    if (item.documents) {
+    if (includeMedia && item.documents) {
       for (const doc of item.documents) {
         if (!OPENROUTER_SUPPORTED_DOCUMENT_MIME_TYPES.includes(doc.mimeType as never)) continue
         const docUrl = doc.publicUrl ?? doc.base64Url

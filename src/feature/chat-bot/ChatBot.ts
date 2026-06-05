@@ -4,6 +4,7 @@ import { ChatItem } from './ChatItem'
 import { ChatMemory } from './ChatMemory'
 import { IChatBot } from './IChatBot'
 import { IChatMessage } from './IChatMessage'
+import { pendingMediaStartIndex } from './pendingMediaStartIndex'
 import { injectable } from '@/core/injection'
 import { Logger } from '@/core/logger'
 
@@ -56,10 +57,17 @@ export class ChatBot implements IChatBot {
     const tools = this.mindset.tools()
     const identity = await this.mindset.identity()
 
-    const needsVision = prevItems.some((item) => {
-      const data = item.getData()
-      return data.type === 'humanMessage' && (data.humanMessage.images?.length ?? 0) > 0
-    })
+    const prevItemsData = prevItems.map((x) => x.getData())
+
+    // Only media from the pending exchange is actually sent to the model; images
+    // in already-answered messages are not, so they must not force a vision model.
+    const mediaStart = pendingMediaStartIndex(prevItemsData)
+    const needsVision = prevItemsData.some(
+      (data, index) =>
+        index >= mediaStart &&
+        data.type === 'humanMessage' &&
+        (data.humanMessage.images?.length ?? 0) > 0,
+    )
     const kind = needsVision ? 'visionLlm' : 'llm'
     const candidates = await this.mindset.resolveModels(kind)
     if (candidates.length === 0) {
@@ -72,7 +80,7 @@ export class ChatBot implements IChatBot {
       models: candidates,
       systemPrompt,
       tools,
-      prevItems: prevItems.map((x) => x.getData()),
+      prevItems: prevItemsData,
     })
 
     for (const newItemData of newItemsData) {

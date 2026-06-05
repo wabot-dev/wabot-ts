@@ -10,6 +10,7 @@ import {
   extractChatMessageText,
   isChatMessageEmpty,
   isRetryableError,
+  pendingMediaStartIndex,
 } from '@/feature/chat-bot'
 import { Logger } from '@/core/logger'
 import { OpenAI } from 'openai'
@@ -61,10 +62,11 @@ export class OpenaiChatAdapter implements IChatAdapter {
 
   private mapChatItems(chatItems: IChatItem[]): OpenAI.Responses.ResponseInput {
     const openIaInput: OpenAI.Responses.ResponseInput = []
-    for (const chatItem of chatItems) {
+    const mediaStart = pendingMediaStartIndex(chatItems)
+    chatItems.forEach((chatItem, index) => {
       switch (chatItem.type) {
         case 'humanMessage':
-          openIaInput.push(this.mapConectionMessage(chatItem.humanMessage))
+          openIaInput.push(this.mapConectionMessage(chatItem.humanMessage, index >= mediaStart))
           break
         case 'botMessage':
           openIaInput.push(this.mapBotMessage(chatItem.botMessage))
@@ -73,11 +75,11 @@ export class OpenaiChatAdapter implements IChatAdapter {
           openIaInput.push(...this.mapFunctionCall(chatItem.functionCall))
           break
       }
-    }
+    })
     return openIaInput
   }
 
-  private mapConectionMessage(item: IChatMessage) {
+  private mapConectionMessage(item: IChatMessage, includeMedia: boolean) {
     if (isChatMessageEmpty(item)) {
       throw new Error('User message content is empty')
     }
@@ -89,7 +91,7 @@ export class OpenaiChatAdapter implements IChatAdapter {
         supportedDocumentMimeTypes: OPENAI_SUPPORTED_DOCUMENT_MIME_TYPES,
       }),
     })
-    if (item.images) {
+    if (includeMedia && item.images) {
       for (const image of item.images) {
         if (!OPENAI_SUPPORTED_IMAGE_MIME_TYPES.includes(image.mimeType as never)) continue
         content.push({
@@ -99,7 +101,7 @@ export class OpenaiChatAdapter implements IChatAdapter {
         })
       }
     }
-    if (item.documents) {
+    if (includeMedia && item.documents) {
       for (const doc of item.documents) {
         if (!OPENAI_SUPPORTED_DOCUMENT_MIME_TYPES.includes(doc.mimeType as never)) continue
         if (doc.publicUrl) {
