@@ -7,10 +7,11 @@ import { Random } from '@/core/random'
 import { Auth } from '@/core/auth'
 
 import { type IChatChannel } from '@/feature/chat-controller'
-import { type IChatConnection, type IChatMessage } from '@/feature/chat-bot'
+import { type IChatConnection, type IChatMessage, type IChatMessageImage } from '@/feature/chat-bot'
 
 import { CmdChannelConfig } from './CmdChannelConfig'
 import { CmdChannelServer } from './CmdChannelServer'
+import type { ICmdImage } from './cmdWireProtocol'
 import { ICmdChannelMessage } from './ICmdChannelMessage'
 import { cmdChannelName } from './cmdChannelName'
 
@@ -40,7 +41,7 @@ export class CmdChannel implements IChatChannel {
 
   connect(): void {
     this.server.register(this.config.route, {
-      onMessage: async (text, reply) => {
+      onMessage: async ({ text, images }, reply) => {
         if (!this.callBack) return
 
         this.ensureChatId()
@@ -55,7 +56,7 @@ export class CmdChannel implements IChatChannel {
         await this.callBack({
           channel: cmdChannelName,
           chatConnection,
-          message: { text },
+          message: { text, images: toChatImages(images) },
           reply: async (message: IChatMessage) => {
             reply({
               senderName: message.senderName,
@@ -103,6 +104,16 @@ export class CmdChannel implements IChatChannel {
       this.auth.assign(authInfo)
     }
   }
+}
+
+function toChatImages(images: ICmdImage[] | undefined): IChatMessageImage[] | undefined {
+  if (!images || images.length === 0) return undefined
+  return images.map((image) => ({
+    id: Random.alphaNumericLowerCase(10),
+    name: image.name,
+    mimeType: image.mimeType,
+    base64Url: image.base64Url,
+  }))
 }
 
 function extractDisplayText(message: IChatMessage): string {
