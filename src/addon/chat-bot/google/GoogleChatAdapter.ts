@@ -15,7 +15,6 @@ import {
   ILanguageModelUsage,
   isChatMessageEmpty,
   isRetryableError,
-  unconsumedMediaStartIndex,
   safeJsonParse,
 } from '@/feature/chat-bot'
 import { IMindsetTool } from '@/feature/mindset'
@@ -122,11 +121,10 @@ export class GoogleChatAdapter implements IChatAdapter {
 
   private async mapChatItems(chatItems: IChatItem[]): Promise<Content[]> {
     const contents: Content[] = []
-    const mediaStart = unconsumedMediaStartIndex(chatItems)
-    for (const [index, chatItem] of chatItems.entries()) {
+    for (const chatItem of chatItems) {
       switch (chatItem.type) {
         case 'humanMessage':
-          contents.push(await this.mapHumanMessage(chatItem.humanMessage, index >= mediaStart))
+          contents.push(await this.mapHumanMessage(chatItem.humanMessage))
           break
         case 'botMessage':
           contents.push(this.mapBotMessage(chatItem.botMessage))
@@ -139,7 +137,7 @@ export class GoogleChatAdapter implements IChatAdapter {
     return contents
   }
 
-  private async mapHumanMessage(item: IChatMessage, includeMedia: boolean): Promise<Content> {
+  private async mapHumanMessage(item: IChatMessage): Promise<Content> {
     if (isChatMessageEmpty(item)) {
       throw new Error('User message content is empty')
     }
@@ -151,13 +149,13 @@ export class GoogleChatAdapter implements IChatAdapter {
       }),
     })
     const filesToSend: IChatMessageFile[] = []
-    if (includeMedia && item.images) {
+    if (item.images) {
       for (const image of item.images) {
         if (!GOOGLE_SUPPORTED_IMAGE_MIME_TYPES.includes(image.mimeType as never)) continue
         filesToSend.push(image)
       }
     }
-    if (includeMedia && item.documents) {
+    if (item.documents) {
       for (const doc of item.documents) {
         if (!GOOGLE_SUPPORTED_DOCUMENT_MIME_TYPES.includes(doc.mimeType as never)) continue
         filesToSend.push(doc)

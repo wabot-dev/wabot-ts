@@ -1,7 +1,16 @@
 import { IChatAdapter, IChatItem, IFunctionCall } from '@/feature/chat-bot'
 import { IMindsetModelRef, IMindsetTool } from '@/feature/mindset'
 import assert from 'node:assert'
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { test } from 'node:test'
+import { fileURLToPath } from 'node:url'
+
+const testImageBase64Url = (() => {
+  const dir = dirname(fileURLToPath(import.meta.url))
+  const buffer = readFileSync(join(dir, 'wabot-test-image.jpeg'))
+  return `data:image/jpeg;base64,${buffer.toString('base64')}`
+})()
 
 export interface ItestChatAdapterReq {
   adapter: IChatAdapter
@@ -241,9 +250,9 @@ export function testChatAdapter({ adapter, model }: ItestChatAdapterReq) {
             images: [
               {
                 id: 'image1',
-                mimeType: 'image/jpeg',
+                mimeType: 'image/png',
                 publicUrl:
-                  'https://www.shutterstock.com/shutterstock/photos/2499249955/display_1500/stock-photo-baby-anaconda-at-the-rainforest-cuyabeno-amazonas-in-ecuador-2499249955.jpg',
+                  'https://raw.githubusercontent.com/github/explore/main/topics/python/python.png',
               },
             ],
           },
@@ -268,9 +277,8 @@ export function testChatAdapter({ adapter, model }: ItestChatAdapterReq) {
             images: [
               {
                 id: 'image1',
-                mimeType: 'image/png',
-                base64Url:
-                  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==',
+                mimeType: 'image/jpeg',
+                base64Url: testImageBase64Url,
               },
             ],
           },
@@ -281,6 +289,40 @@ export function testChatAdapter({ adapter, model }: ItestChatAdapterReq) {
     assert(Array.isArray(nextItems), 'nextItems is not array')
     assert(nextItems.length === 1, 'nexItems length should be 1')
     assert(nextItems[0].type === 'botMessage', 'next item should have botMessage type')
+  })
+
+  test('reads the total price from a receipt image', async () => {
+    const { nextItems } = await adapter.nextItems({
+      models,
+      tools: [],
+      systemPrompt: 'Act as a Bot',
+      prevItems: [
+        {
+          type: 'humanMessage',
+          humanMessage: {
+            text: 'This is a store receipt. What is the total price? Reply with the number only.',
+            images: [
+              {
+                id: 'receipt',
+                mimeType: 'image/jpeg',
+                base64Url: testImageBase64Url,
+              },
+            ],
+          },
+        },
+      ],
+    })
+
+    assert(Array.isArray(nextItems), 'nextItems is not array')
+    assert(nextItems.length === 1, 'nexItems length should be 1')
+    assert(nextItems[0].type === 'botMessage', 'next item should have botMessage type')
+
+    const text = nextItems[0].botMessage.text ?? ''
+    const digits = text.replace(/[^0-9]/g, '')
+    assert(
+      digits.includes('11570'),
+      `bot response should report the total 11.570, got '${text}'`,
+    )
   })
 
   test('consume public document', async () => {

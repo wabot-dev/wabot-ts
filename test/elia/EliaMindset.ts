@@ -34,7 +34,7 @@ export class EliaMindset implements IMindset {
   }
 
   async workflow() {
-    return ''
+    return 'extrae todo el texto de las imagenes y dame un resumen'
   }
 
   async models() {
@@ -43,6 +43,7 @@ export class EliaMindset implements IMindset {
         { provider: 'anthropic', model: 'claude-sonnet-4-6' },
         { provider: 'openai', model: 'gpt-4.1' },
       ],
+      visionLlm: [{ provider: 'openrouter', model: 'qwen/qwen3.5-flash-02-23' }],
     }
   }
 }
