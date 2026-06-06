@@ -60,6 +60,37 @@ test.describe('stripAnsweredMedia', () => {
     assert.equal(imageCount(first), 0)
   })
 
+  test('substitutes a placeholder when stripping leaves a media-only message empty', () => {
+    const imageOnly: IChatItem = {
+      type: 'humanMessage',
+      humanMessage: { images: [image()] },
+    }
+    const [first] = stripAnsweredMedia([imageOnly, bot('a cat'), human('what color?')])
+    assert.equal(imageCount(first), 0, 'answered image stripped')
+    assert.equal(first.humanMessage?.text, '[sent 1 image]')
+  })
+
+  test('placeholder counts both images and documents', () => {
+    const mediaOnly: IChatItem = {
+      type: 'humanMessage',
+      humanMessage: {
+        images: [image(), image()],
+        documents: [{ id: 'd1', mimeType: 'application/pdf', base64Url: 'data:...' }],
+      },
+    }
+    const [first] = stripAnsweredMedia([mediaOnly, bot('reply'), human('again')])
+    assert.equal(first.humanMessage?.text, '[sent 2 images and 1 document]')
+  })
+
+  test('does not add a placeholder when the message has text', () => {
+    const [first] = stripAnsweredMedia([
+      humanWithImage('what is this?'),
+      bot('a cat'),
+      human('what color?'),
+    ])
+    assert.equal(first.humanMessage?.text, 'what is this?')
+  })
+
   test('leaves bot and function-call items untouched', () => {
     const items = [humanWithImage('x'), call(), bot('y')]
     const result = stripAnsweredMedia(items)
