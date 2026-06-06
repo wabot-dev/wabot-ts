@@ -57,7 +57,8 @@ export class CmdChannelServer {
     this.server = net.createServer((socket) => this.handleConnection(socket))
     this.server.on('error', (err) => logger.error('cmd channel server error', err))
     this.server.listen(socketPath, () => {
-      logger.info(`cmd channel server listening at ${socketPath}`)
+      const displayPath = path.relative(process.cwd(), socketPath) || socketPath
+      logger.info(`cmd channel server listening at ${displayPath}`)
     })
 
     process.once('exit', () => this.shutdown())
