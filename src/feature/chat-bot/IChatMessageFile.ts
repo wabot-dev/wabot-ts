@@ -4,8 +4,6 @@ export interface IChatMessagesPublicFile {
   base64Url?: undefined
   mimeType: string
   id: string
-  /** Text description of the file content, used to recall it without re-analyzing the binary. */
-  description?: string
 }
 
 export interface IChatMessagesPrivateFile {
@@ -14,8 +12,6 @@ export interface IChatMessagesPrivateFile {
   base64Url: string
   mimeType: string
   id: string
-  /** Text description of the file content, used to recall it without re-analyzing the binary. */
-  description?: string
 }
 
 export type IChatMessageFile = IChatMessagesPrivateFile | IChatMessagesPublicFile
