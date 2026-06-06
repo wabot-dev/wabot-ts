@@ -16,7 +16,7 @@ import {
 } from '@/feature/chat-bot'
 import { IMindsetTool } from '@/feature/mindset'
 import { OpenRouter } from '@openrouter/sdk'
-import type { ChatResult } from '@openrouter/sdk/models'
+import type { ChatContentItems, ChatResult, ChatUserMessage } from '@openrouter/sdk/models'
 
 const OPENROUTER_SUPPORTED_IMAGE_MIME_TYPES = [
   'image/png',
@@ -98,32 +98,35 @@ export class OpenRouterChatAdapter implements IChatAdapter {
     return messages
   }
 
-  private mapHumanMessage(item: IChatMessage) {
+  private mapHumanMessage(item: IChatMessage): ChatUserMessage {
     if (isChatMessageEmpty(item)) {
       throw new Error('User message content is empty')
     }
-    const contentParts: string[] = []
-    contentParts.push(
-      extractChatMessageText(item, {
+    const contentParts: ChatContentItems[] = []
+    contentParts.push({
+      type: 'text',
+      text: extractChatMessageText(item, {
         supportedImageMimeTypes: OPENROUTER_SUPPORTED_IMAGE_MIME_TYPES,
         supportedDocumentMimeTypes: OPENROUTER_SUPPORTED_DOCUMENT_MIME_TYPES,
       }),
-    )
+    })
     if (item.images) {
       for (const image of item.images) {
         if (!OPENROUTER_SUPPORTED_IMAGE_MIME_TYPES.includes(image.mimeType as never)) continue
         const imageUrl = image.publicUrl ?? image.base64Url
-        if (imageUrl) contentParts.push(imageUrl)
+        if (imageUrl) contentParts.push({ type: 'image_url', imageUrl: { url: imageUrl } })
       }
     }
     if (item.documents) {
       for (const doc of item.documents) {
         if (!OPENROUTER_SUPPORTED_DOCUMENT_MIME_TYPES.includes(doc.mimeType as never)) continue
         const docUrl = doc.publicUrl ?? doc.base64Url
-        if (docUrl) contentParts.push(docUrl)
+        if (docUrl) {
+          contentParts.push({ type: 'file', file: { fileData: docUrl, filename: doc.name } })
+        }
       }
     }
-    return { role: 'user', content: contentParts.join('\n') } as const
+    return { role: 'user', content: contentParts }
   }
 
   private mapBotMessage(item: IChatMessage) {
