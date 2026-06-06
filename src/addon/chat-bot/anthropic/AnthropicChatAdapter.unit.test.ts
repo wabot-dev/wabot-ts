@@ -30,51 +30,37 @@ function textBlocks(message: any): number {
     : 0
 }
 
-test.describe('AnthropicChatAdapter media gating', () => {
-  test('sends the image for a pending (not-yet-answered) human message', () => {
+test.describe('AnthropicChatAdapter media mapping', () => {
+  test('maps a present image to an image block', () => {
     const [userMsg] = mapChatItems([humanWithImage('what is this?')])
     assert.equal(imageBlocks(userMsg), 1)
+    assert.equal(textBlocks(userMsg), 1)
   })
 
-  test('drops the image once the message has been answered by the bot', () => {
-    const messages = mapChatItems([
-      humanWithImage('what is this?'),
-      bot('a cat'),
-      { type: 'humanMessage', humanMessage: { text: 'what color?' } },
-    ])
-
-    // [0] = answered human message with the image, [1] = bot, [2] = new human message
-    assert.equal(imageBlocks(messages[0]), 0, 'historical image must not be re-sent')
-    assert.equal(textBlocks(messages[0]), 1, 'text (with image metadata) is preserved')
-  })
-
-  test('keeps the image of the latest turn while dropping older answered ones', () => {
+  test('maps the media it is given, regardless of conversation position', () => {
+    // The adapter is a pure translator: choosing which media to send is the
+    // bot's job (see stripAnsweredMedia), so whatever reaches the adapter is
+    // mapped as-is.
     const messages = mapChatItems([
       humanWithImage('first image'),
       bot('described first'),
       humanWithImage('second image'),
     ])
-
-    assert.equal(imageBlocks(messages[0]), 0, 'older answered image dropped')
-    assert.equal(imageBlocks(messages[2]), 1, 'current image still sent')
+    assert.equal(imageBlocks(messages[0]), 1)
+    assert.equal(imageBlocks(messages[2]), 1)
   })
 
-  test('sends the image on the first call of a turn (before any tool call)', () => {
-    const [userMsg] = mapChatItems([humanWithImage('analyze this')])
-    assert.equal(imageBlocks(userMsg), 1)
-  })
-
-  test('drops the image once the model has reacted with a tool call', () => {
-    const messages = mapChatItems([
-      humanWithImage('analyze this'),
+  test('skips an unsupported image mime type but keeps the text', () => {
+    const [userMsg] = mapChatItems([
       {
-        type: 'functionCall',
-        functionCall: { id: 'c1', name: 'tool', arguments: '{}', result: 'ok' },
+        type: 'humanMessage',
+        humanMessage: {
+          text: 'look',
+          images: [{ id: 'i1', mimeType: 'image/bmp', publicUrl: 'https://example.com/i.bmp' }],
+        },
       },
     ])
-    // The model already saw the image on the previous call; re-sending its bytes
-    // would analyze the same file again on every tool-loop iteration.
-    assert.equal(imageBlocks(messages[0]), 0, 'consumed image must not be re-sent')
-    assert.equal(textBlocks(messages[0]), 1, 'text (with image metadata) is preserved')
+    assert.equal(imageBlocks(userMsg), 0, 'unsupported mime is not sent as an image block')
+    assert.equal(textBlocks(userMsg), 1)
   })
 })

@@ -10,7 +10,6 @@ import {
   extractChatMessageText,
   isChatMessageEmpty,
   isRetryableError,
-  unconsumedMediaStartIndex,
 } from '@/feature/chat-bot'
 import { Logger } from '@/core/logger'
 import { OpenAI } from 'openai'
@@ -62,11 +61,10 @@ export class OpenaiChatAdapter implements IChatAdapter {
 
   private mapChatItems(chatItems: IChatItem[]): OpenAI.Responses.ResponseInput {
     const openIaInput: OpenAI.Responses.ResponseInput = []
-    const mediaStart = unconsumedMediaStartIndex(chatItems)
-    chatItems.forEach((chatItem, index) => {
+    chatItems.forEach((chatItem) => {
       switch (chatItem.type) {
         case 'humanMessage':
-          openIaInput.push(this.mapConectionMessage(chatItem.humanMessage, index >= mediaStart))
+          openIaInput.push(this.mapConectionMessage(chatItem.humanMessage))
           break
         case 'botMessage':
           openIaInput.push(this.mapBotMessage(chatItem.botMessage))
@@ -79,7 +77,7 @@ export class OpenaiChatAdapter implements IChatAdapter {
     return openIaInput
   }
 
-  private mapConectionMessage(item: IChatMessage, includeMedia: boolean) {
+  private mapConectionMessage(item: IChatMessage) {
     if (isChatMessageEmpty(item)) {
       throw new Error('User message content is empty')
     }
@@ -91,7 +89,7 @@ export class OpenaiChatAdapter implements IChatAdapter {
         supportedDocumentMimeTypes: OPENAI_SUPPORTED_DOCUMENT_MIME_TYPES,
       }),
     })
-    if (includeMedia && item.images) {
+    if (item.images) {
       for (const image of item.images) {
         if (!OPENAI_SUPPORTED_IMAGE_MIME_TYPES.includes(image.mimeType as never)) continue
         content.push({
@@ -101,7 +99,7 @@ export class OpenaiChatAdapter implements IChatAdapter {
         })
       }
     }
-    if (includeMedia && item.documents) {
+    if (item.documents) {
       for (const doc of item.documents) {
         if (!OPENAI_SUPPORTED_DOCUMENT_MIME_TYPES.includes(doc.mimeType as never)) continue
         if (doc.publicUrl) {
@@ -131,7 +129,7 @@ export class OpenaiChatAdapter implements IChatAdapter {
         type: 'function_call',
         call_id: item.id,
         name: item.name,
-        arguments: JSON.stringify(item.arguments),
+        arguments: item.arguments || '{}',
       },
       {
         type: 'function_call_output',

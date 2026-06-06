@@ -13,7 +13,6 @@ import {
   ILanguageModelUsage,
   isChatMessageEmpty,
   isRetryableError,
-  unconsumedMediaStartIndex,
 } from '@/feature/chat-bot'
 import { IMindsetTool } from '@/feature/mindset'
 import { OpenRouter } from '@openrouter/sdk'
@@ -82,12 +81,10 @@ export class OpenRouterChatAdapter implements IChatAdapter {
     chatItems: IChatItem[],
   ): Parameters<typeof this.openRouter.chat.send>[0]['chatRequest']['messages'] {
     const messages: Parameters<typeof this.openRouter.chat.send>[0]['chatRequest']['messages'] = []
-    const mediaStart = unconsumedMediaStartIndex(chatItems)
-
-    chatItems.forEach((chatItem, index) => {
+    chatItems.forEach((chatItem) => {
       switch (chatItem.type) {
         case 'humanMessage':
-          messages.push(this.mapHumanMessage(chatItem.humanMessage, index >= mediaStart))
+          messages.push(this.mapHumanMessage(chatItem.humanMessage))
           break
         case 'botMessage':
           messages.push(this.mapBotMessage(chatItem.botMessage))
@@ -101,7 +98,7 @@ export class OpenRouterChatAdapter implements IChatAdapter {
     return messages
   }
 
-  private mapHumanMessage(item: IChatMessage, includeMedia: boolean) {
+  private mapHumanMessage(item: IChatMessage) {
     if (isChatMessageEmpty(item)) {
       throw new Error('User message content is empty')
     }
@@ -112,14 +109,14 @@ export class OpenRouterChatAdapter implements IChatAdapter {
         supportedDocumentMimeTypes: OPENROUTER_SUPPORTED_DOCUMENT_MIME_TYPES,
       }),
     )
-    if (includeMedia && item.images) {
+    if (item.images) {
       for (const image of item.images) {
         if (!OPENROUTER_SUPPORTED_IMAGE_MIME_TYPES.includes(image.mimeType as never)) continue
         const imageUrl = image.publicUrl ?? image.base64Url
         if (imageUrl) contentParts.push(imageUrl)
       }
     }
-    if (includeMedia && item.documents) {
+    if (item.documents) {
       for (const doc of item.documents) {
         if (!OPENROUTER_SUPPORTED_DOCUMENT_MIME_TYPES.includes(doc.mimeType as never)) continue
         const docUrl = doc.publicUrl ?? doc.base64Url

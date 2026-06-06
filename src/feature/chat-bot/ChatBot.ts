@@ -4,7 +4,7 @@ import { ChatItem } from './ChatItem'
 import { ChatMemory } from './ChatMemory'
 import { IChatBot } from './IChatBot'
 import { IChatMessage } from './IChatMessage'
-import { pendingMediaStartIndex } from './pendingMediaStartIndex'
+import { stripAnsweredMedia } from './stripAnsweredMedia'
 import { injectable } from '@/core/injection'
 import { Logger } from '@/core/logger'
 
@@ -59,14 +59,13 @@ export class ChatBot implements IChatBot {
 
     const prevItemsData = prevItems.map((x) => x.getData())
 
-    // Only media from the pending exchange is actually sent to the model; images
-    // in already-answered messages are not, so they must not force a vision model.
-    const mediaStart = pendingMediaStartIndex(prevItemsData)
-    const needsVision = prevItemsData.some(
-      (data, index) =>
-        index >= mediaStart &&
-        data.type === 'humanMessage' &&
-        (data.humanMessage.images?.length ?? 0) > 0,
+    // The bot — not the provider adapters — decides which media reaches the
+    // model: keep binaries only for the pending exchange and drop already-
+    // answered ones. The leftover media also determines whether this call needs
+    // a vision model.
+    const sentItems = stripAnsweredMedia(prevItemsData)
+    const needsVision = sentItems.some(
+      (data) => data.type === 'humanMessage' && (data.humanMessage.images?.length ?? 0) > 0,
     )
     const kind = needsVision ? 'visionLlm' : 'llm'
     const candidates = await this.mindset.resolveModels(kind)
@@ -80,7 +79,7 @@ export class ChatBot implements IChatBot {
       models: candidates,
       systemPrompt,
       tools,
-      prevItems: prevItemsData,
+      prevItems: sentItems,
     })
 
     for (const newItemData of newItemsData) {
