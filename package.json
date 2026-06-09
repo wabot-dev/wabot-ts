@@ -93,6 +93,7 @@
     "tsyringe": "^4.9.1",
     "uuid": "^14.0.0",
     "wasenderapi": "^0.1.5",
+    "@hubspot/api-client": "^13.5.0",
     "tsup": "^8.4.0",
     "typescript": "^6.0.3",
     "prettier": "^3.5.3"
