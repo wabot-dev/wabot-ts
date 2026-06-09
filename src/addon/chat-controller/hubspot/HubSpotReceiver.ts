@@ -23,12 +23,13 @@ export class HubSpotReceiver {
     }
     const webhookPath = this.config.webhookPath
     const webhookSecret = this.config.webhookSecret
+    const accessToken = this.config.accessToken
     const channelName = this.config.channelName
 
     @restController(webhookPath)
     class UniqueController extends HubSpotWebhookController {
       constructor() {
-        super({ webhookSecret, listener: listener!, channelName })
+        super({ webhookSecret, accessToken, listener: listener!, channelName })
       }
     }
 

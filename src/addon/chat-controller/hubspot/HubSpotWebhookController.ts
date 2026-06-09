@@ -10,12 +10,14 @@ import {
   IHubSpotWebhookEventBatch,
 } from './IHubSpotWebhookEvent'
 import { IHubSpotMessagePayload } from './IHubSpotMessagePayload'
+import { downloadHubSpotAttachments } from './downloadHubSpotAttachments'
 import { verifyHubSpotSignatureV3 } from './verifyHubSpotSignatureV3'
 
 export type IHubSpotMessageListener = (payload: IHubSpotMessagePayload) => Promise<void>
 
 export interface IHubSpotWebhookControllerDeps {
   webhookSecret: string
+  accessToken: string
   listener: IHubSpotMessageListener
   channelName: string
 }
@@ -26,12 +28,14 @@ const TIMESTAMP_HEADER = 'x-hubspot-request-timestamp'
 export class HubSpotWebhookController {
   private logger: Logger
   private webhookSecret: string
+  private accessToken: string
   private listener: IHubSpotMessageListener
   private channelName: string
 
   constructor(deps: IHubSpotWebhookControllerDeps) {
     this.logger = new Logger(`wabot:hubspot-webhook:${deps.channelName}`)
     this.webhookSecret = deps.webhookSecret
+    this.accessToken = deps.accessToken
     this.listener = deps.listener
     this.channelName = deps.channelName
   }
@@ -96,6 +100,10 @@ export class HubSpotWebhookController {
     }
 
     const msg = evt.message
+    const files = await downloadHubSpotAttachments(msg.attachments, {
+      accessToken: this.accessToken,
+      logger: this.logger,
+    })
     const payload: IHubSpotMessagePayload = {
       threadId: msg.threadId ?? evt.objectId ?? '',
       messageId: msg.id,
@@ -103,7 +111,7 @@ export class HubSpotWebhookController {
       senderName: msg.from?.name,
       channel: msg.channel,
       text: msg.text,
-      files: [], // MVP: download from HubSpot and inline as base64 in a follow-up
+      files,
       metadata: {
         subscriptionType: event.subscriptionType,
         portalId: String(evt.portalId ?? ''),

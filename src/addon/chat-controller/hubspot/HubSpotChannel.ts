@@ -10,6 +10,7 @@ import { HubSpotSender } from './HubSpotSender'
 import { HubSpotReceiver } from './HubSpotReceiver'
 import { IHubSpotChannelMessage } from './IHubSpotChannelMessage'
 import { IHubSpotMessagePayload } from './IHubSpotMessagePayload'
+import { markdownToHubSpotHtml } from './markdownToHubSpotHtml'
 
 @injectable()
 export class HubSpotChannel implements IChatChannel {
@@ -72,9 +73,11 @@ export class HubSpotChannel implements IChatChannel {
         metadata: payload.metadata,
       },
       reply: async (replyMessage: IChatMessage) => {
+        const text = replyMessage.text
         await this.sender.sendMessage({
           threadId: payload.threadId,
-          text: replyMessage.text,
+          text,
+          richText: text ? markdownToHubSpotHtml(text) : undefined,
           files: [
             ...(replyMessage.images ?? []),
             ...(replyMessage.documents ?? []),

@@ -85,6 +85,45 @@ test.describe('HubSpotChannel', () => {
     assert.equal(recorder.calls.length, 1)
     assert.equal(recorder.calls[0].threadId, 'thr-1')
     assert.equal(recorder.calls[0].text, 'respuesta wabot')
+    // Plain text without markdown should still be rendered as richText so HubSpot
+    // formats it consistently with messages that do contain markdown.
+    assert.equal(recorder.calls[0].richText, 'respuesta wabot')
+  })
+
+  test('reply converts markdown text into HubSpot HTML rich text', async () => {
+    const channel = makeChannel()
+    const recorder = { calls: [] as any[] }
+    replaceSender(channel, recorder)
+
+    let received: IHubSpotChannelMessage | null = null
+    channel.listen(async (msg) => {
+      received = msg
+    })
+    await getReceiverListener(channel)(basePayload)
+
+    const replyFn = (received as unknown as IHubSpotChannelMessage).reply
+    await replyFn({ text: '**bold** and `code`' } as any)
+
+    assert.equal(recorder.calls[0].text, '**bold** and `code`')
+    assert.equal(recorder.calls[0].richText, '<b>bold</b> and <code>code</code>')
+  })
+
+  test('reply omits richText when there is no text', async () => {
+    const channel = makeChannel()
+    const recorder = { calls: [] as any[] }
+    replaceSender(channel, recorder)
+
+    let received: IHubSpotChannelMessage | null = null
+    channel.listen(async (msg) => {
+      received = msg
+    })
+    await getReceiverListener(channel)(basePayload)
+
+    const replyFn = (received as unknown as IHubSpotChannelMessage).reply
+    await replyFn({ images: [] } as any)
+
+    assert.equal(recorder.calls[0].text, undefined)
+    assert.equal(recorder.calls[0].richText, undefined)
   })
 
   test('disconnect is a safe no-op', () => {

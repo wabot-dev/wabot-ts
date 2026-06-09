@@ -120,13 +120,39 @@ test.describe('HubSpotSender.sendMessage', () => {
     )
   })
 
-  test('throws when there is no text and no files', async () => {
+  test('forwards richText alongside the text in the body', async () => {
+    const fake = makeFakeClient({ apiResponse: { id: 'msg_77' } })
+    const sender = new HubSpotSender(makeConfig(), fake as any)
+
+    await sender.sendMessage({
+      threadId: 'thr-3',
+      text: '**bold**',
+      richText: '<b>bold</b>',
+    })
+
+    const body = JSON.parse(fake.apiRequestCalls[0].body!)
+    assert.equal(body.text, '**bold**')
+    assert.equal(body.richText, '<b>bold</b>')
+  })
+
+  test('allows sending richText without plain text', async () => {
+    const fake = makeFakeClient({ apiResponse: { id: 'msg_78' } })
+    const sender = new HubSpotSender(makeConfig(), fake as any)
+
+    await sender.sendMessage({ threadId: 'thr-4', richText: '<i>solo html</i>' })
+
+    const body = JSON.parse(fake.apiRequestCalls[0].body!)
+    assert.equal(body.text, undefined)
+    assert.equal(body.richText, '<i>solo html</i>')
+  })
+
+  test('throws when there is no text, no richText and no files', async () => {
     const fake = makeFakeClient({ apiResponse: { id: 'msg_1' } })
     const sender = new HubSpotSender(makeConfig(), fake as any)
 
     await assert.rejects(
       () => sender.sendMessage({ threadId: 'thr-1' }),
-      /requires at least text or files/,
+      /requires at least text, richText or files/,
     )
     assert.equal(fake.apiRequestCalls.length, 0)
   })

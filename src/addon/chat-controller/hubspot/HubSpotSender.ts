@@ -7,6 +7,7 @@ import { HubSpotChannelConfig } from './HubSpotChannelConfig'
 export interface IHubSpotSendMessageRequest {
   threadId: string
   text?: string
+  richText?: string
   files?: IChatMessageFile[]
 }
 
@@ -48,12 +49,13 @@ export class HubSpotSender {
       type: 'MESSAGE',
     }
     if (req.text) body.text = req.text
+    if (req.richText) body.richText = req.richText
     if (fileIds.length > 0) {
       body.attachments = fileIds.map((fileId) => ({ fileId }))
     }
 
-    if (!body.text && (!body.attachments || body.attachments.length === 0)) {
-      throw new Error('HubSpot sendMessage requires at least text or files')
+    if (!body.text && !body.richText && (!body.attachments || body.attachments.length === 0)) {
+      throw new Error('HubSpot sendMessage requires at least text, richText or files')
     }
 
     const path = `/conversations/v3/conversations/${encodeURIComponent(req.threadId)}/messages`
