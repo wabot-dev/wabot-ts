@@ -17,6 +17,8 @@ export interface IHubSpotConversationMessage {
   threadId: string
   direction: 'INCOMING' | 'OUTGOING'
   channel?: string
+  channelId?: string
+  channelAccountId?: string
   text?: string
   richText?: string
   from?: IHubSpotActor

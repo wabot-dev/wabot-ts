@@ -9,6 +9,9 @@ export interface IHubSpotSendMessageRequest {
   text?: string
   richText?: string
   files?: IChatMessageFile[]
+  senderActorId?: string
+  channelId?: string
+  channelAccountId?: string
 }
 
 export interface IHubSpotSendMessageResult {
@@ -25,15 +28,20 @@ interface IHubSpotConversationsMessage {
   text?: string
   richText?: string
   attachments?: Array<{ fileId: string }>
+  senderActorId?: string
+  channelId?: string
+  channelAccountId?: string
 }
 
 @injectable()
 export class HubSpotSender {
   private client: Client
   private logger = new Logger('wabot:hubspot-sender')
+  private defaultSenderActorId: string | undefined
 
   constructor(config: HubSpotChannelConfig, client?: Client) {
     this.client = client ?? new Client({ accessToken: config.accessToken })
+    this.defaultSenderActorId = config.senderActorId
   }
 
   async sendMessage(req: IHubSpotSendMessageRequest): Promise<IHubSpotSendMessageResult> {
@@ -53,6 +61,10 @@ export class HubSpotSender {
     if (fileIds.length > 0) {
       body.attachments = fileIds.map((fileId) => ({ fileId }))
     }
+    if (req.senderActorId) body.senderActorId = req.senderActorId
+    else if (this.defaultSenderActorId) body.senderActorId = this.defaultSenderActorId
+    if (req.channelId) body.channelId = req.channelId
+    if (req.channelAccountId) body.channelAccountId = req.channelAccountId
 
     if (!body.text && !body.richText && (!body.attachments || body.attachments.length === 0)) {
       throw new Error('HubSpot sendMessage requires at least text, richText or files')

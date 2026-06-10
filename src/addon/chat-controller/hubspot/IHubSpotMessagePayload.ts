@@ -6,6 +6,8 @@ export interface IHubSpotMessagePayload {
   senderId: string
   senderName?: string
   channel?: string
+  channelId?: string
+  channelAccountId?: string
   text?: string
   files: IChatMessageFile[]
   metadata: Record<string, string>

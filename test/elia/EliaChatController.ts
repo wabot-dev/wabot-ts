@@ -31,14 +31,14 @@ function testPngFile(): IChatMessageFile {
 export class EliaChatController {
   constructor(@chatBot(EliaMindset) private eliaBot: ChatBot) {}
 
-  @wasender()
-  async onWhatsAppMessage(context: IWasenderReceivedMessage) {
-    const whatsAppNumber = context.message.metadata.whatsAppNumber
+  // @wasender()
+  // async onWhatsAppMessage(context: IWasenderReceivedMessage) {
+  //   const whatsAppNumber = context.message.metadata.whatsAppNumber
 
-    await this.eliaBot.sendMessage(context.message, async (response) => {
-      await context.reply(response)
-    })
-  }
+  //   await this.eliaBot.sendMessage(context.message, async (response) => {
+  //     await context.reply(response)
+  //   })
+  // }
 
   @cmd()
   async onCmdMessage(context: IWasenderReceivedMessage) {
@@ -54,6 +54,7 @@ export class EliaChatController {
     accessToken: process.env.HUBSPOT_ACCESS_TOKEN ?? '',
     webhookSecret: process.env.HUBSPOT_WEBHOOK_SECRET ?? '',
     webhookPath: '/hubspot/webhook/elia',
+    senderActorId: process.env.HUBSPOT_SENDER_ACTOR_ID,
   })
   async onHubSpotMessage(context: IHubSpotChannelMessage) {
     const msg = context.message
@@ -66,9 +67,7 @@ export class EliaChatController {
         (fileCount > 0 ? ` (con ${fileCount} adjunto${fileCount > 1 ? 's' : ''})` : '')
       : 'recibido'
 
-    const reply = wantsAttachment
-      ? { text: echo, images: [testPngFile()] }
-      : { text: echo }
+    const reply = wantsAttachment ? { text: echo, images: [testPngFile()] } : { text: echo }
 
     await context.reply(reply)
   }

@@ -5,4 +5,5 @@ export interface IHubSpotChannelConfig {
   webhookSecret: string | ConfigReference<string>
   webhookPath?: string
   appId?: string
+  senderActorId?: string | ConfigReference<string>
 }

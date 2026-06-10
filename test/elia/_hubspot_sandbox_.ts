@@ -39,8 +39,10 @@ interface IOutcome {
 
 function parseArgs(argv: string[]): CliArgs {
   const flag = (name: string): string | undefined => {
-    const hit = argv.find((a) => a.startsWith(`--${name}=`))
-    return hit ? hit.slice(name.length + 3) : undefined
+    const hit = argv.find((a) => a === `--${name}` || a.startsWith(`--${name}=`))
+    if (!hit) return undefined
+    if (hit === `--${name}`) return 'true'
+    return hit.slice(name.length + 3)
   }
   const threadId = flag('thread') ?? process.env.HUBSPOT_THREAD_ID ?? ''
   if (!threadId) {
@@ -95,7 +97,7 @@ async function waitForReply(
 }
 
 function lastOfDirection(messages: HubSpotMessage[], dir: HubSpotMessage['direction']) {
-  return [...messages].reverse().find((m) => m.direction === dir)
+  return messages.find((m) => m.direction === dir)
 }
 
 function check(
@@ -159,7 +161,7 @@ function printMessages(messages: HubSpotMessage[]): void {
     const attach = m.attachments?.length ? ` [${m.attachments.length} att]` : ''
     const text = (m.text ?? '').replace(/\n/g, ' ').slice(0, 70)
     const rich = m.richText ? ` rich=${m.richText.replace(/<[^>]+>/g, '').slice(0, 40)}` : ''
-    console.log(`  ${ts}  ${m.direction.padEnd(8)}  ${text}${attach}${rich}`)
+    console.log(`  ${ts}  ${(m.direction ?? '?').padEnd(8)}  ${text}${attach}${rich}`)
   }
 }
 

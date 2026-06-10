@@ -20,6 +20,7 @@ export function hubspot(config: IHubSpotChannelConfig) {
         webhookSecret: resolved.webhookSecret,
         webhookPath: resolved.webhookPath,
         appId: resolved.appId,
+        senderActorId: resolved.senderActorId,
       }),
     })
   }

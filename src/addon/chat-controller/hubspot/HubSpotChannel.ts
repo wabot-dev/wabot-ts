@@ -33,6 +33,7 @@ export class HubSpotChannel implements IChatChannel {
       webhookSecret: this.webhookSecret,
       webhookPath: config.webhookPath,
       appId: this.appId,
+      senderActorId: config.senderActorId ?? process.env.HUBSPOT_SENDER_ACTOR_ID,
     })
 
     this.sender = new HubSpotSender(resolvedConfig)
@@ -82,6 +83,8 @@ export class HubSpotChannel implements IChatChannel {
             ...(replyMessage.images ?? []),
             ...(replyMessage.documents ?? []),
           ],
+          channelId: payload.channelId,
+          channelAccountId: payload.channelAccountId,
         })
         // Mark callback so the reference is captured (avoids linter complaints if unused).
         void callback

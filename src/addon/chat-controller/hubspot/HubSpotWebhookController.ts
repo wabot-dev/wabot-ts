@@ -110,6 +110,8 @@ export class HubSpotWebhookController {
       senderId: msg.from?.actorId ?? 'unknown',
       senderName: msg.from?.name,
       channel: msg.channel,
+      channelId: msg.channelId,
+      channelAccountId: msg.channelAccountId,
       text: msg.text,
       files,
       metadata: {
