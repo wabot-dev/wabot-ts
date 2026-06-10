@@ -1,6 +1,6 @@
 import { CustomError, errorToPlainObject } from '@/core/error'
 import { IConstructor } from '@/core/generics'
-import { container, Container } from '@/core/injection'
+import { container, Container, DependencyContainer } from '@/core/injection'
 import { Logger } from '@/core/logger'
 import { validateModel, ValidationMetadataStore } from '@/core/validation'
 import { ExpressProvider } from '@/feature/express'
@@ -15,11 +15,22 @@ function buildRequest(req: Request): any {
   return Object.assign({}, req.body, req.query, req.params)
 }
 
-export function runRestControllers(controllers: IConstructor<any>[]) {
+export interface IRegisterRestControllersOptions {
+  /** Container the per-request child containers derive from. */
+  baseContainer?: DependencyContainer
+  /** Express provider to mount the routes on. */
+  expressProvider?: ExpressProvider
+}
+
+export function registerRestControllers(
+  controllers: IConstructor<any>[],
+  options: IRegisterRestControllersOptions = {},
+): ExpressProvider {
   const logger = new Logger('wabot:rest')
-  const metadataStore = container.resolve(RestControllerMetadataStore)
-  const expressProvider = container.resolve(ExpressProvider)
-  const validationMetadataStore = container.resolve(ValidationMetadataStore)
+  const baseContainer = options.baseContainer ?? container
+  const metadataStore = baseContainer.resolve(RestControllerMetadataStore)
+  const expressProvider = options.expressProvider ?? baseContainer.resolve(ExpressProvider)
+  const validationMetadataStore = baseContainer.resolve(ValidationMetadataStore)
 
   const expressApp = expressProvider.getExpress()
 
@@ -39,7 +50,7 @@ export function runRestControllers(controllers: IConstructor<any>[]) {
         rawMiddlewares.push(urlencoded({ extended: true }))
       }
       expressApp[method](route, ...rawMiddlewares, async (req, res) => {
-        const requestContainer = container.createChildContainer()
+        const requestContainer = baseContainer.createChildContainer()
         requestContainer.register(Container, { useValue: requestContainer })
         requestContainer.register(EXPRESS_REQ, { useValue: req })
         requestContainer.register(EXPRESS_RES, { useValue: req })
@@ -102,6 +113,11 @@ export function runRestControllers(controllers: IConstructor<any>[]) {
     })
   })
 
+  return expressProvider
+}
+
+export function runRestControllers(controllers: IConstructor<any>[]) {
+  const expressProvider = registerRestControllers(controllers)
   expressProvider.listen()
 }
 

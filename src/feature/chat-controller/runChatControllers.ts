@@ -10,7 +10,7 @@ import { IMessageContext } from './IMessageContext'
 import { IReceivedMessage } from './IReceivedMessage'
 import { ControllerMetadataStore } from './metadata'
 
-async function prepareChatContainer(
+export async function prepareChatContainer(
   container: DependencyContainer,
   messageContext: IMessageContext,
   mindsetCtor?: IConstructor<IMindset>,

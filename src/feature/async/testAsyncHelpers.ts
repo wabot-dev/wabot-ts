@@ -1,6 +1,5 @@
 import { Entity, IEntityData } from '@/core/entity'
 import { ChildProcess, spawn } from 'node:child_process'
-import { CronExpressionParser } from 'cron-parser'
 
 //----------------------- Repositories ------------------------
 interface ITestTagData extends IEntityData {
@@ -31,24 +30,8 @@ export class TestTagRepository implements ITestTagRepository {
 }
 
 //--------------------------- Helpers --------------------------
-export async function waitUntil(
-  condition: () => Promise<boolean>,
-  timeoutMs = 5000,
-  intervalMs = 50,
-) {
-  const start = Date.now()
-
-  while (Date.now() - start < timeoutMs) {
-    if (await condition()) return
-    await new Promise((r) => setTimeout(r, intervalMs))
-  }
-
-  throw new Error('Condition not met within timeout')
-}
-
-export async function wait(timeoutMs = 5000) {
-  await new Promise((r) => setTimeout(r, timeoutMs))
-}
+export { wait, waitUntil, isValidCronSequence } from '@/testing/helpers'
+export type { ICronValidationOptions } from '@/testing/helpers'
 
 let workers: ChildProcess[] = []
 
@@ -80,44 +63,4 @@ export function stopAsyncWorkers() {
     workers[i].kill()
   }
   workers = []
-}
-
-export interface ICronValidationOptions {
-  timezone?: string
-  toleranceMs?: number // allowed drift in milliseconds
-}
-
-export function isValidCronSequence(
-  cronExpression: string,
-  dates: Date[],
-  options: ICronValidationOptions = {},
-): boolean {
-  if (dates.length < 2) return false
-
-  const {
-    timezone = 'UTC',
-    toleranceMs = 1000, // default 1 second tolerance
-  } = options
-
-  try {
-    const interval = CronExpressionParser.parse(cronExpression, {
-      currentDate: dates[0],
-      tz: timezone,
-    })
-
-    for (let i = 1; i < dates.length; i++) {
-      const expected = interval.next().toDate()
-      const actual = dates[i]
-
-      const diff = Math.abs(expected.getTime() - actual.getTime())
-
-      if (diff > toleranceMs) {
-        return false
-      }
-    }
-
-    return true
-  } catch {
-    return false
-  }
 }

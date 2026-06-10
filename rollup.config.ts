@@ -33,7 +33,7 @@ const sharedExternal = [
 ]
 
 const libConfig: RollupOptions = {
-  input: 'src/index.ts',
+  input: ['src/index.ts', 'src/testing/index.ts'],
   plugins: [
     tsc(),
     alias(),

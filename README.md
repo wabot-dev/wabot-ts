@@ -28,6 +28,7 @@
 - 🤖 **Soporte para bots con IA** - Inteligencia artificial lista para usar
 - 🧠 **Múltiples proveedores de IA** - OpenAI, Google Gemini, Anthropic Claude
 - 💬 **Múltiples canales de chat** - Telegram, WhatsApp, Socket y más
+- 🧪 **Sistema de testing integrado** - Prueba tus chatbots sin API keys ni base de datos
 - 📖 **Documentación clara y en español** - Aprende sin barreras de idioma
 
 ---
@@ -100,6 +101,32 @@ El script de build:
 4. Arranca el runtime en modo `preloaded: true`, así que **no hay `readdir` ni imports dinámicos por template literal** en el bundle final.
 
 Los addons opcionales (`pg`, SDKs de IA) se mantienen como `peerDependencies` y solo entran al bundle si tu proyecto los usa.
+
+---
+
+## 🧪 Testing
+
+El framework incluye un sistema de testing en `@wabot-dev/framework/testing`, agnóstico al runner (node:test, vitest, bun test). Permite probar chatbots de forma determinista —sin API keys ni base de datos— y también evaluar el comportamiento real con un juez LLM.
+
+```ts
+import { createChatBotHarness, LlmJudge } from '@wabot-dev/framework/testing'
+
+// Determinista: el LLM se simula, tus tools se ejecutan de verdad
+const harness = createChatBotHarness({ mindset: EliaMindset })
+harness.adapter.callTool('saveEvent', { title: 'Demo', ... }).reply('¡Agendado!')
+
+const turn = await harness.send('agenda una demo mañana')
+// turn.replies, turn.toolCalls (con resultados reales), harness.history()
+
+// Evals: juzga conversaciones reales con un LLM
+const judge = new LlmJudge({ adapter, models: [{ model: 'claude-haiku-4-5' }] })
+await judge.assert({
+  transcript: harness.history(),
+  criteria: 'Responde en español y confirma la fecha del evento',
+})
+```
+
+También incluye harnesses para controllers de chat (`createChatControllerHarness`), endpoints REST con guards JWT/API-Key reales (`createRestHarness`), commands y crons (`createAsyncHarness`), repositorios en memoria (`useMemoryRepositories`), aserciones de validación y una suite de conformance para adapters LLM propios (`chatAdapterConformanceCases`).
 
 ---
 

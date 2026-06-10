@@ -538,6 +538,45 @@ Framework uses **peer dependencies**. Install only what you need:
 - `pg` for PostgreSQL
 - `socket.io` for WebSocket
 
+## Testing System (`@wabot-dev/framework/testing`)
+
+The framework ships a runner-agnostic testing module at `src/testing/` (subpath export `./testing`, second rollup/tsup entry). Nothing under `src/testing/` may import `node:test`, `node:assert` or `node:child_process` — it ships to `dist/`.
+
+**Chatbots (deterministic, no API keys):**
+
+```typescript
+import { createChatBotHarness } from '@wabot-dev/framework/testing'
+
+const harness = createChatBotHarness({
+  mindset: EliaMindset,
+  register: [[MyService, fakeService]], // DI overrides for module deps
+  authInfo: { userId: 'u1' }, // assigned to container-scoped Auth
+})
+harness.adapter.callTool('saveEvent', { title: 'X' }).reply('done') // script the LLM
+const turn = await harness.send('hola') // real ChatBot loop, real tool execution + validation
+// turn.replies / turn.toolCalls / harness.history()
+await harness.callTool('saveEvent', {}) // run ONE tool directly (returns the LLM-visible string)
+await harness.systemPrompt()
+harness.tools()
+```
+
+- `MockChatAdapter` — scriptable IChatAdapter (`reply`/`callTool`/`enqueue(fn)`), records `requests`. Throws if the queue is empty (a `callTool` turn triggers another adapter call).
+- `createChatControllerHarness({ controller })` — drives a `@chatController` method end-to-end via the production `prepareChatContainer` (exported from `runChatControllers.ts`); `harness.invoke('onCmdMessage', 'hola')`.
+- `TestChatMemory`/`TestChatRepository` — pure in-RAM (the `in-memory` addon persists to `.wabot/`, don't use it in tests).
+- Fixtures: `humanMessage`, `imageMessage`, `documentMessage`, `humanItem`, `botItem`, `testImageBase64Url` (embedded receipt photo, total 11.570), `testPdfBase64Url`.
+
+**Evals with real LLMs:** `new LlmJudge({ adapter, models }).evaluate({ transcript, criteria })` → `{ pass, reasoning }` (or `.assert(...)`). Verdict extracted via a forced `submitVerdict` tool call, provider-agnostic.
+
+**Adapter conformance:** `chatAdapterConformanceCases({ adapter, model })` returns `{ name, run }[]` (runner-agnostic). `testChatAdapter` in `src/feature/chat-bot/` is the node:test wrapper used by the adapter integration tests.
+
+**Rest of the framework:**
+
+- `createRestHarness({ controllers, jwt: true, register })` — mounts `@restController`s on an ephemeral port via `registerRestControllers` (the no-listen split of `runRestControllers`); `api.request('POST', '/api/items', { body })`, `api.as(authInfo)` signs real JWTs for `@jwtGuard`, `TestApiKeyRepository` (register as `ApiKeyRepository`) backs `@apiKeyGuard`. Call `api.close()` when done.
+- `createAsyncHarness()` — `execute(CommandCtor, data)` validates and runs the `@commandHandler` inline; `runCron(CronCtor)` runs a `@cronHandler` once. No PG, no workers.
+- `useMemoryRepositories()` — backs every `@repository` with `MemoryRepositoryAdapter` (`persist: false`). Call before resolving repositories (runtimes cache on first use).
+- Validation: `validateFixture` / `assertValid` / `assertInvalid(Ctor, data, { path })` with flattened issue paths.
+- Helpers: `waitUntil`, `wait`, `isValidCronSequence` (also re-exported by `testAsyncHelpers.ts`).
+
 ## Runtime Compatibility
 
 The built framework (`dist/`) must run under both **Node.js** and **Bun**. The framework itself does not ship Bun tooling — compatibility is a code-level requirement, so consumer apps can pick either runtime.
@@ -547,7 +586,7 @@ The built framework (`dist/`) must run under both **Node.js** and **Bun**. The f
 - **Use the `node:` prefix for all Node builtin imports.** Examples: `import { readFile } from 'node:fs'`, `import { AsyncLocalStorage } from 'node:async_hooks'`, `import { Server } from 'node:http'`. Never use bare `'fs'`, `'path'`, `'http'`, `'crypto'`, `'async_hooks'`, `'readline'`, etc.
 - **Do not use the `NodeJS.*` type namespace.** Prefer portable types: `ReturnType<typeof setTimeout>` instead of `NodeJS.Timeout`, `ReturnType<typeof setInterval>` instead of `NodeJS.Timer`. Avoids implicit dependency on `@types/node` global namespace augmentation.
 - **Do not use Node-only APIs that lack a Bun equivalent.** Avoid `node:cluster`, `node:v8`, `node:inspector`, `node:trace_events`, `node:domain`, native `.node` addons, and `pg-native`. The Node APIs used today (`node:crypto`, `node:async_hooks`, `node:http`, `node:fs`, `node:path`, `node:readline`, `Buffer`, `process.env/cwd/exit/hrtime/stdin/stdout`, `setTimeout`/`setInterval`) are all supported by Bun's Node compat layer.
-- **Test-only imports (`node:test`, `node:assert`, `node:child_process`) are allowed only in files that are NOT exported from `src/index.ts`** (e.g. `*.test.ts`, `__tests__/`, `testAsync.ts`, `testChatAdapter.ts`, `testAsyncHelpers.ts`, `pg-async-test-*.ts`). These must never reach `dist/`.
+- **Test-only imports (`node:test`, `node:assert`, `node:child_process`) are allowed only in files that are NOT exported from `src/index.ts` or `src/testing/index.ts`** (e.g. `*.test.ts`, `__tests__/`, `testAsync.ts`, `testChatAdapter.ts`, `testAsyncHelpers.ts`, `pg-async-test-*.ts`). These must never reach `dist/` — note that `src/testing/` DOES ship to dist, so it must stay free of them.
 
 **Decorator stack note:** the framework relies on `tsyringe` + `reflect-metadata` with `experimentalDecorators` and `emitDecoratorMetadata`. Metadata is emitted at build time by Rollup's TS plugin, so consumers running Bun only need `reflect-metadata` imported at app entry — same as Node.
 
