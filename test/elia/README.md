@@ -22,8 +22,10 @@ This README documents the **HubSpot real-sandbox verification** flow. It is comp
    cat >> .env <<EOF
    HUBSPOT_ACCESS_TOKEN=pat-na1-...
    HUBSPOT_WEBHOOK_SECRET=elia-dev-secret-2026-a4f1
+   HUBSPOT_SENDER_ACTOR_ID=A-12345678
    EOF
    ```
+   `HUBSPOT_SENDER_ACTOR_ID` is the **actor ID** HubSpot will attribute the bot's outbound message to (an "A-" prefix followed by the numeric ID, e.g. the agent assigned to the thread, or the bot's own actor if you've registered one). Find yours via `GET https://api.hubapi.com/crm/v3/owners` filtered to your portal. The Conversations API rejects `POST .../messages` with `400 VALIDATION_ERROR` if this is missing.
 5. In the test portal, open the **Conversations Inbox** (e.g. go to `https://app.hubspot.com/inbox/<portalId>/inbox`) and send yourself a test message from the test email channel. This materializes the thread you will point the verification script at.
 
 ## 2. Configure the webhook subscription
@@ -38,6 +40,7 @@ This README documents the **HubSpot real-sandbox verification** flow. It is comp
 ```bash
 HUBSPOT_ACCESS_TOKEN=$(grep HUBSPOT_ACCESS_TOKEN .env | cut -d= -f2) \
 HUBSPOT_WEBHOOK_SECRET=$(grep HUBSPOT_WEBHOOK_SECRET .env | cut -d= -f2) \
+HUBSPOT_SENDER_ACTOR_ID=$(grep HUBSPOT_SENDER_ACTOR_ID .env | cut -d= -f2) \
 PORT=3000 \
 npm run elia:dev
 ```
