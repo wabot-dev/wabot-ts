@@ -66,7 +66,7 @@ async function listMessages(
   limit: number,
 ): Promise<HubSpotMessage[]> {
   const path =
-    `/conversations/v3/conversations/${encodeURIComponent(threadId)}/messages` +
+    `/conversations/v3/conversations/threads/${encodeURIComponent(threadId)}/messages` +
     `?limit=${limit}`
   const res = await client.apiRequest({ method: 'GET', path })
   if (!res.ok) {

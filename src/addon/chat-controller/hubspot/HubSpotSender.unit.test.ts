@@ -72,7 +72,7 @@ test.describe('HubSpotSender.sendMessage', () => {
     assert.equal(fake.apiRequestCalls.length, 1)
     const call = fake.apiRequestCalls[0]
     assert.equal(call.method, 'POST')
-    assert.equal(call.path, '/conversations/v3/conversations/thr-1/messages')
+    assert.equal(call.path, '/conversations/v3/conversations/threads/thr-1/messages')
     assert.equal(call.headers?.['Content-Type'], 'application/json')
     const body = JSON.parse(call.body!)
     assert.deepEqual(body, { type: 'MESSAGE', text: 'hola' })
@@ -107,7 +107,7 @@ test.describe('HubSpotSender.sendMessage', () => {
 
     await sender.sendMessage({ threadId: 'thr/with/slash', text: 'ok' })
 
-    assert.equal(fake.apiRequestCalls[0].path, '/conversations/v3/conversations/thr%2Fwith%2Fslash/messages')
+    assert.equal(fake.apiRequestCalls[0].path, '/conversations/v3/conversations/threads/thr%2Fwith%2Fslash/messages')
   })
 
   test('throws when the API responds with a non-2xx status', async () => {

@@ -58,7 +58,7 @@ export class HubSpotSender {
       throw new Error('HubSpot sendMessage requires at least text, richText or files')
     }
 
-    const path = `/conversations/v3/conversations/${encodeURIComponent(req.threadId)}/messages`
+    const path = `/conversations/v3/conversations/threads/${encodeURIComponent(req.threadId)}/messages`
     const response = await this.client.apiRequest({
       method: 'POST',
       path,
