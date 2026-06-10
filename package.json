@@ -52,7 +52,8 @@
     "types:check": "tsc --noEmit",
     "elia:dev": "node --import @yucacodes/ts --import ./env.mjs  ./test/elia/_run_.ts",
     "elia:watch": "node --watch --import @yucacodes/ts --import ./env.mjs  ./test/elia/_run_.ts",
-    "elia:cmd": "node --import @yucacodes/ts ./test/elia/_cmd_.ts"
+    "elia:cmd": "node --import @yucacodes/ts ./test/elia/_cmd_.ts",
+    "test:elia:hubspot": "node --import @yucacodes/ts --import ./env.mjs ./test/elia/_hubspot_sandbox_.ts"
   },
   "devDependencies": {
     "@rollup/plugin-alias": "5.1.1",
