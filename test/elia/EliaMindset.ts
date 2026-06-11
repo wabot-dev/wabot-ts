@@ -39,11 +39,8 @@ export class EliaMindset implements IMindset {
 
   async models() {
     return {
-      llm: [
-        { provider: 'anthropic', model: 'claude-sonnet-4-6' },
-        { provider: 'openai', model: 'gpt-4.1' },
-      ],
-      visionLlm: [{ provider: 'openrouter', model: 'qwen/qwen3.5-flash-02-23' }],
+      llm: [{ provider: 'openrouter', model: 'qwen/qwen3.5-flash-02-23' }],
+      visionLlm: [{ provider: 'openrouter', model: 'google/gemini-2.5-flash' }],
     }
   }
 }

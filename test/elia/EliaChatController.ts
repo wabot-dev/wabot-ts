@@ -6,8 +6,8 @@ import {
   type ISlackReceivedMessage,
   slack,
   str,
-  type IWasenderReceivedMessage,
-  wasender,
+  // type IWasenderReceivedMessage,
+  // wasender,
 } from '@'
 
 import { EliaMindset } from './EliaMindset'
@@ -16,17 +16,8 @@ import { EliaMindset } from './EliaMindset'
 export class EliaChatController {
   constructor(@chatBot(EliaMindset) private eliaBot: ChatBot) {}
 
-  @wasender()
-  async onWhatsAppMessage(context: IWasenderReceivedMessage) {
-    const whatsAppNumber = context.message.metadata.whatsAppNumber
-
-    await this.eliaBot.sendMessage(context.message, async (response) => {
-      await context.reply(response)
-    })
-  }
-
   @cmd()
-  async onCmdMessage(context: IWasenderReceivedMessage) {
+  async onCmdMessage(context: ISlackReceivedMessage) {
     await this.eliaBot.sendMessage(context.message, async (response) => {
       await context.reply(response)
     })
