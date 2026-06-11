@@ -5,7 +5,13 @@ const { App } = Bolt
 import { injectable } from '@/core/injection'
 import { Logger } from '@/core/logger'
 import { type IChatChannel } from '@/feature/chat-controller'
-import { type IChatConnection, type IChatMessage } from '@/feature/chat-bot'
+import {
+  type IChatConnection,
+  type IChatMessage,
+  type IChatMessageDocument,
+  type IChatMessageFile,
+  type IChatMessageImage,
+} from '@/feature/chat-bot'
 
 import { ISlackChannelMessage } from './ISlackChannelMessage'
 import { SlackChannelConfig } from './SlackChannelConfig'
@@ -14,15 +20,25 @@ import { slackChannelName } from './slackChannelName'
 
 const GROUP_CHANNEL_TYPES = new Set(['channel', 'group', 'mpim'])
 const PRIVATE_CHANNEL_TYPES = new Set(['im'])
+const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024
+
+interface SlackFile {
+  id: string
+  name?: string
+  mimetype?: string
+  url_private?: string
+  size?: number
+}
 
 interface SlackMessage {
   channel: string
   channel_type?: string
   user?: string
   text?: string
+  ts?: string
   subtype?: string
   thread_ts?: string
-  files?: Array<{ id: string; name?: string; mimetype?: string; url_private?: string }>
+  files?: SlackFile[]
 }
 
 interface SlackSay {
@@ -63,29 +79,14 @@ export class SlackChannel implements IChatChannel {
       return
     }
 
-    const channelType = message.channel_type
-    const chatType: IChatConnection['chatType'] = GROUP_CHANNEL_TYPES.has(channelType ?? '')
-      ? 'GROUP'
-      : PRIVATE_CHANNEL_TYPES.has(channelType ?? '')
-        ? 'PRIVATE'
-        : 'GROUP'
-
-    const chatConnection: IChatConnection = {
-      id: message.channel,
-      chatType,
-      channelName: SlackChannel.channelName,
-    }
+    const chatConnection = this.buildChatConnection(message)
+    const threadTs = message.thread_ts ?? message.ts
+    const { images, documents } = await this.extractMedia(message.files)
 
     const senderName = await this.resolveUserName(message.user)
     const text = message.text ?? ''
 
-    const reply: ISlackChannelMessage['reply'] = async (replyMessage: IChatMessage) => {
-      if (!replyMessage.text) return
-      await say({
-        text: markdownToSlackMrkdwn(replyMessage.text),
-        mrkdwn: true,
-      })
-    }
+    const reply = this.buildReply(say, threadTs)
 
     try {
       await this.callback({
@@ -95,6 +96,8 @@ export class SlackChannel implements IChatChannel {
           senderId: message.user,
           senderName,
           text,
+          images: images.length > 0 ? images : undefined,
+          documents: documents.length > 0 ? documents : undefined,
         },
         reply,
       })
@@ -103,6 +106,86 @@ export class SlackChannel implements IChatChannel {
         'Failed to handle Slack message',
         err instanceof Error ? { message: err.message } : { err },
       )
+    }
+  }
+
+  private buildChatConnection(message: SlackMessage): IChatConnection {
+    const channelType = message.channel_type
+    const chatType: IChatConnection['chatType'] = GROUP_CHANNEL_TYPES.has(channelType ?? '')
+      ? 'GROUP'
+      : PRIVATE_CHANNEL_TYPES.has(channelType ?? '')
+        ? 'PRIVATE'
+        : 'GROUP'
+
+    return {
+      id: message.channel,
+      chatType,
+      channelName: SlackChannel.channelName,
+    }
+  }
+
+  private buildReply(say: SlackSay, threadTs: string | undefined) {
+    return async (replyMessage: IChatMessage): Promise<void> => {
+      if (!replyMessage.text) return
+      await say({
+        text: markdownToSlackMrkdwn(replyMessage.text),
+        mrkdwn: true,
+        ...(threadTs ? { thread_ts: threadTs } : {}),
+      })
+    }
+  }
+
+  private async extractMedia(
+    files: SlackFile[] | undefined,
+  ): Promise<{ images: IChatMessageImage[]; documents: IChatMessageDocument[] }> {
+    const images: IChatMessageImage[] = []
+    const documents: IChatMessageDocument[] = []
+    if (!files || files.length === 0) return { images, documents }
+
+    const results = await Promise.all(files.map((file) => this.downloadFile(file)))
+    for (const result of results) {
+      if (!result) continue
+      if (result.file.mimeType.startsWith('image/')) {
+        images.push(result.file)
+      } else {
+        documents.push(result.file)
+      }
+    }
+    return { images, documents }
+  }
+
+  private async downloadFile(file: SlackFile): Promise<{ file: IChatMessageFile } | null> {
+    const mimeType = file.mimetype ?? 'application/octet-stream'
+    if (!file.url_private) {
+      this.logger.warn(`slack file '${file.id}' has no url_private, skipping`)
+      return null
+    }
+    if (file.size !== undefined && file.size > MAX_FILE_SIZE_BYTES) {
+      this.logger.warn(`slack file '${file.id}' exceeds 20 MB (${file.size} bytes), skipping`)
+      return null
+    }
+    try {
+      const res = await fetch(file.url_private, {
+        headers: { Authorization: `Bearer ${this.config.botToken}` },
+      })
+      if (!res.ok) {
+        throw new Error(`${res.status} ${res.statusText}`)
+      }
+      const base64 = Buffer.from(await res.arrayBuffer()).toString('base64')
+      return {
+        file: {
+          id: file.id,
+          name: file.name,
+          mimeType,
+          base64Url: `data:${mimeType};base64,${base64}`,
+        },
+      }
+    } catch (err) {
+      this.logger.warn(
+        `failed to download slack file '${file.id}'`,
+        err instanceof Error ? { message: err.message } : { err },
+      )
+      return null
     }
   }
 
