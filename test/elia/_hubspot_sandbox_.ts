@@ -100,6 +100,13 @@ function lastOfDirection(messages: HubSpotMessage[], dir: HubSpotMessage['direct
   return messages.find((m) => m.direction === dir)
 }
 
+function mostRecentWithAttachments(
+  messages: HubSpotMessage[],
+  dir: HubSpotMessage['direction'],
+): HubSpotMessage | undefined {
+  return messages.find((m) => m.direction === dir && (m.attachments?.length ?? 0) > 0)
+}
+
 function check(
   args: CliArgs,
   messages: HubSpotMessage[],
@@ -134,9 +141,10 @@ function check(
   }
 
   if (args.requireInboundFiles > 0) {
-    const count = lastIn?.attachments?.length ?? 0
+    const lastInWithFiles = mostRecentWithAttachments(messages, 'INCOMING')
+    const count = lastInWithFiles?.attachments?.length ?? 0
     out.push({
-      name: `inbound attachments: last INCOMING has >= ${args.requireInboundFiles}`,
+      name: `inbound attachments: most recent INCOMING with files has >= ${args.requireInboundFiles}`,
       ok: count >= args.requireInboundFiles,
       detail: `attachments=${count}`,
     })

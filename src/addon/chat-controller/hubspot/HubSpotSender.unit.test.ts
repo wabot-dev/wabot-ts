@@ -4,52 +4,92 @@ import { HubSpotSender } from './HubSpotSender'
 import { HubSpotChannelConfig } from './HubSpotChannelConfig'
 import { IChatMessageFile } from '@/feature/chat-bot'
 
-type ApiRequestCall = { method?: string; path?: string; body?: string; headers?: Record<string, string> }
-type UploadCall = { data: Buffer; name: string }
+type ApiRequestCall = {
+  method?: string
+  path?: string
+  body?: string | FormData
+  headers?: Record<string, string>
+}
+
+type FetchCall = {
+  url: string
+  init: RequestInit
+}
+
+interface IFakeResponse {
+  ok: boolean
+  status: number
+  json: () => Promise<unknown>
+  text: () => Promise<string>
+}
 
 interface IFakeClient {
-  files: { filesApi: { upload: (file: { data: Buffer; name: string }) => Promise<{ id: string }> } }
-  apiRequest: (opts: ApiRequestCall) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown>; text: () => Promise<string> }>
+  apiRequest: (opts: ApiRequestCall) => Promise<IFakeResponse>
   apiRequestCalls: ApiRequestCall[]
-  uploadCalls: UploadCall[]
+  fetchCalls: FetchCall[]
+  uploadResponses: { id: string }[]
+  messageResponse: { id: string }
+  apiStatus?: number
+  apiBody?: string
 }
 
 function makeFakeClient(opts: {
-  uploadedFileIds?: string[]
-  apiResponse?: { id: string }
+  uploadResponses?: { id: string }[]
+  messageResponse?: { id: string }
   apiStatus?: number
   apiBody?: string
-}): IFakeClient {
+} = {}): IFakeClient {
   const apiRequestCalls: ApiRequestCall[] = []
-  const uploadCalls: UploadCall[] = []
-  const uploadedFileIds = opts.uploadedFileIds ?? []
-  return {
-    files: {
-      filesApi: {
-        async upload(file) {
-          uploadCalls.push({ data: file.data, name: file.name })
-          return { id: uploadedFileIds[uploadCalls.length - 1] ?? `f_${uploadCalls.length}` }
-        },
+  const fetchCalls: FetchCall[] = []
+  const uploadResponses = opts.uploadResponses ?? [{ id: 'f_1' }]
+  let uploadIdx = 0
+  const realFetch = global.fetch
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ;(global as any).fetch = async (url: string, init: RequestInit) => {
+    fetchCalls.push({ url, init })
+    const isUpload = url.toString().includes('/files/v3/files')
+    const responseBody = isUpload
+      ? (uploadResponses[uploadIdx++] ?? { id: 'f_x' })
+      : (opts.messageResponse ?? { id: 'msg_1' })
+    const status = opts.apiStatus ?? 201
+    return {
+      ok: status >= 200 && status < 300,
+      status,
+      async json() {
+        return responseBody
       },
-    },
+      async text() {
+        return JSON.stringify(responseBody)
+      },
+    } as IFakeResponse
+  }
+  return {
+    apiRequestCalls,
+    fetchCalls,
+    uploadResponses,
+    messageResponse: opts.messageResponse ?? { id: 'msg_1' },
+    apiStatus: opts.apiStatus,
+    apiBody: opts.apiBody,
     async apiRequest(req) {
       apiRequestCalls.push(req)
       const status = opts.apiStatus ?? 201
       const ok = status >= 200 && status < 300
+      const isUpload = (req.path ?? '').startsWith('/files/v3/files')
+      const responseBody = isUpload
+        ? (uploadResponses[uploadIdx++] ?? { id: 'f_x' })
+        : opts.messageResponse
       return {
         ok,
         status,
         async json() {
-          return opts.apiResponse ?? { id: 'msg_1' }
+          return responseBody
         },
         async text() {
-          return opts.apiBody ?? JSON.stringify(opts.apiResponse ?? { id: 'msg_1' })
+          return JSON.stringify(responseBody)
         },
       }
     },
-    apiRequestCalls,
-    uploadCalls,
-  }
+  } as IFakeClient
 }
 
 function makeConfig(): HubSpotChannelConfig {
@@ -62,26 +102,25 @@ function makeConfig(): HubSpotChannelConfig {
 
 test.describe('HubSpotSender.sendMessage', () => {
   test('sends a text-only message via the Conversations API', async () => {
-    const fake = makeFakeClient({ apiResponse: { id: 'msg_42' } })
+    const fake = makeFakeClient({ messageResponse: { id: 'msg_42' } })
     const sender = new HubSpotSender(makeConfig(), fake as any)
 
     const result = await sender.sendMessage({ threadId: 'thr-1', text: 'hola' })
 
     assert.equal(result.messageId, 'msg_42')
-    assert.equal(fake.uploadCalls.length, 0)
     assert.equal(fake.apiRequestCalls.length, 1)
     const call = fake.apiRequestCalls[0]
     assert.equal(call.method, 'POST')
     assert.equal(call.path, '/conversations/v3/conversations/threads/thr-1/messages')
     assert.equal(call.headers?.['Content-Type'], 'application/json')
-    const body = JSON.parse(call.body!)
+    const body = JSON.parse(call.body as string)
     assert.deepEqual(body, { type: 'MESSAGE', text: 'hola' })
   })
 
   test('uploads files first and attaches their ids to the message', async () => {
     const fake = makeFakeClient({
-      uploadedFileIds: ['f_a', 'f_b'],
-      apiResponse: { id: 'msg_99' },
+      uploadResponses: [{ id: 'f_a' }, { id: 'f_b' }],
+      messageResponse: { id: 'msg_99' },
     })
     const sender = new HubSpotSender(makeConfig(), fake as any)
 
@@ -93,21 +132,33 @@ test.describe('HubSpotSender.sendMessage', () => {
     }
     await sender.sendMessage({ threadId: 'thr-2', text: 'con adjunto', files: [file] })
 
-    assert.equal(fake.uploadCalls.length, 1)
-    assert.equal(fake.uploadCalls[0].name, 'a.png')
-    assert.equal(fake.uploadCalls[0].data.toString('utf8'), 'hello')
+    assert.equal(fake.fetchCalls.length, 1)
+    const upload = fake.fetchCalls[0]
+    assert.equal(upload.url, 'https://api.hubapi.com/files/v3/files')
+    assert.equal((upload.init.headers as Record<string, string>).Authorization, 'Bearer fake-token')
+    assert.ok(upload.init.body instanceof FormData)
+    const uploadedFile = (upload.init.body as FormData).get('file') as File
+    assert.equal(uploadedFile.name, 'a.png')
+    assert.equal((upload.init.body as FormData).get('folderPath'), '/')
+    const options = (upload.init.body as FormData).get('options') as string
+    assert.ok(options.includes('"access":"PUBLIC_INDEXABLE"'))
 
-    const body = JSON.parse(fake.apiRequestCalls[0].body!)
+    assert.equal(fake.apiRequestCalls.length, 1)
+    const send = fake.apiRequestCalls[0]
+    const body = JSON.parse(send.body as string)
     assert.deepEqual(body.attachments, [{ fileId: 'f_a' }])
   })
 
   test('encodes the threadId in the path', async () => {
-    const fake = makeFakeClient({ apiResponse: { id: 'msg_x' } })
+    const fake = makeFakeClient({ messageResponse: { id: 'msg_x' } })
     const sender = new HubSpotSender(makeConfig(), fake as any)
 
     await sender.sendMessage({ threadId: 'thr/with/slash', text: 'ok' })
 
-    assert.equal(fake.apiRequestCalls[0].path, '/conversations/v3/conversations/threads/thr%2Fwith%2Fslash/messages')
+    assert.equal(
+      fake.apiRequestCalls[0].path,
+      '/conversations/v3/conversations/threads/thr%2Fwith%2Fslash/messages',
+    )
   })
 
   test('throws when the API responds with a non-2xx status', async () => {
@@ -121,7 +172,7 @@ test.describe('HubSpotSender.sendMessage', () => {
   })
 
   test('forwards richText alongside the text in the body', async () => {
-    const fake = makeFakeClient({ apiResponse: { id: 'msg_77' } })
+    const fake = makeFakeClient({ messageResponse: { id: 'msg_77' } })
     const sender = new HubSpotSender(makeConfig(), fake as any)
 
     await sender.sendMessage({
@@ -130,24 +181,24 @@ test.describe('HubSpotSender.sendMessage', () => {
       richText: '<b>bold</b>',
     })
 
-    const body = JSON.parse(fake.apiRequestCalls[0].body!)
+    const body = JSON.parse(fake.apiRequestCalls[0].body as string)
     assert.equal(body.text, '**bold**')
     assert.equal(body.richText, '<b>bold</b>')
   })
 
   test('allows sending richText without plain text', async () => {
-    const fake = makeFakeClient({ apiResponse: { id: 'msg_78' } })
+    const fake = makeFakeClient({ messageResponse: { id: 'msg_78' } })
     const sender = new HubSpotSender(makeConfig(), fake as any)
 
     await sender.sendMessage({ threadId: 'thr-4', richText: '<i>solo html</i>' })
 
-    const body = JSON.parse(fake.apiRequestCalls[0].body!)
+    const body = JSON.parse(fake.apiRequestCalls[0].body as string)
     assert.equal(body.text, undefined)
     assert.equal(body.richText, '<i>solo html</i>')
   })
 
   test('throws when there is no text, no richText and no files', async () => {
-    const fake = makeFakeClient({ apiResponse: { id: 'msg_1' } })
+    const fake = makeFakeClient({ messageResponse: { id: 'msg_1' } })
     const sender = new HubSpotSender(makeConfig(), fake as any)
 
     await assert.rejects(
@@ -158,12 +209,51 @@ test.describe('HubSpotSender.sendMessage', () => {
   })
 
   test('throws when the response has no id', async () => {
-    const fake = makeFakeClient({ apiResponse: {} as { id: string } })
+    const fake = makeFakeClient({ messageResponse: {} as { id: string } })
     const sender = new HubSpotSender(makeConfig(), fake as any)
 
     await assert.rejects(
       () => sender.sendMessage({ threadId: 'thr-1', text: 'x' }),
       /did not include an id/,
     )
+  })
+
+  test('forwards senderActorId, channelId and channelAccountId into the body', async () => {
+    const fake = makeFakeClient({ messageResponse: { id: 'msg_99' } })
+    const sender = new HubSpotSender(makeConfig(), fake as any)
+
+    await sender.sendMessage({
+      threadId: 'thr-9',
+      text: 'con contexto',
+      senderActorId: 'A-123',
+      channelId: '1000',
+      channelAccountId: '424242',
+    })
+
+    const body = JSON.parse(fake.apiRequestCalls[0].body as string)
+    assert.equal(body.senderActorId, 'A-123')
+    assert.equal(body.channelId, '1000')
+    assert.equal(body.channelAccountId, '424242')
+  })
+
+  test('uses config.senderActorId when request omits it', async () => {
+    const fake = makeFakeClient({ messageResponse: { id: 'msg_99' } })
+    const config = new HubSpotChannelConfig({
+      accessToken: 'fake-token',
+      webhookSecret: 'fake-secret',
+      webhookPath: '/hubspot/webhook',
+      senderActorId: 'A-config',
+    })
+    const sender = new HubSpotSender(config, fake as any)
+
+    await sender.sendMessage({
+      threadId: 'thr-9',
+      text: 'hola',
+      channelId: '1000',
+      channelAccountId: '424242',
+    })
+
+    const body = JSON.parse(fake.apiRequestCalls[0].body as string)
+    assert.equal(body.senderActorId, 'A-config')
   })
 })

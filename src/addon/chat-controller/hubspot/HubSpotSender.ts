@@ -36,11 +36,15 @@ interface IHubSpotConversationsMessage {
 @injectable()
 export class HubSpotSender {
   private client: Client
+  private accessToken: string
+  private baseUrl: string
   private logger = new Logger('wabot:hubspot-sender')
   private defaultSenderActorId: string | undefined
 
   constructor(config: HubSpotChannelConfig, client?: Client) {
     this.client = client ?? new Client({ accessToken: config.accessToken })
+    this.accessToken = config.accessToken
+    this.baseUrl = 'https://api.hubapi.com'
     this.defaultSenderActorId = config.senderActorId
   }
 
@@ -98,11 +102,28 @@ export class HubSpotSender {
 
   private async uploadFile(file: IChatMessageFile): Promise<{ id: string }> {
     const httpFile = await toHttpFile(file)
-    const uploaded = await this.client.files.filesApi.upload({
-      data: httpFile.data,
-      name: httpFile.name,
+    const form = new FormData()
+    const fileBytes = new Uint8Array(httpFile.data)
+    form.append('file', new Blob([fileBytes]), httpFile.name)
+    form.append('options', JSON.stringify({ access: 'PUBLIC_INDEXABLE', overwrite: false }))
+    form.append('folderPath', '/')
+    const response = await fetch(`${this.baseUrl}/files/v3/files`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${this.accessToken}` },
+      body: form,
     })
-    return { id: String(uploaded.id) }
+    if (!response.ok) {
+      const errorBody = await response.text()
+      this.logger.error(
+        `HubSpot file upload failed for '${httpFile.name}': ${response.status} ${errorBody}`,
+      )
+      throw new Error(`HubSpot file upload failed: ${response.status} ${errorBody}`)
+    }
+    const data = (await response.json()) as { id?: string }
+    if (!data.id) {
+      throw new Error('HubSpot file upload response did not include an id')
+    }
+    return { id: String(data.id) }
   }
 }
 
