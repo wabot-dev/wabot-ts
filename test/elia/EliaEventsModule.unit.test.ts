@@ -115,7 +115,7 @@ test('el adapter graba lo que el bot envía al modelo', async () => {
 
   const req = harness.adapter.lastRequest
   assert.ok(req)
-  assert.equal(req.models[0].provider, 'anthropic') // primer candidato del mindset
+  assert.equal(req.models[0].provider, 'openrouter') // primer candidato del mindset
   assert.equal(req.tools.length, 3)
   assert.equal(req.prevItems.at(-1)?.humanMessage?.text, 'hola')
 })

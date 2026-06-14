@@ -48,8 +48,24 @@ export class OpenRouterChatAdapter implements IChatAdapter {
     const modelNames = req.models.map((m) => m.model)
     const [primary, ...fallbacks] = modelNames
 
+    const userMessageSummary = messages
+      .filter((m) => m.role === 'user')
+      .map((m) => {
+        const content = m.content
+        if (Array.isArray(content)) {
+          const parts = content.map((p) => {
+            if (p.type === 'text') return `text(${p.text.length}ch)`
+            if (p.type === 'image_url') return `image_url`
+            if (p.type === 'file') return `file(${p.file.filename})`
+            return p.type
+          })
+          return `[${parts.join(', ')}]`
+        }
+        return `[text]`
+      })
+
     this.logger.debug(
-      `Call OpenRouter with model: ${primary}, fallbacks: ${fallbacks.length}, messages: ${messages.length}, tools: ${tools.length}`,
+      `Call OpenRouter with model: ${primary}, fallbacks: ${fallbacks.length}, messages: ${messages.length}, tools: ${tools.length}, user parts: ${userMessageSummary.join(' | ')}`,
     )
 
     const maxAttempts = 3

@@ -3,12 +3,16 @@ import {
   ChatBot,
   chatController,
   cmd,
+  discord,
+  Logger,
+  type IDiscordReceivedMessage,
   hubspot,
   type IChatMessageFile,
   type IHubSpotChannelMessage,
   type IWasenderReceivedMessage,
   wasender,
 } from '@'
+import { type IDiscordMessageContext, shouldRespondToMention, shouldRespondToTrigger } from '@'
 
 import { EliaMindset } from './EliaMindset'
 
@@ -29,12 +33,13 @@ function testPngFile(): IChatMessageFile {
 
 @chatController()
 export class EliaChatController {
+  private logger = new Logger('wabot:elia-controller')
+
   constructor(@chatBot(EliaMindset) private eliaBot: ChatBot) {}
 
   // @wasender()
   // async onWhatsAppMessage(context: IWasenderReceivedMessage) {
   //   const whatsAppNumber = context.message.metadata.whatsAppNumber
-
   //   await this.eliaBot.sendMessage(context.message, async (response) => {
   //     await context.reply(response)
   //   })
@@ -70,5 +75,22 @@ export class EliaChatController {
     const reply = wantsAttachment ? { text: echo, images: [testPngFile()] } : { text: echo }
 
     await context.reply(reply)
+  }
+
+  @discord()
+  async onDiscordMessage(context: IDiscordReceivedMessage) {
+    const discordCtx = context.extras?.discord as IDiscordMessageContext | undefined
+    if (!discordCtx) return
+
+    const respondMention = shouldRespondToMention(discordCtx)
+    const respondTrigger = shouldRespondToTrigger(discordCtx, 'elia', context.message.text ?? '')
+    this.logger.info(
+      `onDiscord decision: isDM=${discordCtx.isDirectMessage} wasMentioned=${discordCtx.wasBotMentioned} wasEveryone=${discordCtx.wasEveryoneMentioned} → mention=${respondMention} trigger=${respondTrigger}`,
+    )
+    if (!respondMention && !respondTrigger) return
+
+    await this.eliaBot.sendMessage(context.message, async (response) => {
+      await context.reply(response)
+    })
   }
 }
