@@ -629,4 +629,56 @@ test.describe('SlackChannel.handleMessage', () => {
       ['A', 'B', 'C', 'D', 'E'],
     )
   })
+
+  // ----- Metadata propagation -----
+
+  test('T12: populates metadata with ts, channel, and channel_type', async () => {
+    const channel = makeChannel()
+    let captured: any = null
+    channel.listen(async (m) => {
+      captured = m.message
+    })
+
+    await callHandleMessage(channel, {
+      message: {
+        channel: 'C999',
+        channel_type: 'im',
+        user: 'U1',
+        text: 'hi',
+        ts: '1700000000.000700',
+      },
+      say: async () => undefined,
+    })
+
+    assert.ok(captured?.metadata)
+    assert.equal(captured.metadata.ts, '1700000000.000700')
+    assert.equal(captured.metadata.channel, 'C999')
+    assert.equal(captured.metadata.channel_type, 'im')
+    assert.equal(captured.metadata.thread_ts, '')
+  })
+
+  test('T13: metadata.thread_ts is populated for messages already inside a thread', async () => {
+    const channel = makeChannel()
+    let captured: any = null
+    channel.listen(async (m) => {
+      captured = m.message
+    })
+
+    await callHandleMessage(channel, {
+      message: {
+        channel: 'C123',
+        channel_type: 'channel',
+        user: 'U1',
+        text: 'reply',
+        ts: '1700000000.000800',
+        thread_ts: '1700000000.000000',
+      },
+      say: async () => undefined,
+    })
+
+    assert.equal(captured.metadata.ts, '1700000000.000800')
+    assert.equal(captured.metadata.thread_ts, '1700000000.000000')
+    assert.equal(captured.metadata.channel, 'C123')
+    assert.equal(captured.metadata.channel_type, 'channel')
+  })
 })

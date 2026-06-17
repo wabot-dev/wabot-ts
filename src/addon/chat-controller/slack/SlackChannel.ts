@@ -98,6 +98,12 @@ export class SlackChannel implements IChatChannel {
           text,
           images: images.length > 0 ? images : undefined,
           documents: documents.length > 0 ? documents : undefined,
+          metadata: {
+            ts: message.ts ?? '',
+            thread_ts: message.thread_ts ?? '',
+            channel: message.channel,
+            channel_type: message.channel_type ?? '',
+          },
         },
         reply,
       })
