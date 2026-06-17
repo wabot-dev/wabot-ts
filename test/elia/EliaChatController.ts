@@ -3,16 +3,18 @@ import {
   ChatBot,
   chatController,
   cmd,
+  DISCORD_MESSAGE_CONTEXT,
   discord,
-  Logger,
+  type IDiscordMessageContext,
   type IDiscordReceivedMessage,
   hubspot,
   type IChatMessageFile,
   type IHubSpotChannelMessage,
+  inject,
+  Logger,
   type IWasenderReceivedMessage,
   wasender,
 } from '@'
-import { type IDiscordMessageContext, shouldRespondToMention, shouldRespondToTrigger } from '@'
 
 import { EliaMindset } from './EliaMindset'
 
@@ -31,11 +33,17 @@ function testPngFile(): IChatMessageFile {
   }
 }
 
+const TRIGGER = 'elia'
+const DIACRITICS_REGEX = /[̀-͏]/g
+
 @chatController()
 export class EliaChatController {
   private logger = new Logger('wabot:elia-controller')
 
-  constructor(@chatBot(EliaMindset) private eliaBot: ChatBot) {}
+  constructor(
+    @chatBot(EliaMindset) private eliaBot: ChatBot,
+    @inject(DISCORD_MESSAGE_CONTEXT) private discordCtx: IDiscordMessageContext,
+  ) {}
 
   // @wasender()
   // async onWhatsAppMessage(context: IWasenderReceivedMessage) {
@@ -79,18 +87,33 @@ export class EliaChatController {
 
   @discord()
   async onDiscordMessage(context: IDiscordReceivedMessage) {
-    const discordCtx = context.extras?.discord as IDiscordMessageContext | undefined
-    if (!discordCtx) return
-
-    const respondMention = shouldRespondToMention(discordCtx)
-    const respondTrigger = shouldRespondToTrigger(discordCtx, 'elia', context.message.text ?? '')
-    this.logger.info(
-      `onDiscord decision: isDM=${discordCtx.isDirectMessage} wasMentioned=${discordCtx.wasBotMentioned} wasEveryone=${discordCtx.wasEveryoneMentioned} → mention=${respondMention} trigger=${respondTrigger}`,
-    )
-    if (!respondMention && !respondTrigger) return
+    if (!this.shouldRespond(this.discordCtx, context.message.text)) return
 
     await this.eliaBot.sendMessage(context.message, async (response) => {
       await context.reply(response)
     })
   }
+
+  private shouldRespond(discord: IDiscordMessageContext, text: string | undefined): boolean {
+    if (discord.isDirectMessage || discord.wasBotMentioned || discord.wasEveryoneMentioned) {
+      return true
+    }
+    return this.containsTrigger(text ?? '')
+  }
+
+  private containsTrigger(text: string): boolean {
+    if (!text) return false
+    const t = normalize(TRIGGER)
+    const c = normalize(text)
+    if (!t || !c) return false
+    const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    return new RegExp(`(^|\\W)${escaped}(?=\\W|$)`, 'u').test(c)
+  }
+}
+
+function normalize(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(DIACRITICS_REGEX, '')
 }

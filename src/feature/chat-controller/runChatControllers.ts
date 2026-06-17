@@ -87,7 +87,6 @@ export function runChatControllers(controllers: IConstructor<any>[]) {
         const receivedMessage: IReceivedMessage = {
           message: channelMessage.message,
           reply: channelMessage.reply,
-          extras: channelMessage.extras,
         }
 
         try {

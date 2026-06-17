@@ -55,6 +55,8 @@ export class DiscordChannel implements IChatChannel {
     private config: DiscordChannelConfig,
     env?: Env,
   ) {
+    // Env is optional: if config.botToken is provided, the env fallback isn't needed.
+    // Kept optional to support test scenarios where Env is not registered in the container.
     this.botToken = config.botToken || env?.requireString('DISCORD_TOKEN') || ''
     if (!this.botToken) {
       throw new Error('DiscordChannel: botToken not provided and DISCORD_TOKEN env var is not set')
@@ -152,7 +154,6 @@ export class DiscordChannel implements IChatChannel {
           metadata: Object.keys(extracted.metadata).length > 0 ? extracted.metadata : undefined,
         },
         reply: async (replyMessage: IChatMessage) => this.sendReply(message, replyMessage),
-        extras: { discord: discordCtx },
         injectInstances: [[DISCORD_MESSAGE_CONTEXT, discordCtx]],
       })
       this.logger.info(`callback completed for ${message.author.username}`)
