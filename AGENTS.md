@@ -308,40 +308,6 @@ export * from './@myChannel'
 export * from './MyChannel'
 ```
 
-### Slack Channel Notes
-
-`SlackChannel` runs in **Socket Mode**, so no public HTTP endpoint is required — the bot opens an outbound WebSocket to Slack.
-
-**Configuration** (via `SlackChannelConfig`):
-
-- `appToken` — `xapp-…` App-Level Token with scope `connections:write`
-- `botToken` — `xoxb-…` Bot User OAuth Token
-- `signingSecret` — optional, used by Bolt for verification
-
-**Required Slack scopes on the bot:** `chat:write`, `users:read`, plus `im:history`, `mpim:history`, `channels:history`, `groups:history` to receive message events. Add `files:read` if you need metadata; downloads are authorized with `botToken` automatically.
-
-**Event Subscriptions** (Socket Mode): enable `message.channels`, `message.groups`, `message.im`, `message.mpim`. Reinstall the app after adding scopes.
-
-**Inbound file attachments**: messages with `subtype: 'file_share'` are downloaded in parallel (`Promise.all`), each ≤ 20 MB. Items with `mime` starting with `image/` are placed in `IChatMessage.images[]`; the rest go to `documents[]`. All files are converted to `base64Url` data URLs. If a file fails to download, it is skipped with a warning and the rest of the message is preserved. Caption (`text`) and attachments are delivered together to the mindset.
-
-**Outbound replies always go to a thread**: `thread_ts = message.thread_ts ?? message.ts`. Top-level messages therefore create a one-message thread automatically. This keeps shared channels uncluttered.
-
-**Outbound files (images/documents) sent by the bot are NOT yet supported** — only `text` is delivered. Planned as `feat-slack-uploads` using `filesUploadV2`.
-
-**Usage example:**
-
-```typescript
-@chatController()
-export class MyController {
-  @slack({ appToken: str`SLACK_APP_TOKEN`, botToken: str`SLACK_BOT_TOKEN` })
-  async onSlack(ctx: ISlackReceivedMessage) {
-    await this.bot.sendMessage(ctx.message, async (response) => {
-      await ctx.reply(response)
-    })
-  }
-}
-```
-
 ### Adding a New LLM Adapter
 
 ```typescript
