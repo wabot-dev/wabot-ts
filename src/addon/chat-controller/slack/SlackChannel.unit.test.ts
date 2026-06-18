@@ -681,4 +681,55 @@ test.describe('SlackChannel.handleMessage', () => {
     assert.equal(captured.metadata.channel, 'C123')
     assert.equal(captured.metadata.channel_type, 'channel')
   })
+
+  // ----- Username cache -----
+
+  test('T14: reuses cached username across messages from the same user', async () => {
+    const channel = new SlackChannel(new SlackChannelConfig(APP_TOKEN, BOT_TOKEN))
+    let usersInfoCalls = 0
+    ;(channel as any).app.client = {
+      users: {
+        info: async () => {
+          usersInfoCalls++
+          return { ok: true, user: { real_name: 'Real Name', name: 'username' } }
+        },
+      },
+    }
+
+    channel.listen(async () => undefined)
+    const say = async () => undefined
+    const msg = { channel: 'C123', channel_type: 'im', user: 'U1', text: 'hi', ts: '1.0' }
+
+    await callHandleMessage(channel, { message: msg, say })
+    await callHandleMessage(channel, { message: msg, say })
+    await callHandleMessage(channel, { message: msg, say })
+
+    assert.equal(usersInfoCalls, 1)
+  })
+
+  test('T15: re-resolves username after the cache entry expires', async () => {
+    const channel = new SlackChannel(new SlackChannelConfig(APP_TOKEN, BOT_TOKEN))
+    let usersInfoCalls = 0
+    ;(channel as any).app.client = {
+      users: {
+        info: async () => {
+          usersInfoCalls++
+          return { ok: true, user: { real_name: 'Real Name', name: 'username' } }
+        },
+      },
+    }
+
+    channel.listen(async () => undefined)
+    const say = async () => undefined
+    const msg = { channel: 'C123', channel_type: 'im', user: 'U1', text: 'hi', ts: '1.0' }
+
+    await callHandleMessage(channel, { message: msg, say })
+    ;(channel as any).userNameCache.set('U1', {
+      name: 'Stale Name',
+      expiresAt: Date.now() - 1000,
+    })
+    await callHandleMessage(channel, { message: msg, say })
+
+    assert.equal(usersInfoCalls, 2)
+  })
 })

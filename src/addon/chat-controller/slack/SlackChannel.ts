@@ -21,6 +21,12 @@ import { slackChannelName } from './slackChannelName'
 const GROUP_CHANNEL_TYPES = new Set(['channel', 'group', 'mpim'])
 const PRIVATE_CHANNEL_TYPES = new Set(['im'])
 const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024
+const USER_NAME_CACHE_TTL_MS = 60 * 60 * 1000
+
+interface UserNameCacheEntry {
+  name: string
+  expiresAt: number
+}
 
 interface SlackFile {
   id: string
@@ -52,6 +58,7 @@ export class SlackChannel implements IChatChannel {
   private app: InstanceType<typeof App>
   private callback: ((message: ISlackChannelMessage) => Promise<void>) | null = null
   private logger = new Logger('wabot:slack-channel')
+  private userNameCache = new Map<string, UserNameCacheEntry>()
 
   constructor(private config: SlackChannelConfig) {
     this.app = new App({
@@ -197,11 +204,20 @@ export class SlackChannel implements IChatChannel {
 
   private async resolveUserName(userId: string | undefined): Promise<string | undefined> {
     if (!userId) return undefined
+
+    const now = Date.now()
+    const cached = this.userNameCache.get(userId)
+    if (cached && cached.expiresAt > now) {
+      return cached.name
+    }
+
     try {
       const res = await this.app.client.users.info({ user: userId })
       const user = (res as { ok?: boolean; user?: { real_name?: string; name?: string } }).user
       if (user) {
-        return user.real_name || user.name || userId
+        const name = user.real_name || user.name || userId
+        this.userNameCache.set(userId, { name, expiresAt: now + USER_NAME_CACHE_TTL_MS })
+        return name
       }
     } catch (err) {
       this.logger.warn(
