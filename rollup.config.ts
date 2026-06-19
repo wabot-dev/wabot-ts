@@ -30,6 +30,7 @@ const sharedExternal = [
   '@google/genai',
   'big.js',
   '@openrouter/sdk',
+  '@hubspot/api-client',
 ]
 
 const libConfig: RollupOptions = {
