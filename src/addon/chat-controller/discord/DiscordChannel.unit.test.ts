@@ -3,7 +3,6 @@ import assert from 'node:assert/strict'
 import { GatewayIntentBits, StickerFormatType } from 'discord.js'
 import { DiscordChannel } from './DiscordChannel'
 import { DiscordChannelConfig } from './DiscordChannelConfig'
-import { DISCORD_MESSAGE_CONTEXT } from './IDiscordMessageContext'
 
 const BOT_TOKEN = 'fake-token'
 const BOT_USER_ID = 'bot-user-id'
@@ -92,7 +91,9 @@ const extractMedia = (channel: DiscordChannel, message: any) =>
     images: any[]
     documents: any[]
     embeds: any[]
-    metadata: Record<string, string>
+    embedTitle: string
+    embedUrl: string
+    embedDescription: string
   }>
 
 const handleMessage = (channel: DiscordChannel, message: any) =>
@@ -225,9 +226,9 @@ test.describe('DiscordChannel.extractMedia', () => {
     )
     assert.equal(result.embeds.length, 1)
     assert.equal(result.embeds[0].title, 'Hello')
-    assert.equal(result.metadata.embedTitle, 'Hello')
-    assert.equal(result.metadata.embedUrl, 'https://example.com')
-    assert.equal(result.metadata.embedDescription, 'A description')
+    assert.equal(result.embedTitle, 'Hello')
+    assert.equal(result.embedUrl, 'https://example.com')
+    assert.equal(result.embedDescription, 'A description')
   })
 
   test('embed description is truncated to 256 chars in metadata', async () => {
@@ -244,7 +245,7 @@ test.describe('DiscordChannel.extractMedia', () => {
         ],
       }),
     )
-    assert.equal(result.metadata.embedDescription.length, 256)
+    assert.equal(result.embedDescription.length, 256)
   })
 
   test('failed attachment download is skipped without throwing', async () => {
@@ -316,12 +317,12 @@ test.describe('DiscordChannel.handleMessage transport', () => {
   })
 })
 
-test.describe('DiscordChannel.handleMessage context injection', () => {
-  test('injects IDiscordMessageContext with the right fields on @mention', async () => {
+test.describe('DiscordChannel.handleMessage context metadata', () => {
+  test('populates metadata with the right fields on @mention', async () => {
     const channel = makeChannel()
     let captured: any = null
     ;(channel as any).callback = async (msg: any) => {
-      captured = msg.injectInstances
+      captured = msg.message.metadata
     }
     ;(channel as any).botUserId = BOT_USER_ID
     await handleMessage(
@@ -333,19 +334,17 @@ test.describe('DiscordChannel.handleMessage context injection', () => {
       }),
     )
     assert.ok(captured)
-    const [token, ctx] = captured[0]
-    assert.equal(token, DISCORD_MESSAGE_CONTEXT)
-    assert.equal(ctx.botUserId, BOT_USER_ID)
-    assert.equal(ctx.wasBotMentioned, true)
-    assert.equal(ctx.wasEveryoneMentioned, false)
-    assert.equal(ctx.isDirectMessage, false)
+    assert.equal(captured.botUserId, BOT_USER_ID)
+    assert.equal(captured.wasBotMentioned, 'true')
+    assert.equal(captured.wasEveryoneMentioned, 'false')
+    assert.equal(captured.isDirectMessage, 'false')
   })
 
-  test('context reflects @everyone in a guild', async () => {
+  test('metadata reflects @everyone in a guild', async () => {
     const channel = makeChannel()
     let captured: any = null
     ;(channel as any).callback = async (msg: any) => {
-      captured = msg.injectInstances
+      captured = msg.message.metadata
     }
     ;(channel as any).botUserId = BOT_USER_ID
     await handleMessage(
@@ -357,30 +356,28 @@ test.describe('DiscordChannel.handleMessage context injection', () => {
         mentionsEveryone: true,
       }),
     )
-    const [, ctx] = captured[0]
-    assert.equal(ctx.wasEveryoneMentioned, true)
-    assert.equal(ctx.wasBotMentioned, false)
+    assert.equal(captured.wasEveryoneMentioned, 'true')
+    assert.equal(captured.wasBotMentioned, 'false')
   })
 
-  test('context flags DMs', async () => {
+  test('metadata flags DMs', async () => {
     const channel = makeChannel()
     let captured: any = null
     ;(channel as any).callback = async (msg: any) => {
-      captured = msg.injectInstances
+      captured = msg.message.metadata
     }
     ;(channel as any).botUserId = BOT_USER_ID
     await handleMessage(channel, makeMockMessage({ content: 'hola', guild: null }))
-    const [, ctx] = captured[0]
-    assert.equal(ctx.isDirectMessage, true)
-    assert.equal(ctx.wasBotMentioned, false)
-    assert.equal(ctx.wasEveryoneMentioned, false)
+    assert.equal(captured.isDirectMessage, 'true')
+    assert.equal(captured.wasBotMentioned, 'false')
+    assert.equal(captured.wasEveryoneMentioned, 'false')
   })
 
-  test('context flags a plain guild message with no mention', async () => {
+  test('metadata flags a plain guild message with no mention', async () => {
     const channel = makeChannel()
     let captured: any = null
     ;(channel as any).callback = async (msg: any) => {
-      captured = msg.injectInstances
+      captured = msg.message.metadata
     }
     ;(channel as any).botUserId = BOT_USER_ID
     await handleMessage(
@@ -391,10 +388,9 @@ test.describe('DiscordChannel.handleMessage context injection', () => {
         mentionedIds: [],
       }),
     )
-    const [, ctx] = captured[0]
-    assert.equal(ctx.isDirectMessage, false)
-    assert.equal(ctx.wasBotMentioned, false)
-    assert.equal(ctx.wasEveryoneMentioned, false)
+    assert.equal(captured.isDirectMessage, 'false')
+    assert.equal(captured.wasBotMentioned, 'false')
+    assert.equal(captured.wasEveryoneMentioned, 'false')
   })
 })
 

@@ -20,9 +20,9 @@ import {
 import { IChatChannel } from '@/feature/chat-controller'
 import { DiscordChannelConfig } from './DiscordChannelConfig'
 import { IDiscordChannelMessage } from './IDiscordChannelMessage'
+import { IDiscordMetadata } from './IDiscordChatMessage'
 import { IDiscordEmbed } from './IDiscordEmbed'
 import { IDiscordOutbound } from './IDiscordOutbound'
-import { DISCORD_MESSAGE_CONTEXT, IDiscordMessageContext } from './IDiscordMessageContext'
 import { discordChannelName } from './discordChannelName'
 
 const TEXT_LIMIT = 2000
@@ -133,13 +133,18 @@ export class DiscordChannel implements IChatChannel {
 
     const extracted = await this.extractMedia(message)
 
-    const discordCtx: IDiscordMessageContext = {
+    const metadata: IDiscordMetadata = {
       botUserId: this.botUserId,
-      wasBotMentioned:
+      wasBotMentioned: String(
         !!message.guild && this.botUserId.length > 0 && message.mentions.has(this.botUserId),
-      wasEveryoneMentioned: !!message.guild && message.mentions.everyone,
-      isDirectMessage: !message.guild,
+      ),
+      wasEveryoneMentioned: String(!!message.guild && message.mentions.everyone),
+      isDirectMessage: String(!message.guild),
+      embedTitle: extracted.embedTitle,
+      embedUrl: extracted.embedUrl,
+      embedDescription: extracted.embedDescription,
     }
+
     try {
       await this.callback({
         channel: discordChannelName,
@@ -151,10 +156,9 @@ export class DiscordChannel implements IChatChannel {
           images: extracted.images.length > 0 ? extracted.images : undefined,
           documents: extracted.documents.length > 0 ? extracted.documents : undefined,
           object: extracted.embeds.length > 0 ? { embeds: extracted.embeds } : undefined,
-          metadata: Object.keys(extracted.metadata).length > 0 ? extracted.metadata : undefined,
+          metadata,
         },
         reply: async (replyMessage: IChatMessage) => this.sendReply(message, replyMessage),
-        injectInstances: [[DISCORD_MESSAGE_CONTEXT, discordCtx]],
       })
       this.logger.info(`callback completed for ${message.author.username}`)
     } catch (err) {
@@ -170,12 +174,16 @@ export class DiscordChannel implements IChatChannel {
     images: IChatMessageImage[]
     documents: IChatMessageDocument[]
     embeds: IDiscordEmbed[]
-    metadata: Record<string, string>
+    embedTitle: string
+    embedUrl: string
+    embedDescription: string
   }> {
     const images: IChatMessageImage[] = []
     const documents: IChatMessageDocument[] = []
     const embeds: IDiscordEmbed[] = []
-    const metadata: Record<string, string> = {}
+    let embedTitle = ''
+    let embedUrl = ''
+    let embedDescription = ''
 
     for (const [, attachment] of message.attachments) {
       const file = await this.downloadAttachment(
@@ -209,11 +217,9 @@ export class DiscordChannel implements IChatChannel {
     if (message.embeds.length > 0) {
       embeds.push(...message.embeds.map((e) => e.toJSON() as IDiscordEmbed))
       const first = message.embeds[0]
-      if (first.title) metadata.embedTitle = first.title
-      if (first.url) metadata.embedUrl = first.url
-      if (first.description) {
-        metadata.embedDescription = first.description.slice(0, 256)
-      }
+      if (first.title) embedTitle = first.title
+      if (first.url) embedUrl = first.url
+      if (first.description) embedDescription = first.description.slice(0, 256)
     }
 
     return {
@@ -221,7 +227,9 @@ export class DiscordChannel implements IChatChannel {
       images,
       documents,
       embeds,
-      metadata,
+      embedTitle,
+      embedUrl,
+      embedDescription,
     }
   }
 

@@ -3,17 +3,14 @@ import {
   ChatBot,
   chatController,
   cmd,
-  DISCORD_MESSAGE_CONTEXT,
   discord,
-  type IDiscordMessageContext,
+  type IDiscordMetadata,
   type IDiscordReceivedMessage,
   hubspot,
   type IChatMessageFile,
   type IHubSpotChannelMessage,
-  inject,
   Logger,
   type IWasenderReceivedMessage,
-  wasender,
 } from '@'
 
 import { EliaMindset } from './EliaMindset'
@@ -40,10 +37,7 @@ const DIACRITICS_REGEX = /[̀-͏]/g
 export class EliaChatController {
   private logger = new Logger('wabot:elia-controller')
 
-  constructor(
-    @chatBot(EliaMindset) private eliaBot: ChatBot,
-    @inject(DISCORD_MESSAGE_CONTEXT) private discordCtx: IDiscordMessageContext,
-  ) {}
+  constructor(@chatBot(EliaMindset) private eliaBot: ChatBot) {}
 
   // @wasender()
   // async onWhatsAppMessage(context: IWasenderReceivedMessage) {
@@ -87,15 +81,20 @@ export class EliaChatController {
 
   @discord()
   async onDiscordMessage(context: IDiscordReceivedMessage) {
-    if (!this.shouldRespond(this.discordCtx, context.message.text)) return
+    const metadata = context.message.metadata
+    if (!metadata || !this.shouldRespond(metadata, context.message.text)) return
 
     await this.eliaBot.sendMessage(context.message, async (response) => {
       await context.reply(response)
     })
   }
 
-  private shouldRespond(discord: IDiscordMessageContext, text: string | undefined): boolean {
-    if (discord.isDirectMessage || discord.wasBotMentioned || discord.wasEveryoneMentioned) {
+  private shouldRespond(metadata: IDiscordMetadata, text: string | undefined): boolean {
+    if (
+      metadata.isDirectMessage === 'true' ||
+      metadata.wasBotMentioned === 'true' ||
+      metadata.wasEveryoneMentioned === 'true'
+    ) {
       return true
     }
     return this.containsTrigger(text ?? '')
