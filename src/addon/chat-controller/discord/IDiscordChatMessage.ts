@@ -5,9 +5,6 @@ export interface IDiscordMetadata extends Record<string, string> {
   wasBotMentioned: string
   wasEveryoneMentioned: string
   isDirectMessage: string
-  embedTitle: string
-  embedUrl: string
-  embedDescription: string
 }
 
 export interface IDiscordChatMessage extends IChatMessage {

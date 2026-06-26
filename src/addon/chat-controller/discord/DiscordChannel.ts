@@ -21,7 +21,6 @@ import { DiscordChannelConfig } from './DiscordChannelConfig'
 import { IDiscordChannelMessage } from './IDiscordChannelMessage'
 import { IDiscordMetadata } from './IDiscordChatMessage'
 import { IDiscordEmbed } from './IDiscordEmbed'
-import { IDiscordOutbound } from './IDiscordOutbound'
 import { discordChannelName } from './discordChannelName'
 
 const TEXT_LIMIT = 2000
@@ -75,16 +74,15 @@ export class DiscordChannel implements IChatChannel {
   }
 
   connect(): void {
-    if (!this.effectiveIntents().includes(GatewayIntentBits.MessageContent)) {
+    const intents = this.config.intents ?? DEFAULT_INTENTS
+    if (!intents.includes(GatewayIntentBits.MessageContent)) {
       throw new Error(
         'DiscordChannel: MESSAGE_CONTENT intent is not enabled. ' +
           'Enable the privileged Message Content Intent in the Discord Developer Portal ' +
           'and pass GatewayIntentBits.MessageContent via DiscordChannelConfig.intents.',
       )
     }
-    const intentNames = this.effectiveIntents()
-      .map((i) => GatewayIntentBits[i])
-      .join(', ')
+    const intentNames = intents.map((i) => GatewayIntentBits[i]).join(', ')
     this.logger.info(`connecting to discord gateway with intents: ${intentNames}`)
     this.client.on(Events.ClientReady, (c) => {
       this.botUserId = c.user.id
@@ -101,10 +99,6 @@ export class DiscordChannel implements IChatChannel {
   disconnect(): void {
     this.callback = null
     void this.client.destroy()
-  }
-
-  private effectiveIntents(): GatewayIntentBits[] {
-    return this.config.intents ?? DEFAULT_INTENTS
   }
 
   private async handleMessage(message: Message): Promise<void> {
@@ -136,9 +130,6 @@ export class DiscordChannel implements IChatChannel {
       ),
       wasEveryoneMentioned: String(!!message.guild && message.mentions.everyone),
       isDirectMessage: String(!message.guild),
-      embedTitle: extracted.embedTitle,
-      embedUrl: extracted.embedUrl,
-      embedDescription: extracted.embedDescription,
     }
 
     try {
@@ -170,19 +161,13 @@ export class DiscordChannel implements IChatChannel {
     images: IChatMessageImage[]
     documents: IChatMessageDocument[]
     embeds: IDiscordEmbed[]
-    embedTitle: string
-    embedUrl: string
-    embedDescription: string
   }> {
     const images: IChatMessageImage[] = []
     const documents: IChatMessageDocument[] = []
     const embeds: IDiscordEmbed[] = []
-    let embedTitle = ''
-    let embedUrl = ''
-    let embedDescription = ''
 
     for (const [, attachment] of message.attachments) {
-      const file = await this.downloadAttachment(
+      const file = await this.downloadAsFile(
         attachment.id,
         attachment.url,
         attachment.contentType ?? 'application/octet-stream',
@@ -198,7 +183,7 @@ export class DiscordChannel implements IChatChannel {
 
     for (const [, sticker] of message.stickers) {
       if (sticker.format === StickerFormatType.PNG || sticker.format === StickerFormatType.APNG) {
-        const file = await this.downloadSticker(sticker.id, sticker.name, sticker.url)
+        const file = await this.downloadAsFile(sticker.id, sticker.url, 'image/png', sticker.name)
         if (file) {
           file.name = `sticker:${sticker.name}`
           images.push(file)
@@ -212,10 +197,6 @@ export class DiscordChannel implements IChatChannel {
 
     if (message.embeds.length > 0) {
       embeds.push(...message.embeds.map((e) => e.toJSON() as IDiscordEmbed))
-      const first = message.embeds[0]
-      if (first.title) embedTitle = first.title
-      if (first.url) embedUrl = first.url
-      if (first.description) embedDescription = first.description.slice(0, 256)
     }
 
     return {
@@ -223,13 +204,10 @@ export class DiscordChannel implements IChatChannel {
       images,
       documents,
       embeds,
-      embedTitle,
-      embedUrl,
-      embedDescription,
     }
   }
 
-  private async downloadAttachment(
+  private async downloadAsFile(
     id: string,
     url: string,
     mimeType: string,
@@ -242,50 +220,11 @@ export class DiscordChannel implements IChatChannel {
       return { id, name, mimeType, base64Url: `data:${mimeType};base64,${base64}` }
     } catch (err) {
       this.logger.warn(
-        `failed to download discord attachment '${id}'`,
+        `failed to download discord media '${id}'`,
         err instanceof Error ? { message: err.message } : { err },
       )
       return null
     }
-  }
-
-  private async downloadSticker(
-    id: string,
-    name: string,
-    url: string,
-  ): Promise<IChatMessageImage | null> {
-    try {
-      const res = await fetch(url)
-      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
-      const base64 = Buffer.from(await res.arrayBuffer()).toString('base64')
-      return {
-        id,
-        name,
-        mimeType: 'image/png',
-        base64Url: `data:image/png;base64,${base64}`,
-      }
-    } catch (err) {
-      this.logger.warn(
-        `failed to download discord sticker '${id}'`,
-        err instanceof Error ? { message: err.message } : { err },
-      )
-      return null
-    }
-  }
-
-  private async sendToChannel(
-    channel: Message['channel'],
-    options: {
-      content?: string
-      embeds?: IDiscordEmbed[]
-      stickers?: string[]
-      files?: AttachmentBuilder[]
-    },
-  ): Promise<void> {
-    const target = channel as unknown as {
-      send: (options: unknown) => Promise<unknown>
-    }
-    await target.send(options)
   }
 
   private async sendReply(originalMessage: Message, message: IChatMessage): Promise<void> {
@@ -312,7 +251,10 @@ export class DiscordChannel implements IChatChannel {
     if (files.length > 0) options.files = files
 
     try {
-      await this.sendToChannel(originalMessage.channel, options)
+      const target = originalMessage.channel as unknown as {
+        send: (options: unknown) => Promise<unknown>
+      }
+      await target.send(options)
       this.logger.info(
         `sent reply to ${originalMessage.author.username} in #${originalMessage.channel.id} (${text.length} chars, ${embeds.length} embeds, ${files.length} files)`,
       )
@@ -325,12 +267,15 @@ export class DiscordChannel implements IChatChannel {
     }
   }
 
-  private readOutbound(object: object | undefined): IDiscordOutbound {
+  private readOutbound(object: object | undefined): {
+    embeds?: IDiscordEmbed[]
+    stickerIds?: string[]
+  } {
     if (!object || typeof object !== 'object') return {}
-    const candidate = object as Partial<IDiscordOutbound>
-    const result: IDiscordOutbound = {}
-    if (Array.isArray(candidate.embeds)) result.embeds = candidate.embeds
-    if (Array.isArray(candidate.stickerIds)) result.stickerIds = candidate.stickerIds
+    const candidate = object as { embeds?: unknown; stickerIds?: unknown }
+    const result: { embeds?: IDiscordEmbed[]; stickerIds?: string[] } = {}
+    if (Array.isArray(candidate.embeds)) result.embeds = candidate.embeds as IDiscordEmbed[]
+    if (Array.isArray(candidate.stickerIds)) result.stickerIds = candidate.stickerIds as string[]
     return result
   }
 
@@ -406,8 +351,11 @@ export class DiscordChannel implements IChatChannel {
     }
 
     if (this.embedTotalLength(truncated) > EMBED_TOTAL_LIMIT) {
-      const overflow = this.embedTotalLength(truncated) - EMBED_TOTAL_LIMIT
-      truncated.fields = this.dropFieldsForOverflow(truncated.fields ?? [], overflow)
+      const fields = (truncated.fields ?? []).slice()
+      while (this.embedTotalLength(truncated) > EMBED_TOTAL_LIMIT && fields.length > 0) {
+        fields.pop()
+        truncated.fields = fields
+      }
     }
 
     return truncated
@@ -422,18 +370,6 @@ export class DiscordChannel implements IChatChannel {
     if (embed.footer?.text) total += embed.footer.text.length
     if (embed.author?.name) total += embed.author.name.length
     return total
-  }
-
-  private dropFieldsForOverflow(
-    fields: IDiscordEmbed['fields'],
-    overflow: number,
-  ): IDiscordEmbed['fields'] {
-    if (overflow <= 0 || !fields || fields.length === 0) return fields
-    const removed = fields[fields.length - 1]
-    const removedSize = (removed.name?.length ?? 0) + (removed.value?.length ?? 0)
-    const next = fields.slice(0, -1)
-    if (removedSize >= overflow || next.length === 0) return next
-    return this.dropFieldsForOverflow(next, overflow - removedSize)
   }
 
   private embedTotalLength(embed: IDiscordEmbed): number {

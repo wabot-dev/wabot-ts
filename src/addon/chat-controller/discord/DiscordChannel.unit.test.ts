@@ -91,9 +91,6 @@ const extractMedia = (channel: DiscordChannel, message: any) =>
     images: any[]
     documents: any[]
     embeds: any[]
-    embedTitle: string
-    embedUrl: string
-    embedDescription: string
   }>
 
 const handleMessage = (channel: DiscordChannel, message: any) =>
@@ -206,7 +203,7 @@ test.describe('DiscordChannel.extractMedia', () => {
     assert.equal(result.images.length, 0)
   })
 
-  test('embeds populate object.embeds and metadata title/url/description', async () => {
+  test('embeds populate object.embeds', async () => {
     const result = await extractMedia(
       makeChannel(),
       makeMockMessage({
@@ -226,26 +223,6 @@ test.describe('DiscordChannel.extractMedia', () => {
     )
     assert.equal(result.embeds.length, 1)
     assert.equal(result.embeds[0].title, 'Hello')
-    assert.equal(result.embedTitle, 'Hello')
-    assert.equal(result.embedUrl, 'https://example.com')
-    assert.equal(result.embedDescription, 'A description')
-  })
-
-  test('embed description is truncated to 256 chars in metadata', async () => {
-    const longDesc = 'x'.repeat(500)
-    const result = await extractMedia(
-      makeChannel(),
-      makeMockMessage({
-        embeds: [
-          {
-            title: 'T',
-            description: longDesc,
-            toJSON: () => ({ title: 'T', description: longDesc }),
-          },
-        ],
-      }),
-    )
-    assert.equal(result.embedDescription.length, 256)
   })
 
   test('failed attachment download is skipped without throwing', async () => {
