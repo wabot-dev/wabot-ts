@@ -8,7 +8,6 @@ import {
 } from 'discord.js'
 
 import { injectable } from '@/core/injection'
-import { Env } from '@/core/env'
 import { Logger } from '@/core/logger'
 import {
   IChatConnection,
@@ -51,15 +50,12 @@ export class DiscordChannel implements IChatChannel {
   private botToken: string
   private botUserId: string = ''
 
-  constructor(
-    private config: DiscordChannelConfig,
-    env?: Env,
-  ) {
-    // Env is optional: if config.botToken is provided, the env fallback isn't needed.
-    // Kept optional to support test scenarios where Env is not registered in the container.
-    this.botToken = config.botToken || env?.requireString('DISCORD_TOKEN') || ''
+  constructor(private config: DiscordChannelConfig) {
+    this.botToken = config.botToken
     if (!this.botToken) {
-      throw new Error('DiscordChannel: botToken not provided and DISCORD_TOKEN env var is not set')
+      throw new Error(
+        'DiscordChannel: botToken not provided. Pass it via DiscordChannelConfig or set DISCORD_TOKEN env var with ConfigReference (e.g. str`DISCORD_TOKEN`).',
+      )
     }
     this.client = new Client({
       intents: config.intents ?? DEFAULT_INTENTS,
