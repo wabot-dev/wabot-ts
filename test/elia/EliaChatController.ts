@@ -30,22 +30,11 @@ function testPngFile(): IChatMessageFile {
   }
 }
 
-const TRIGGER = 'elia'
-const DIACRITICS_REGEX = /[̀-͏]/g
-
 @chatController()
 export class EliaChatController {
   private logger = new Logger('wabot:elia-controller')
 
   constructor(@chatBot(EliaMindset) private eliaBot: ChatBot) {}
-
-  // @wasender()
-  // async onWhatsAppMessage(context: IWasenderReceivedMessage) {
-  //   const whatsAppNumber = context.message.metadata.whatsAppNumber
-  //   await this.eliaBot.sendMessage(context.message, async (response) => {
-  //     await context.reply(response)
-  //   })
-  // }
 
   @cmd()
   async onCmdMessage(context: IWasenderReceivedMessage) {
@@ -97,22 +86,14 @@ export class EliaChatController {
     ) {
       return true
     }
-    return this.containsTrigger(text ?? '')
-  }
-
-  private containsTrigger(text: string): boolean {
-    if (!text) return false
-    const t = normalize(TRIGGER)
-    const c = normalize(text)
-    if (!t || !c) return false
-    const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    return new RegExp(`(^|\\W)${escaped}(?=\\W|$)`, 'u').test(c)
+    return !!text && containsTrigger(text)
   }
 }
 
-function normalize(text: string): string {
+function containsTrigger(text: string): boolean {
   return text
     .toLowerCase()
     .normalize('NFD')
-    .replace(DIACRITICS_REGEX, '')
+    .replace(/\p{Diacritic}/gu, '')
+    .includes('elia')
 }
