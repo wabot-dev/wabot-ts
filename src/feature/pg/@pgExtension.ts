@@ -17,13 +17,10 @@ function inheritsFrom(ctor: Function, base: Function): boolean {
   return false
 }
 
-export function pgExtension<R extends CrudRepository<any, any>>(
-  repositoryClass: IConstructor<R>,
-) {
+export function pgExtension<R extends CrudRepository<any, any>>(repositoryClass: IConstructor<R>) {
   if (typeof repositoryClass !== 'function') {
     throw new Error(
-      `@pgExtension: repository argument must be a class, ` +
-        `got ${typeof repositoryClass}`,
+      `@pgExtension: repository argument must be a class, ` + `got ${typeof repositoryClass}`,
     )
   }
   return function <E extends PgRepositoryBase<any> & ExtensionOf<R>>(
@@ -31,8 +28,7 @@ export function pgExtension<R extends CrudRepository<any, any>>(
   ): void {
     if (!inheritsFrom(target, PgRepositoryBase)) {
       throw new Error(
-        `@pgExtension on ${target.name}: extension class must extend ` +
-          `PgRepositoryExtension.`,
+        `@pgExtension on ${target.name}: extension class must extend ` + `PgRepositoryExtension.`,
       )
     }
     const store = container.resolve(RepositoryMetadataStore)

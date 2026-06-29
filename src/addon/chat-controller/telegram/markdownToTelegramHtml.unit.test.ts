@@ -24,7 +24,7 @@ test.describe('markdownToTelegramHtml', () => {
   test('converts inline code and escapes inside', () => {
     assert.equal(
       markdownToTelegramHtml('use `a < b && c > d`'),
-      'use <code>a &lt; b &amp;&amp; c &gt; d</code>'
+      'use <code>a &lt; b &amp;&amp; c &gt; d</code>',
     )
   })
 
@@ -32,7 +32,7 @@ test.describe('markdownToTelegramHtml', () => {
     const input = '```ts\nconst x = 1\n```'
     assert.equal(
       markdownToTelegramHtml(input),
-      '<pre><code class="language-ts">const x = 1</code></pre>'
+      '<pre><code class="language-ts">const x = 1</code></pre>',
     )
   })
 
@@ -49,7 +49,7 @@ test.describe('markdownToTelegramHtml', () => {
   test('converts links', () => {
     assert.equal(
       markdownToTelegramHtml('see [docs](https://example.com)'),
-      'see <a href="https://example.com">docs</a>'
+      'see <a href="https://example.com">docs</a>',
     )
   })
 
@@ -75,7 +75,7 @@ test.describe('markdownToTelegramHtml', () => {
   test('merges consecutive blockquote lines', () => {
     assert.equal(
       markdownToTelegramHtml('> line a\n> line b'),
-      '<blockquote>line a\nline b</blockquote>'
+      '<blockquote>line a\nline b</blockquote>',
     )
   })
 
@@ -87,7 +87,7 @@ test.describe('markdownToTelegramHtml', () => {
     const input = '**Title**\n- item with *emphasis*\n- item with `code`'
     assert.equal(
       markdownToTelegramHtml(input),
-      '<b>Title</b>\n• item with <i>emphasis</i>\n• item with <code>code</code>'
+      '<b>Title</b>\n• item with <i>emphasis</i>\n• item with <code>code</code>',
     )
   })
 })

@@ -1,11 +1,21 @@
 {
   "name": "@wabot-dev/framework",
-  "version": "0.9.27",
+  "version": "0.9.80",
   "description": "Framework for IA Chat Bots",
   "type": "module",
   "main": "dist/src/index.js",
   "module": "dist/src/index.js",
   "types": "dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
+    },
+    "./testing": {
+      "types": "./dist/src/testing/index.d.ts",
+      "import": "./dist/src/testing/index.js"
+    }
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -44,10 +54,12 @@
     "LICENSE.md"
   ],
   "scripts": {
-    "build": "rollup --config rollup.config.ts --configPlugin typescript && tsup --dts-only --format esm --out-dir dist/src src/index.ts",
+    "build": "rollup --config rollup.config.ts --configPlugin typescript && tsup --dts-only --format esm --out-dir dist/src src/index.ts && tsup --dts-only --format esm --out-dir dist/src/testing src/testing/index.ts",
     "test:units": "node --import @yucacodes/ts  --test './src/**/*.unit.test.ts'",
     "test:integration": "node --import @yucacodes/ts --import ./env.mjs  --test './src/**/*.integration.test.ts'",
     "test:multiprocess": "node --import @yucacodes/ts --import ./env.mjs  --test './src/**/*.multiprocess.test.ts'",
+    "test:elia": "node --import @yucacodes/ts --test './test/elia/**/*.unit.test.ts'",
+    "test:elia:eval": "node --import @yucacodes/ts --import ./env.mjs --test './test/elia/**/*.eval.test.ts'",
     "fmt": "prettier --write .",
     "fmt:check": "prettier --check .",
     "types:check": "tsc --noEmit",
@@ -62,6 +74,11 @@
     "@rollup/plugin-node-resolve": "16.0.1",
     "@rollup/plugin-typescript": "12.1.2",
     "rollup": "^4.60.0"
+  },
+  "overrides": {
+    "gaxios": {
+      "uuid": "^11.1.1"
+    }
   },
   "peerDependencies": {
     "@anthropic-ai/sdk": "^0.60.0",
@@ -95,6 +112,7 @@
     "tsyringe": "^4.9.1",
     "uuid": "^14.0.0",
     "wasenderapi": "^0.1.5",
+    "@hubspot/api-client": "^13.5.0",
     "tsup": "^8.4.0",
     "typescript": "^6.0.3",
     "prettier": "^3.5.3"

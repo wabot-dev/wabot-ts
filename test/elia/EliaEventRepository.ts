@@ -9,7 +9,10 @@ export class EliaEventRepository
 {
   @query() declare findByCategory: (category: string) => Promise<EliaEvent[]>
 
-  @queryExtension() declare findUpcoming: (fromMillis: number, limit: number) => Promise<EliaEvent[]>
+  @queryExtension() declare findUpcoming: (
+    fromMillis: number,
+    limit: number,
+  ) => Promise<EliaEvent[]>
 
   @queryExtension() declare findByUserInRange: (
     userId: string,

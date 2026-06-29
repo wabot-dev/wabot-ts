@@ -3,11 +3,7 @@ import { IConstructor } from '@/core/generics'
 import { RepositoryMetadataStore } from './RepositoryMetadataStore'
 
 export function queryExtension() {
-  return function (
-    target: object,
-    propertyKey: string | symbol,
-    descriptor?: PropertyDescriptor,
-  ) {
+  return function (target: object, propertyKey: string | symbol, descriptor?: PropertyDescriptor) {
     const functionName = propertyKey.toString()
     const ctor = target.constructor as IConstructor<any>
 

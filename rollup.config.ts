@@ -30,11 +30,12 @@ const sharedExternal = [
   '@google/genai',
   'big.js',
   '@openrouter/sdk',
+  '@hubspot/api-client',
   '@slack/bolt',
 ]
 
 const libConfig: RollupOptions = {
-  input: 'src/index.ts',
+  input: ['src/index.ts', 'src/testing/index.ts'],
   plugins: [
     tsc(),
     alias(),

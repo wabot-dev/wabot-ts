@@ -8,9 +8,7 @@ function canonicalize(value: any): string {
   const keys = Object.keys(value)
     .filter((k) => value[k] !== undefined)
     .sort()
-  return (
-    '{' + keys.map((k) => JSON.stringify(k) + ':' + canonicalize(value[k])).join(',') + '}'
-  )
+  return '{' + keys.map((k) => JSON.stringify(k) + ':' + canonicalize(value[k])).join(',') + '}'
 }
 
 export function computeDedupKey(commandData: unknown): string {

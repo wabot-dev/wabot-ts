@@ -23,10 +23,7 @@ export interface IMemoryRepositoryAdapterOptions {
   maxItems?: number
 }
 
-function cloneEntity<P extends Entity<IEntityData>>(
-  config: IRepositoryConfig<P>,
-  item: P,
-): P {
+function cloneEntity<P extends Entity<IEntityData>>(config: IRepositoryConfig<P>, item: P): P {
   const data = JSON.parse(JSON.stringify(item['data']))
   return new config.constructor(data)
 }
@@ -212,9 +209,7 @@ export class MemoryRepositoryAdapter implements IRepositoryAdapter {
     }
   }
 
-  private getStore<P extends Entity<IEntityData>>(
-    config: IRepositoryConfig<P>,
-  ): MemoryStore<P> {
+  private getStore<P extends Entity<IEntityData>>(config: IRepositoryConfig<P>): MemoryStore<P> {
     let store = this.stores.get(config)
     if (!store) {
       store = new MemoryStore<P>(config, this.persistOptions)
