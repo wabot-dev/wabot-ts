@@ -48,6 +48,10 @@ export class OpenRouterChatAdapter implements IChatAdapter {
     const modelNames = req.models.map((m) => m.model)
     const [primary, ...fallbacks] = modelNames
 
+    this.logger.debug(
+      `Call OpenRouter with model: ${primary}, fallbacks: ${fallbacks.length}, messages: ${messages.length}, tools: ${tools.length}`,
+    )
+
     const maxAttempts = 3
     const backoffMs = [500, 1000, 2000]
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
