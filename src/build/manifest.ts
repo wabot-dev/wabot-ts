@@ -15,9 +15,7 @@ export function toManifestImport(absFile: string, manifestDir: string): string {
 }
 
 export function generateManifest(absFiles: string[], manifestDir: string): string {
-  const imports = [...absFiles]
-    .sort()
-    .map((f) => `import '${toManifestImport(f, manifestDir)}'`)
+  const imports = [...absFiles].sort().map((f) => `import '${toManifestImport(f, manifestDir)}'`)
   return `${MANIFEST_BANNER}\n${imports.join('\n')}\n`
 }
 

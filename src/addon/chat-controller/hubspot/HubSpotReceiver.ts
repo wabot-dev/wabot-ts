@@ -2,10 +2,7 @@ import { restController } from '@/feature/rest-controller/metadata'
 import { runRestControllers } from '@/feature/rest-controller'
 
 import { HubSpotChannelConfig } from './HubSpotChannelConfig'
-import {
-  HubSpotWebhookController,
-  IHubSpotMessageListener,
-} from './HubSpotWebhookController'
+import { HubSpotWebhookController, IHubSpotMessageListener } from './HubSpotWebhookController'
 
 export class HubSpotReceiver {
   private listener: IHubSpotMessageListener | null = null

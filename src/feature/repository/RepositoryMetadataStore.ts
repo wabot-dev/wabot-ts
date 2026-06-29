@@ -95,10 +95,7 @@ export class RepositoryMetadataStore {
     perRepo.set(adapterId, extensionConstructor)
   }
 
-  getExtension(
-    ctor: IConstructor<any>,
-    adapterId: symbol,
-  ): IConstructor<any> | undefined {
+  getExtension(ctor: IConstructor<any>, adapterId: symbol): IConstructor<any> | undefined {
     let proto: any = ctor.prototype
     while (proto && proto.constructor !== Object) {
       const perRepo = this.extensions.get(proto.constructor)

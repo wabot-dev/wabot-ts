@@ -33,12 +33,14 @@ interface IFakeClient {
   apiBody?: string
 }
 
-function makeFakeClient(opts: {
-  uploadResponses?: { id: string }[]
-  messageResponse?: { id: string }
-  apiStatus?: number
-  apiBody?: string
-} = {}): IFakeClient {
+function makeFakeClient(
+  opts: {
+    uploadResponses?: { id: string }[]
+    messageResponse?: { id: string }
+    apiStatus?: number
+    apiBody?: string
+  } = {},
+): IFakeClient {
   const apiRequestCalls: ApiRequestCall[] = []
   const fetchCalls: FetchCall[] = []
   const uploadResponses = opts.uploadResponses ?? [{ id: 'f_1' }]

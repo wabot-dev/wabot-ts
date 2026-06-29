@@ -1,5 +1,4 @@
-import { IQueryAst, IQueryCondition, QueryOperator } from "@/feature/repository"
-
+import { IQueryAst, IQueryCondition, QueryOperator } from '@/feature/repository'
 
 export interface IBuiltQuery {
   sql: string

@@ -235,10 +235,7 @@ export class MindsetOperator implements IMindset {
     }
   }
 
-  private flattenValidationError(
-    error: any,
-    path = '',
-  ): { path: string; message: string }[] {
+  private flattenValidationError(error: any, path = ''): { path: string; message: string }[] {
     const out: { path: string; message: string }[] = []
     if (!error) return out
     if (Array.isArray(error?.items)) {

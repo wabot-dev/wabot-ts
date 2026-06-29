@@ -2,10 +2,7 @@ const PH_OPEN = '\x01'
 const PH_CLOSE = '\x02'
 
 function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
 export function markdownToChatHtml(input: string): string {
@@ -51,8 +48,9 @@ export function markdownToChatHtml(input: string): string {
 
   text = text.replace(/^[ \t]*[-*+]\s+(.+)$/gm, '• $1')
 
-  text = text.replace(new RegExp(`${PH_OPEN}(\\d+)${PH_CLOSE}`, 'g'), (_, idx) =>
-    reserved[Number(idx)],
+  text = text.replace(
+    new RegExp(`${PH_OPEN}(\\d+)${PH_CLOSE}`, 'g'),
+    (_, idx) => reserved[Number(idx)],
   )
 
   return text

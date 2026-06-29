@@ -15,13 +15,10 @@ function inheritsFrom(ctor: Function, base: Function): boolean {
   return false
 }
 
-export function memExtension<R extends CrudRepository<any, any>>(
-  repositoryClass: IConstructor<R>,
-) {
+export function memExtension<R extends CrudRepository<any, any>>(repositoryClass: IConstructor<R>) {
   if (typeof repositoryClass !== 'function') {
     throw new Error(
-      `@memoryExtension: repository argument must be a class, ` +
-        `got ${typeof repositoryClass}`,
+      `@memoryExtension: repository argument must be a class, ` + `got ${typeof repositoryClass}`,
     )
   }
   return function <E extends MemoryRepositoryExtension<any> & ExtensionOf<R>>(

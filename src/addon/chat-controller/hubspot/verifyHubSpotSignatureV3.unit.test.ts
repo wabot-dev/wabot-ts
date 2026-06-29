@@ -77,7 +77,13 @@ test.describe('verifyHubSpotSignatureV3', () => {
 
   test('returns false when the timestamp is outside the 5-minute window', () => {
     const stale = nowMs() - 6 * 60 * 1000 // 6 minutes ago
-    const signature = signV3({ method: METHOD, url: URL, body: BODY, secret: SECRET, timestamp: stale })
+    const signature = signV3({
+      method: METHOD,
+      url: URL,
+      body: BODY,
+      secret: SECRET,
+      timestamp: stale,
+    })
 
     const ok = verifyHubSpotSignatureV3({
       secret: SECRET,
@@ -92,7 +98,13 @@ test.describe('verifyHubSpotSignatureV3', () => {
   })
 
   test('returns false when the timestamp header is missing', () => {
-    const signature = signV3({ method: METHOD, url: URL, body: BODY, secret: SECRET, timestamp: nowMs() })
+    const signature = signV3({
+      method: METHOD,
+      url: URL,
+      body: BODY,
+      secret: SECRET,
+      timestamp: nowMs(),
+    })
 
     const ok = verifyHubSpotSignatureV3({
       secret: SECRET,
@@ -136,7 +148,13 @@ test.describe('verifyHubSpotSignatureV3', () => {
   })
 
   test('returns false when the timestamp header is not a number', () => {
-    const signature = signV3({ method: METHOD, url: URL, body: BODY, secret: SECRET, timestamp: nowMs() })
+    const signature = signV3({
+      method: METHOD,
+      url: URL,
+      body: BODY,
+      secret: SECRET,
+      timestamp: nowMs(),
+    })
 
     const ok = verifyHubSpotSignatureV3({
       secret: SECRET,

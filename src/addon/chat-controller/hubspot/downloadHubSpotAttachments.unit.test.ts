@@ -85,10 +85,10 @@ test.describe('downloadHubSpotAttachments', () => {
     const warnings: string[] = []
     const logger = { warn: (m: string) => warnings.push(m) } as any
     try {
-      const files = await downloadHubSpotAttachments(
-        [{ id: 'att-2' }],
-        { accessToken: 'tok', logger },
-      )
+      const files = await downloadHubSpotAttachments([{ id: 'att-2' }], {
+        accessToken: 'tok',
+        logger,
+      })
       assert.deepEqual(files, [])
       assert.equal(fetchStub.calls.length, 0)
       assert.match(warnings[0], /no url/)

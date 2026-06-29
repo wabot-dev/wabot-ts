@@ -53,9 +53,7 @@ async function downloadOne(
       base64Url: `data:${mimeType};base64,${base64}`,
     }
   } catch (err) {
-    options.logger?.warn(
-      `failed to download HubSpot attachment '${id}': ${(err as Error).message}`,
-    )
+    options.logger?.warn(`failed to download HubSpot attachment '${id}': ${(err as Error).message}`)
     return null
   }
 }
