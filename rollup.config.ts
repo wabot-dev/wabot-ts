@@ -47,6 +47,7 @@ const libConfig: RollupOptions = {
     'src/ui/client.ts',
     'src/ui/jsx-runtime.ts',
     'src/ui/jsx-dev-runtime.ts',
+    'src/addon/ui/preact/preactClientRuntime.ts',
   ],
   plugins: [
     tsc(),

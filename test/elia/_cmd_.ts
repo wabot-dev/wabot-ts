@@ -1,3 +1,0 @@
-import { runCmdClient } from '@'
-
-runCmdClient()

@@ -21,9 +21,6 @@ npm run types:check             # Type check without emitting
 # Code Quality
 npm run fmt                     # Format with Prettier
 npm run fmt:check               # Check formatting
-
-# Development
-npm run elia:dev                # Run test bot (Elia)
 ```
 
 ## Architecture

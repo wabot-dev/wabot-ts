@@ -70,14 +70,9 @@
     "test:units": "node --import @yucacodes/ts  --test './src/**/*.unit.test.ts'",
     "test:integration": "node --import @yucacodes/ts --import ./env.mjs  --test './src/**/*.integration.test.ts'",
     "test:multiprocess": "node --import @yucacodes/ts --import ./env.mjs  --test './src/**/*.multiprocess.test.ts'",
-    "test:elia": "node --import @yucacodes/ts --test './test/elia/**/*.unit.test.ts'",
-    "test:elia:eval": "node --import @yucacodes/ts --import ./env.mjs --test './test/elia/**/*.eval.test.ts'",
     "fmt": "prettier --write .",
     "fmt:check": "prettier --check .",
-    "types:check": "tsc --noEmit",
-    "elia:dev": "node --import @yucacodes/ts --import ./env.mjs  ./test/elia/_run_.ts",
-    "elia:watch": "node --watch --import @yucacodes/ts --import ./env.mjs  ./test/elia/_run_.ts",
-    "elia:cmd": "node --import @yucacodes/ts ./test/elia/_cmd_.ts"
+    "types:check": "tsc --noEmit"
   },
   "devDependencies": {
     "@rollup/plugin-alias": "5.1.1",
