@@ -79,10 +79,7 @@ export class HubSpotChannel implements IChatChannel {
           threadId: payload.threadId,
           text,
           richText: text ? markdownToHubSpotHtml(text) : undefined,
-          files: [
-            ...(replyMessage.images ?? []),
-            ...(replyMessage.documents ?? []),
-          ],
+          files: [...(replyMessage.images ?? []), ...(replyMessage.documents ?? [])],
           channelId: payload.channelId,
           channelAccountId: payload.channelAccountId,
         })

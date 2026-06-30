@@ -102,9 +102,7 @@ test.describe('scanProjectFiles', () => {
   test('deduplicates overlapping directories', async () => {
     const { root, cleanup } = await makeTree({ 'src/A.ts': '' })
     try {
-      const files = await withCwd(root, () =>
-        scanProjectFiles({ directories: ['src', 'src'] }),
-      )
+      const files = await withCwd(root, () => scanProjectFiles({ directories: ['src', 'src'] }))
       assert.equal(files.length, 1)
     } finally {
       await cleanup()
@@ -114,9 +112,7 @@ test.describe('scanProjectFiles', () => {
   test('returns empty array for missing directory', async () => {
     const { root, cleanup } = await makeTree({ 'src/A.ts': '' })
     try {
-      const files = await withCwd(root, () =>
-        scanProjectFiles({ directories: ['does-not-exist'] }),
-      )
+      const files = await withCwd(root, () => scanProjectFiles({ directories: ['does-not-exist'] }))
       assert.deepEqual(files, [])
     } finally {
       await cleanup()

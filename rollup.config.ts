@@ -32,6 +32,7 @@ const sharedExternal = [
   '@openrouter/sdk',
   '@hubspot/api-client',
   'discord.js',
+  '@slack/bolt',
 ]
 
 const libConfig: RollupOptions = {

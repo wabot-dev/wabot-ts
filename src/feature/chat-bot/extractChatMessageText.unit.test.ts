@@ -6,7 +6,14 @@ test.describe('extractChatMessageText', () => {
   test('includes image identity without the binary', () => {
     const text = extractChatMessageText({
       text: 'look',
-      images: [{ id: 'i1', name: 'cat.png', mimeType: 'image/png', base64Url: 'data:image/png;base64,AAAA' }],
+      images: [
+        {
+          id: 'i1',
+          name: 'cat.png',
+          mimeType: 'image/png',
+          base64Url: 'data:image/png;base64,AAAA',
+        },
+      ],
     })
 
     const parsed = JSON.parse(text)

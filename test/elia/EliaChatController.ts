@@ -10,7 +10,9 @@ import {
   type IChatMessageFile,
   type IHubSpotChannelMessage,
   Logger,
-  type IWasenderReceivedMessage,
+  type ISlackReceivedMessage,
+  slack,
+  str,
 } from '@'
 
 import { EliaMindset } from './EliaMindset'
@@ -37,7 +39,14 @@ export class EliaChatController {
   constructor(@chatBot(EliaMindset) private eliaBot: ChatBot) {}
 
   @cmd()
-  async onCmdMessage(context: IWasenderReceivedMessage) {
+  async onCmdMessage(context: ISlackReceivedMessage) {
+    await this.eliaBot.sendMessage(context.message, async (response) => {
+      await context.reply(response)
+    })
+  }
+
+  @slack({ appToken: str`SLACK_APP_TOKEN`, botToken: str`SLACK_BOT_TOKEN` })
+  async onSlackMessage(context: ISlackReceivedMessage) {
     await this.eliaBot.sendMessage(context.message, async (response) => {
       await context.reply(response)
     })

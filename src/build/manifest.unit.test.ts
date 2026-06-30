@@ -22,10 +22,7 @@ test.describe('toManifestImport', () => {
   })
 
   test('emits forward slashes regardless of platform', () => {
-    const result = toManifestImport(
-      resolve('/tmp/proj/src/a/b/c/D.ts'),
-      manifestDir,
-    )
+    const result = toManifestImport(resolve('/tmp/proj/src/a/b/c/D.ts'), manifestDir)
     assert.ok(!result.includes('\\'), `result should not contain backslashes: ${result}`)
   })
 
@@ -47,20 +44,14 @@ test.describe('generateManifest', () => {
   })
 
   test('emits one import per file using relative .js specifiers', () => {
-    const files = [
-      resolve('/tmp/proj/src/a/Foo.ts'),
-      resolve('/tmp/proj/src/b/Bar.ts'),
-    ]
+    const files = [resolve('/tmp/proj/src/a/Foo.ts'), resolve('/tmp/proj/src/b/Bar.ts')]
     const out = generateManifest(files, manifestDir)
     assert.ok(out.includes("import '../src/a/Foo.js'"))
     assert.ok(out.includes("import '../src/b/Bar.js'"))
   })
 
   test('is deterministic regardless of input ordering', () => {
-    const files = [
-      resolve('/tmp/proj/src/b/Bar.ts'),
-      resolve('/tmp/proj/src/a/Foo.ts'),
-    ]
+    const files = [resolve('/tmp/proj/src/b/Bar.ts'), resolve('/tmp/proj/src/a/Foo.ts')]
     const sorted = generateManifest(
       [resolve('/tmp/proj/src/a/Foo.ts'), resolve('/tmp/proj/src/b/Bar.ts')],
       manifestDir,

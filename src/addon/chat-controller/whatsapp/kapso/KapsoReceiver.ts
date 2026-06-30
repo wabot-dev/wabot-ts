@@ -1,9 +1,6 @@
 import { restController } from '@/feature/rest-controller/metadata'
 import { runRestControllers } from '@/feature/rest-controller'
-import {
-  KapsoWebhookController,
-  type IKapsoChannelMessageListener,
-} from './KapsoWebhookController'
+import { KapsoWebhookController, type IKapsoChannelMessageListener } from './KapsoWebhookController'
 
 export { type IKapsoChannelMessageListener } from './KapsoWebhookController'
 

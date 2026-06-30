@@ -61,14 +61,12 @@ const DEFAULT_ADAPTER_LOADERS: Record<
   openrouter: {
     apiKeyEnv: 'OPENROUTER_API_KEY',
     load: async () =>
-      (await import('../../addon/chat-bot/openrouter/OpenRouterChatAdapter'))
-        .OpenRouterChatAdapter,
+      (await import('../../addon/chat-bot/openrouter/OpenRouterChatAdapter')).OpenRouterChatAdapter,
   },
   anthropic: {
     apiKeyEnv: 'ANTHROPIC_API_KEY',
     load: async () =>
-      (await import('../../addon/chat-bot/anthropic/AnthropicChatAdapter'))
-        .AnthropicChatAdapter,
+      (await import('../../addon/chat-bot/anthropic/AnthropicChatAdapter')).AnthropicChatAdapter,
   },
   google: {
     apiKeyEnv: 'GOOGLE_API_KEY',
@@ -142,9 +140,7 @@ export class ProjectRunner {
       return
     }
 
-    const results = await Promise.allSettled(
-      files.map((file) => import(pathToFileURL(file).href)),
-    )
+    const results = await Promise.allSettled(files.map((file) => import(pathToFileURL(file).href)))
 
     let imported = 0
     let failed = 0
@@ -201,8 +197,7 @@ export class ProjectRunner {
   }
 
   private async registerMemoryAdapters(components: DiscoveredComponents): Promise<void> {
-    const needsJobs =
-      components.commandHandlers.length > 0 || components.cronHandlers.length > 0
+    const needsJobs = components.commandHandlers.length > 0 || components.cronHandlers.length > 0
 
     const [chatBotMod, lockMod, jobMod, cronJobMod] = await Promise.all([
       import('../../addon/chat-bot/in-memory/InMemoryChatRepository'),
@@ -249,9 +244,7 @@ export class ProjectRunner {
       hasCommandHandlers || hasCronHandlers
         ? import('../../addon/async/pg/PgJobRepository')
         : Promise.resolve(null),
-      hasCronHandlers
-        ? import('../../addon/async/pg/PgCronJobRepository')
-        : Promise.resolve(null),
+      hasCronHandlers ? import('../../addon/async/pg/PgCronJobRepository') : Promise.resolve(null),
     ])
 
     container.register(ChatRepository, { useToken: chatBotMod.PgChatRepository as any })
