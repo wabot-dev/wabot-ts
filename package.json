@@ -14,6 +14,19 @@
     "./testing": {
       "types": "./dist/src/testing/index.d.ts",
       "import": "./dist/src/testing/index.js"
+    },
+    "./ui": {
+      "types": "./dist/src/ui/index.d.ts",
+      "browser": "./dist/src/ui/client.js",
+      "import": "./dist/src/ui/index.js"
+    },
+    "./ui/jsx-runtime": {
+      "types": "./dist/src/ui/jsx-runtime.d.ts",
+      "import": "./dist/src/ui/jsx-runtime.js"
+    },
+    "./ui/jsx-dev-runtime": {
+      "types": "./dist/src/ui/jsx-dev-runtime.d.ts",
+      "import": "./dist/src/ui/jsx-dev-runtime.js"
     }
   },
   "license": "MIT",
@@ -53,7 +66,7 @@
     "LICENSE.md"
   ],
   "scripts": {
-    "build": "rollup --config rollup.config.ts --configPlugin typescript && tsup --dts-only --format esm --out-dir dist/src src/index.ts && tsup --dts-only --format esm --out-dir dist/src/testing src/testing/index.ts",
+    "build": "rollup --config rollup.config.ts --configPlugin typescript && tsup --dts-only --format esm --out-dir dist/src src/index.ts && tsup --dts-only --format esm --out-dir dist/src/testing src/testing/index.ts && tsup --dts-only --format esm --out-dir dist/src/ui src/ui/index.ts && tsup --dts-only --format esm --out-dir dist/src/ui src/ui/jsx-runtime.ts && tsup --dts-only --format esm --out-dir dist/src/ui src/ui/jsx-dev-runtime.ts",
     "test:units": "node --import @yucacodes/ts  --test './src/**/*.unit.test.ts'",
     "test:integration": "node --import @yucacodes/ts --import ./env.mjs  --test './src/**/*.integration.test.ts'",
     "test:multiprocess": "node --import @yucacodes/ts --import ./env.mjs  --test './src/**/*.multiprocess.test.ts'",
@@ -83,6 +96,7 @@
     "@anthropic-ai/sdk": "^0.60.0",
     "@google/genai": "^1.16.0",
     "@openrouter/sdk": "^0.12.2",
+    "@preact/signals": "^2.9.2",
     "@types/big.js": "^6.2.2",
     "@types/debug": "^4.1.12",
     "@types/express": "^5.0.1",
@@ -90,28 +104,31 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "22.14.1",
     "@types/pg": "^8.11.14",
-    "@yucacodes/ts": "0.0.8",
+    "@yucacodes/ts": "^0.1.0",
     "big.js": "^7.0.1",
     "body-parser": "^2.2.0",
     "cron-parser": "^5.4.0",
     "debug": "^4.4.0",
     "dotenv": "^16.5.0",
+    "esbuild": "^0.25.12",
     "express": "^5.1.0",
     "grammy": "^1.36.0",
     "html-to-text": "^9.0.5",
     "jsonwebtoken": "^9.0.2",
     "openai": "^6.10.0",
     "pg": "^8.15.6",
+    "preact": "^10.29.3",
+    "preact-render-to-string": "^6.7.0",
+    "prettier": "^3.5.3",
     "reflect-metadata": "^0.2.2",
     "short-uuid": "^6.0.3",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
     "tslib": "^2.8.1",
-    "tsyringe": "^4.9.1",
-    "uuid": "^14.0.0",
-    "wasenderapi": "^0.1.5",
     "tsup": "^8.4.0",
+    "tsyringe": "^4.9.1",
     "typescript": "^6.0.3",
-    "prettier": "^3.5.3"
+    "uuid": "^14.0.0",
+    "wasenderapi": "^0.1.5"
   }
 }

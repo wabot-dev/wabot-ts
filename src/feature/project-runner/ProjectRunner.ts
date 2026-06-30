@@ -18,9 +18,17 @@ import {
   CronJobRepository,
 } from '@/feature/async'
 import { runSocketControllers } from '@/feature/socket-controller'
+import { ExpressProvider } from '@/feature/express'
+import {
+  runUiControllers,
+  UiRendererRegistry,
+  IslandRegistry,
+  IRegisterUiControllersOptions,
+} from '@/feature/ui-controller'
 import { ControllerMetadataStore } from '@/feature/chat-controller/metadata'
 import { RestControllerMetadataStore } from '@/feature/rest-controller/metadata'
 import { SocketControllerMetadataStore } from '@/feature/socket-controller/metadata'
+import { UiControllerMetadataStore } from '@/feature/ui-controller/metadata'
 import {
   MemoryRepositoryAdapter,
   RepositoryAdapterRegistry,
@@ -43,6 +51,18 @@ export interface IProjectRunnerConfig {
    * mode used by the bundled output produced by src/build/build.ts.
    */
   preloaded?: boolean
+  /** UI / island bundling options. */
+  ui?: IUiRunnerConfig
+}
+
+export interface IUiRunnerConfig {
+  /**
+   * Extra esbuild import aliases for the island client bundler. Only needed when
+   * islands import the framework UI through a non-package specifier (e.g. a path
+   * alias in monorepo / in-repo dev). Regular consumers don't need this: the
+   * package's "browser" export condition resolves the client build automatically.
+   */
+  bundlerAlias?: Record<string, string>
 }
 
 const logger = new Logger('wabot:project-runner')
@@ -61,14 +81,12 @@ const DEFAULT_ADAPTER_LOADERS: Record<
   openrouter: {
     apiKeyEnv: 'OPENROUTER_API_KEY',
     load: async () =>
-      (await import('../../addon/chat-bot/openrouter/OpenRouterChatAdapter'))
-        .OpenRouterChatAdapter,
+      (await import('../../addon/chat-bot/openrouter/OpenRouterChatAdapter')).OpenRouterChatAdapter,
   },
   anthropic: {
     apiKeyEnv: 'ANTHROPIC_API_KEY',
     load: async () =>
-      (await import('../../addon/chat-bot/anthropic/AnthropicChatAdapter'))
-        .AnthropicChatAdapter,
+      (await import('../../addon/chat-bot/anthropic/AnthropicChatAdapter')).AnthropicChatAdapter,
   },
   google: {
     apiKeyEnv: 'GOOGLE_API_KEY',
@@ -83,6 +101,7 @@ interface DiscoveredComponents {
   commandHandlers: IConstructor<ICommandHandler<any>>[]
   cronHandlers: IConstructor<ICronHandler>[]
   socketControllers: IConstructor<any>[]
+  uiControllers: IConstructor<any>[]
 }
 
 export class ProjectRunner {
@@ -92,6 +111,7 @@ export class ProjectRunner {
   private connectionString: string | null
   private isPg: boolean
   private preloaded: boolean
+  private ui: IUiRunnerConfig
   private pool: Pool | null = null
 
   constructor(config: IProjectRunnerConfig = {}) {
@@ -101,9 +121,11 @@ export class ProjectRunner {
     this.connectionString = this.resolveConnectionString(config.connectionString)
     this.isPg = this.connectionString != null && isPostgresUrl(this.connectionString)
     this.preloaded = config.preloaded === true
+    this.ui = config.ui ?? {}
   }
 
   async run(): Promise<void> {
+    let scannedFiles: string[] = []
     if (this.preloaded) {
       if (this.isPg) await this.initPool()
     } else {
@@ -111,13 +133,14 @@ export class ProjectRunner {
         this.isPg ? this.initPool() : Promise.resolve(),
         scanProjectFiles({ directories: this.directories, exclude: this.exclude }),
       ])
-      await this.importFiles(files as string[])
+      scannedFiles = files as string[]
+      await this.importFiles(scannedFiles)
     }
 
     const components = this.discoverComponents()
 
     await this.registerAdapters(components)
-    await this.startComponents(components)
+    await this.startComponents(components, scannedFiles)
   }
 
   private resolveConnectionString(configValue: string | undefined): string | null {
@@ -142,9 +165,7 @@ export class ProjectRunner {
       return
     }
 
-    const results = await Promise.allSettled(
-      files.map((file) => import(pathToFileURL(file).href)),
-    )
+    const results = await Promise.allSettled(files.map((file) => import(pathToFileURL(file).href)))
 
     let imported = 0
     let failed = 0
@@ -191,6 +212,7 @@ export class ProjectRunner {
       socketControllers: container
         .resolve(SocketControllerMetadataStore)
         .getAllSocketControllerConstructors(),
+      uiControllers: container.resolve(UiControllerMetadataStore).getAllUiControllerConstructors(),
     }
   }
 
@@ -201,8 +223,7 @@ export class ProjectRunner {
   }
 
   private async registerMemoryAdapters(components: DiscoveredComponents): Promise<void> {
-    const needsJobs =
-      components.commandHandlers.length > 0 || components.cronHandlers.length > 0
+    const needsJobs = components.commandHandlers.length > 0 || components.cronHandlers.length > 0
 
     const [chatBotMod, lockMod, jobMod, cronJobMod] = await Promise.all([
       import('../../addon/chat-bot/in-memory/InMemoryChatRepository'),
@@ -249,9 +270,7 @@ export class ProjectRunner {
       hasCommandHandlers || hasCronHandlers
         ? import('../../addon/async/pg/PgJobRepository')
         : Promise.resolve(null),
-      hasCronHandlers
-        ? import('../../addon/async/pg/PgCronJobRepository')
-        : Promise.resolve(null),
+      hasCronHandlers ? import('../../addon/async/pg/PgCronJobRepository') : Promise.resolve(null),
     ])
 
     container.register(ChatRepository, { useToken: chatBotMod.PgChatRepository as any })
@@ -273,7 +292,10 @@ export class ProjectRunner {
     logger.info('Configured with PostgreSQL adapters')
   }
 
-  private async startComponents(components: DiscoveredComponents): Promise<void> {
+  private async startComponents(
+    components: DiscoveredComponents,
+    files: string[] = [],
+  ): Promise<void> {
     const chatAdapters = this.chatAdapters ?? (await this.resolveDefaultChatAdapters())
     if (chatAdapters.length > 0) {
       runChatAdapters(chatAdapters)
@@ -287,6 +309,10 @@ export class ProjectRunner {
     if (components.restControllers.length > 0) {
       logger.info(`Starting ${components.restControllers.length} REST controller(s)`)
       runRestControllers(components.restControllers)
+    }
+
+    if (components.uiControllers.length > 0) {
+      await this.startUiControllers(components.uiControllers, files)
     }
 
     if (components.commandHandlers.length > 0) {
@@ -303,6 +329,68 @@ export class ProjectRunner {
       logger.info(`Starting ${components.socketControllers.length} socket controller(s)`)
       runSocketControllers(components.socketControllers)
     }
+  }
+
+  private async startUiControllers(
+    uiControllers: IConstructor<any>[],
+    files: string[],
+  ): Promise<void> {
+    const rendererRegistry = container.resolve(UiRendererRegistry)
+    if (!rendererRegistry.hasDefault()) {
+      const { PreactRenderer } = await import('../../addon/ui/preact/PreactRenderer')
+      rendererRegistry.setDefault(new PreactRenderer())
+    }
+
+    const client = rendererRegistry.get().client
+    let pageAssets: IRegisterUiControllersOptions['pageAssets'] | undefined
+
+    if (client) {
+      // The bundler pulls in esbuild, so only load it when UI islands are in play.
+      const bundlerMod = await import('../ui-controller/bundler/index')
+      pageAssets = this.preloaded
+        ? await this.setupProdUiAssets(bundlerMod)
+        : await this.setupDevUiAssets(bundlerMod, client, files)
+    }
+
+    logger.info(`Starting ${uiControllers.length} UI controller(s)`)
+    runUiControllers(uiControllers, { pageAssets })
+  }
+
+  private async setupDevUiAssets(
+    bundlerMod: typeof import('../ui-controller/bundler/index'),
+    client: NonNullable<ReturnType<UiRendererRegistry['get']>['client']>,
+    files: string[],
+  ): Promise<IRegisterUiControllersOptions['pageAssets'] | undefined> {
+    const islands = await container.resolve(IslandRegistry).discover(files)
+    if (islands.length === 0) return undefined
+
+    const bundler = new bundlerMod.UiBundler({ islands, client, alias: this.ui.bundlerAlias })
+    await bundler.startDev()
+    bundlerMod.mountUiDevAssets(container.resolve(ExpressProvider).getExpress(), bundler)
+
+    return (used) =>
+      bundlerMod.pageAssetsFromManifest(bundler.getManifest(), used, {
+        liveReloadPath: '/_wabot/livereload',
+      })
+  }
+
+  private async setupProdUiAssets(
+    bundlerMod: typeof import('../ui-controller/bundler/index'),
+  ): Promise<IRegisterUiControllersOptions['pageAssets'] | undefined> {
+    const fs = await import('node:fs')
+    const nodePath = await import('node:path')
+    const distUi = nodePath.resolve(process.cwd(), 'dist/ui')
+    const manifestPath = nodePath.join(distUi, 'manifest.json')
+    if (!fs.existsSync(manifestPath)) {
+      logger.warn(`UI manifest not found at ${manifestPath}; islands will not hydrate`)
+      return undefined
+    }
+
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'))
+    const { default: express } = await import('express')
+    container.resolve(ExpressProvider).getExpress().use('/_wabot', express.static(distUi))
+
+    return (used) => bundlerMod.pageAssetsFromManifest(manifest, used)
   }
 
   private async resolveDefaultChatAdapters(): Promise<IConstructor<IChatAdapter>[]> {

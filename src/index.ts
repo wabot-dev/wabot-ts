@@ -28,6 +28,7 @@ export * from './feature/repository'
 export * from './feature/rest-controller'
 export * from './feature/socket'
 export * from './feature/socket-controller'
+export * from './feature/ui-controller'
 
 export * from './addon/async'
 export * from './addon/auth'

@@ -1,7 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
-import { generateEntry, generateManifest, toManifestImport } from './manifest'
+import {
+  generateEntry,
+  generateIslandsRegistration,
+  generateManifest,
+  toManifestImport,
+} from './manifest'
 
 test.describe('toManifestImport', () => {
   const manifestDir = resolve('/tmp/proj/.wabot')
@@ -22,10 +27,7 @@ test.describe('toManifestImport', () => {
   })
 
   test('emits forward slashes regardless of platform', () => {
-    const result = toManifestImport(
-      resolve('/tmp/proj/src/a/b/c/D.ts'),
-      manifestDir,
-    )
+    const result = toManifestImport(resolve('/tmp/proj/src/a/b/c/D.ts'), manifestDir)
     assert.ok(!result.includes('\\'), `result should not contain backslashes: ${result}`)
   })
 
@@ -47,20 +49,14 @@ test.describe('generateManifest', () => {
   })
 
   test('emits one import per file using relative .js specifiers', () => {
-    const files = [
-      resolve('/tmp/proj/src/a/Foo.ts'),
-      resolve('/tmp/proj/src/b/Bar.ts'),
-    ]
+    const files = [resolve('/tmp/proj/src/a/Foo.ts'), resolve('/tmp/proj/src/b/Bar.ts')]
     const out = generateManifest(files, manifestDir)
     assert.ok(out.includes("import '../src/a/Foo.js'"))
     assert.ok(out.includes("import '../src/b/Bar.js'"))
   })
 
   test('is deterministic regardless of input ordering', () => {
-    const files = [
-      resolve('/tmp/proj/src/b/Bar.ts'),
-      resolve('/tmp/proj/src/a/Foo.ts'),
-    ]
+    const files = [resolve('/tmp/proj/src/b/Bar.ts'), resolve('/tmp/proj/src/a/Foo.ts')]
     const sorted = generateManifest(
       [resolve('/tmp/proj/src/a/Foo.ts'), resolve('/tmp/proj/src/b/Bar.ts')],
       manifestDir,
@@ -93,5 +89,36 @@ test.describe('generateEntry', () => {
     assert.ok(out.includes("from '../src/_run_.js'"), out)
     assert.ok(out.includes('preloaded: true'))
     assert.ok(out.includes('...'))
+  })
+
+  test('imports island registration when islands are present', () => {
+    const out = generateEntry(manifestDir, null, pkg, true)
+    assert.ok(out.includes("import './islands.js'"))
+  })
+
+  test('omits island registration when there are no islands', () => {
+    const out = generateEntry(manifestDir, null, pkg, false)
+    assert.ok(!out.includes("import './islands.js'"))
+  })
+})
+
+test.describe('generateIslandsRegistration', () => {
+  const manifestDir = resolve('/tmp/proj/.wabot')
+  const pkg = '@wabot-dev/framework'
+
+  test('imports each island and stamps its id', () => {
+    const out = generateIslandsRegistration(
+      [
+        { absFile: resolve('/tmp/proj/src/ui/Counter.island.tsx'), id: 'Counter-1234abcd' },
+        { absFile: resolve('/tmp/proj/src/ui/Clock.island.tsx'), id: 'Clock-5678efgh' },
+      ],
+      manifestDir,
+      pkg,
+    )
+    assert.ok(out.includes(`import { setIslandId } from '${pkg}'`))
+    assert.ok(out.includes("import __island0 from '../src/ui/Clock.island.js'"))
+    assert.ok(out.includes('setIslandId(__island0, "Clock-5678efgh")'))
+    assert.ok(out.includes("import __island1 from '../src/ui/Counter.island.js'"))
+    assert.ok(out.includes('setIslandId(__island1, "Counter-1234abcd")'))
   })
 })

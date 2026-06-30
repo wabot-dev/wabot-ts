@@ -10,9 +10,7 @@ const TEST_FILE_PATTERNS = /\.(test|spec|unit|integration|e2e|multiprocess)\.(ts
 const DEFAULT_DIRECTORIES = ['src']
 const DEFAULT_EXCLUDE = ['_run_.ts', '_cmd_.ts']
 
-export async function scanProjectFiles(
-  opts: IScanProjectFilesOptions = {},
-): Promise<string[]> {
+export async function scanProjectFiles(opts: IScanProjectFilesOptions = {}): Promise<string[]> {
   const directories = opts.directories ?? DEFAULT_DIRECTORIES
   const exclude = [...DEFAULT_EXCLUDE, ...(opts.exclude ?? [])]
 
@@ -68,7 +66,7 @@ async function scanDir(
         return scanDir(fullPath, excludedNames, excludedPaths)
       }
       if (!entry.isFile()) return []
-      if (!(name.endsWith('.ts') || name.endsWith('.js'))) return []
+      if (!/\.(ts|tsx|js|jsx)$/.test(name)) return []
       if (name.endsWith('.d.ts')) return []
       if (TEST_FILE_PATTERNS.test(fullPath)) return []
       return [fullPath]

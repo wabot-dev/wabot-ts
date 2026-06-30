@@ -15,18 +15,44 @@ export function toManifestImport(absFile: string, manifestDir: string): string {
 }
 
 export function generateManifest(absFiles: string[], manifestDir: string): string {
-  const imports = [...absFiles]
-    .sort()
-    .map((f) => `import '${toManifestImport(f, manifestDir)}'`)
+  const imports = [...absFiles].sort().map((f) => `import '${toManifestImport(f, manifestDir)}'`)
   return `${MANIFEST_BANNER}\n${imports.join('\n')}\n`
+}
+
+export interface IIslandManifestEntry {
+  /** Absolute path to the island source file. */
+  absFile: string
+  /** Stable island id (must match the client bundle manifest). */
+  id: string
+}
+
+/**
+ * Generates a module that imports each island and stamps its stable id, so the
+ * preloaded (prod) server can emit the matching `data-island` markers at SSR.
+ */
+export function generateIslandsRegistration(
+  islands: IIslandManifestEntry[],
+  manifestDir: string,
+  frameworkPackageName: string,
+): string {
+  const lines: string[] = [MANIFEST_BANNER, `import { setIslandId } from '${frameworkPackageName}'`]
+  ;[...islands]
+    .sort((a, b) => a.absFile.localeCompare(b.absFile))
+    .forEach((island, i) => {
+      lines.push(`import __island${i} from '${toManifestImport(island.absFile, manifestDir)}'`)
+      lines.push(`setIslandId(__island${i}, ${JSON.stringify(island.id)})`)
+    })
+  return lines.join('\n') + '\n'
 }
 
 export function generateEntry(
   manifestDir: string,
   consumerEntry: string | null,
   frameworkPackageName: string,
+  hasIslands = false,
 ): string {
   const lines: string[] = [MANIFEST_BANNER, "import './manifest.js'"]
+  if (hasIslands) lines.push("import './islands.js'")
   if (consumerEntry) {
     const spec = toManifestImport(consumerEntry, manifestDir)
     lines.push(`import * as __wabot_user_entry from '${spec}'`)

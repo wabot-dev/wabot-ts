@@ -10,6 +10,7 @@ export * from './fixtures'
 export * from './conformance/chatAdapterConformanceCases'
 
 export * from './restHarness'
+export * from './uiHarness'
 export * from './asyncHarness'
 export * from './repositories'
 export * from './auth'

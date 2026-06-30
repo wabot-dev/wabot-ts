@@ -30,10 +30,24 @@ const sharedExternal = [
   '@google/genai',
   'big.js',
   '@openrouter/sdk',
+  'preact',
+  'preact/hooks',
+  'preact/jsx-runtime',
+  'preact/jsx-dev-runtime',
+  'preact-render-to-string',
+  '@preact/signals',
+  'esbuild',
 ]
 
 const libConfig: RollupOptions = {
-  input: ['src/index.ts', 'src/testing/index.ts'],
+  input: [
+    'src/index.ts',
+    'src/testing/index.ts',
+    'src/ui/index.ts',
+    'src/ui/client.ts',
+    'src/ui/jsx-runtime.ts',
+    'src/ui/jsx-dev-runtime.ts',
+  ],
   plugins: [
     tsc(),
     alias(),

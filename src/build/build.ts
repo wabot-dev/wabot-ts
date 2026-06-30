@@ -1,9 +1,12 @@
 import { existsSync, realpathSync } from 'node:fs'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
-import { isAbsolute, resolve } from 'node:path'
+import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { scanProjectFiles } from '@/feature/project-runner/scanner'
-import { generateEntry, generateManifest } from './manifest'
+import { isIslandFile, toIslandId } from '@/feature/ui-controller/island/IslandRegistry'
+import { UiBundler } from '@/feature/ui-controller/bundler'
+import { PreactRenderer } from '@/addon/ui/preact'
+import { generateEntry, generateIslandsRegistration, generateManifest } from './manifest'
 
 export interface IBuildConfig {
   entry?: string
@@ -66,11 +69,24 @@ export async function runBuild(options: IBuildOptions = {}): Promise<void> {
   const entryResolved = existsSync(entry) ? entry : null
   const filesForManifest = discovered.filter((f) => f !== entry)
 
+  const islands = filesForManifest.filter(isIslandFile).map((absFile) => ({
+    absFile,
+    id: toIslandId(relative(cwd, absFile).split(sep).join('/')),
+  }))
+  const hasIslands = islands.length > 0
+
   const manifestSrc = generateManifest(filesForManifest, manifestDir)
-  const entrySrc = generateEntry(manifestDir, entryResolved, FRAMEWORK_PACKAGE)
+  const entrySrc = generateEntry(manifestDir, entryResolved, FRAMEWORK_PACKAGE, hasIslands)
 
   await writeFile(resolve(manifestDir, 'manifest.ts'), manifestSrc, 'utf-8')
   await writeFile(resolve(manifestDir, 'entry.ts'), entrySrc, 'utf-8')
+  if (hasIslands) {
+    await writeFile(
+      resolve(manifestDir, 'islands.ts'),
+      generateIslandsRegistration(islands, manifestDir, FRAMEWORK_PACKAGE),
+      'utf-8',
+    )
+  }
 
   let tsup: typeof import('tsup')
   try {
@@ -97,6 +113,22 @@ export async function runBuild(options: IBuildOptions = {}): Promise<void> {
         : undefined,
       external: config.external ?? ['pg'],
     })
+
+    // Emit island client bundles after tsup (which cleans outDir first).
+    if (hasIslands) {
+      const uiOut = resolve(outDir, 'ui')
+      const bundler = new UiBundler({
+        islands: islands.map(({ absFile, id }) => ({
+          id,
+          importPath: absFile,
+          relPath: relative(cwd, absFile).split(sep).join('/'),
+        })),
+        client: new PreactRenderer().client!,
+        cwd,
+      })
+      const uiManifest = await bundler.buildProd(uiOut)
+      await writeFile(resolve(uiOut, 'manifest.json'), JSON.stringify(uiManifest, null, 2), 'utf-8')
+    }
   } finally {
     if (!options.keep) {
       await rm(manifestDir, { recursive: true, force: true })
