@@ -3,9 +3,13 @@ import {
   ChatBot,
   chatController,
   cmd,
+  discord,
+  type IDiscordMetadata,
+  type IDiscordReceivedMessage,
   hubspot,
   type IChatMessageFile,
   type IHubSpotChannelMessage,
+  Logger,
   type ISlackReceivedMessage,
   slack,
   str,
@@ -30,6 +34,8 @@ function testPngFile(): IChatMessageFile {
 
 @chatController()
 export class EliaChatController {
+  private logger = new Logger('wabot:elia-controller')
+
   constructor(@chatBot(EliaMindset) private eliaBot: ChatBot) {}
 
   @cmd()
@@ -70,4 +76,33 @@ export class EliaChatController {
 
     await context.reply(reply)
   }
+
+  @discord()
+  async onDiscordMessage(context: IDiscordReceivedMessage) {
+    const metadata = context.message.metadata
+    if (!metadata || !this.shouldRespond(metadata, context.message.text)) return
+
+    await this.eliaBot.sendMessage(context.message, async (response) => {
+      await context.reply(response)
+    })
+  }
+
+  private shouldRespond(metadata: IDiscordMetadata, text: string | undefined): boolean {
+    if (
+      metadata.isDirectMessage === 'true' ||
+      metadata.wasBotMentioned === 'true' ||
+      metadata.wasEveryoneMentioned === 'true'
+    ) {
+      return true
+    }
+    return !!text && containsTrigger(text)
+  }
+}
+
+function containsTrigger(text: string): boolean {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .includes('elia')
 }

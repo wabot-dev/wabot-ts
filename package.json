@@ -31,6 +31,7 @@
     "telegram",
     "whatsapp",
     "wasender",
+    "discord",
     "socket.io",
     "openai",
     "gpt",
@@ -97,6 +98,7 @@
     "body-parser": "^2.2.0",
     "cron-parser": "^5.4.0",
     "debug": "^4.4.0",
+    "discord.js": "^14.26.4",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "grammy": "^1.36.0",
@@ -104,17 +106,17 @@
     "jsonwebtoken": "^9.0.2",
     "openai": "^6.10.0",
     "pg": "^8.15.6",
+    "prettier": "^3.5.3",
     "reflect-metadata": "^0.2.2",
     "short-uuid": "^6.0.3",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
     "tslib": "^2.8.1",
+    "tsup": "^8.4.0",
     "tsyringe": "^4.9.1",
+    "typescript": "^6.0.3",
     "uuid": "^14.0.0",
     "wasenderapi": "^0.1.5",
-    "@hubspot/api-client": "^13.5.0",
-    "tsup": "^8.4.0",
-    "typescript": "^6.0.3",
-    "prettier": "^3.5.3"
+    "@hubspot/api-client": "^13.5.0"
   }
 }

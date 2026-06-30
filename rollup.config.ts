@@ -31,6 +31,7 @@ const sharedExternal = [
   'big.js',
   '@openrouter/sdk',
   '@hubspot/api-client',
+  'discord.js',
   '@slack/bolt',
 ]
 

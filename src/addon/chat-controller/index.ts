@@ -1,4 +1,5 @@
 export * from './cmd'
+export * from './discord'
 export * from './hubspot'
 export * from './slack'
 export * from './socket'
