@@ -80,7 +80,7 @@ function baseBuildOptions(
     absWorkingDir: opts.cwd,
     metafile: true,
     alias: opts.alias,
-    sourcemap: opts.dev ? 'inline' : false,
+    sourcemap: opts.dev ? 'linked' : false,
     minify: !opts.dev,
     entryNames: '[name]',
     chunkNames: 'chunks/[name]-[hash]',
