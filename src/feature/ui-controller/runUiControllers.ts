@@ -9,6 +9,7 @@ import { json, urlencoded, Request, Response } from 'express'
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { UiControllerMetadataStore } from './metadata'
+import type { IControllerHead } from './metadata/IUiControllerConfig'
 import { IRenderedIsland, UiRendererRegistry } from './renderer'
 import { isRedirect, renderDocument, escapeHtml } from './document'
 
@@ -36,6 +37,34 @@ const NAV_HEADER = 'X-Wabot-Nav'
 /** Canonical form of a route path: leading slash, no trailing slash (except root). */
 function normalizeRoutePath(routePath: string): string {
   return '/' + routePath.replace(/^\/+|\/+$/g, '')
+}
+
+/** Turn a controller's head hints into <link> attribute maps for renderDocument. */
+function headLinks(head?: IControllerHead): Array<Record<string, string | boolean>> | undefined {
+  if (!head) return undefined
+  const links: Array<Record<string, string | boolean>> = []
+
+  for (const entry of head.preconnect ?? []) {
+    const { href, crossorigin } =
+      typeof entry === 'string' ? { href: entry, crossorigin: undefined } : entry
+    links.push({ rel: 'preconnect', href, ...(crossorigin ? { crossorigin: true } : {}) })
+  }
+
+  for (const p of head.preload ?? []) {
+    // Fonts are always fetched cross-origin; default crossorigin so the preload
+    // matches the real request instead of fetching the font twice.
+    const crossorigin = p.crossorigin ?? (p.as === 'font' ? true : undefined)
+    links.push({
+      rel: 'preload',
+      href: p.href,
+      as: p.as,
+      ...(p.type ? { type: p.type } : {}),
+      ...(crossorigin ? { crossorigin } : {}),
+      ...(p.media ? { media: p.media } : {}),
+    })
+  }
+
+  return links.length ? links : undefined
 }
 
 export interface IRegisterUiControllersOptions {
@@ -165,6 +194,7 @@ export function registerUiControllers(
             title: view.config?.title,
             meta: view.config?.meta,
             styles,
+            links: headLinks(view.controller.head),
             scripts,
             headHtml,
             bodyEndHtml: assets.bodyEndHtml,

@@ -9,6 +9,8 @@ export interface IDocumentOptions {
   meta?: Record<string, string>
   /** Stylesheet hrefs rendered as <link rel="stylesheet">. */
   styles?: string[]
+  /** Extra <link> tags (preload/preconnect/…) as attribute maps. `true` => bare attribute. */
+  links?: Array<Record<string, string | boolean>>
   /** Module script srcs rendered as <script type="module">. */
   scripts?: string[]
   /** Raw HTML appended to <head> (e.g. inline bootstrap data). */
@@ -29,6 +31,7 @@ export function renderDocument(options: IDocumentOptions): string {
     title,
     meta = {},
     styles = [],
+    links = [],
     scripts = [],
     headHtml = '',
     bodyEndHtml = '',
@@ -39,6 +42,8 @@ export function renderDocument(options: IDocumentOptions): string {
   const metaTags = Object.entries(meta)
     .map(([name, content]) => `<meta name="${escapeAttr(name)}" content="${escapeAttr(content)}">`)
     .join('')
+  // Preload/preconnect first so the browser starts fetching those before CSS.
+  const linkTags = links.map((attrs) => `<link ${renderAttrs(attrs)}>`).join('')
   const styleTags = styles
     .map((href) => `<link rel="stylesheet" href="${escapeAttr(href)}">`)
     .join('')
@@ -52,6 +57,7 @@ export function renderDocument(options: IDocumentOptions): string {
     `<meta name="viewport" content="width=device-width, initial-scale=1">` +
     titleTag +
     metaTags +
+    linkTags +
     styleTags +
     headHtml +
     `</head><body>` +
@@ -60,4 +66,14 @@ export function renderDocument(options: IDocumentOptions): string {
     bodyEndHtml +
     `</body></html>`
   )
+}
+
+/** Render an attribute map: string => key="value", `true` => bare key, false/null skipped. */
+function renderAttrs(attrs: Record<string, string | boolean>): string {
+  return Object.entries(attrs)
+    .filter(([, value]) => value !== false && value != null)
+    .map(([key, value]) =>
+      value === true ? escapeAttr(key) : `${escapeAttr(key)}="${escapeAttr(String(value))}"`,
+    )
+    .join(' ')
 }

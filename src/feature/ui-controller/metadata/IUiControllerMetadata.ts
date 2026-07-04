@@ -1,5 +1,6 @@
 import { IConstructor } from '@/core/generics'
 import type { IMiddleware } from '@/feature/rest-controller'
+import type { IControllerHead } from './IUiControllerConfig'
 
 export interface IUiControllerMetadata {
   controllerConstructor: IConstructor<any>
@@ -9,4 +10,6 @@ export interface IUiControllerMetadata {
   app?: boolean
   /** Persistent app-shell component rendered around every view (with an `<Outlet/>`). */
   layout?: unknown
+  /** `<head>` resource hints (preconnect/preload) for full document loads. */
+  head?: IControllerHead
 }

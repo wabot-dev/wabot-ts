@@ -73,6 +73,21 @@ class DocsController {
   }
 }
 
+@uiController({
+  path: '/fonts',
+  app: true,
+  head: {
+    preconnect: [{ href: 'https://fonts.gstatic.com', crossorigin: true }],
+    preload: [{ href: '/fonts/inter.woff2', as: 'font', type: 'font/woff2' }],
+  },
+})
+class FontsController {
+  @view()
+  index() {
+    return h('main', null, 'fonts')
+  }
+}
+
 let server: Server
 let baseUrl = ''
 
@@ -91,6 +106,7 @@ test.before(async () => {
       VersionedController,
       MultiController,
       DocsController,
+      FontsController,
     ],
     {
       baseContainer: child,
@@ -181,6 +197,21 @@ test.describe('boosted navigation', () => {
     const app = JSON.parse(match![1].replace(/\\u003c/g, '<'))
     assert.deepEqual([...app.routes].sort(), ['/multi', '/multi/a', '/multi/b'])
     assert.ok(!('scope' in app), 'ya no usa un scope de prefijo')
+  })
+
+  test('head del controller inyecta preconnect/preload (con crossorigin por defecto en fuentes)', async () => {
+    const html = await (await fetch(`${baseUrl}/fonts`)).text()
+    assert.match(html, /<link rel="preconnect" href="https:\/\/fonts\.gstatic\.com" crossorigin>/)
+    // as:'font' sin crossorigin explícito => se añade solo (evita doble fetch)
+    assert.match(
+      html,
+      /<link rel="preload" href="\/fonts\/inter\.woff2" as="font" type="font\/woff2" crossorigin>/,
+    )
+  })
+
+  test('el fragmento boosted no reenvía los head links (el <head> persiste)', async () => {
+    const body = await (await fetch(`${baseUrl}/fonts`, { headers: { 'X-Wabot-Nav': '1' } })).json()
+    assert.ok(!String(body.html).includes('preload'), 'el head no viaja en el fragmento')
   })
 
   test('matchesRoute: patrones con :param y literales', () => {
