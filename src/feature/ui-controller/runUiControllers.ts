@@ -6,6 +6,7 @@ import { validateModel, ValidationMetadataStore } from '@/core/validation'
 import { ExpressProvider } from '@/feature/express'
 import { EXPRESS_REQ, EXPRESS_RES, IMiddleware } from '@/feature/rest-controller'
 import { json, urlencoded, Request, Response } from 'express'
+import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { UiControllerMetadataStore } from './metadata'
 import { IRenderedIsland, UiRendererRegistry } from './renderer'
@@ -25,6 +26,16 @@ export interface IPageAssets {
   styles?: string[]
   headHtml?: string
   bodyEndHtml?: string
+  /** URL of the boosted-navigation runtime; injected on `app: true` pages. */
+  navScript?: string
+}
+
+/** Header the client nav runtime sends to request a fragment instead of a full document. */
+const NAV_HEADER = 'X-Wabot-Nav'
+
+/** Canonical form of a route path: leading slash, no trailing slash (except root). */
+function normalizeRoutePath(routePath: string): string {
+  return '/' + routePath.replace(/^\/+|\/+$/g, '')
 }
 
 export interface IRegisterUiControllersOptions {
@@ -48,7 +59,14 @@ export function registerUiControllers(
   const dev = process.env.NODE_ENV !== 'production'
 
   controllers.forEach((controller) => {
-    store.getControllerViewsInfo(controller).forEach((view) => {
+    const viewInfos = store.getControllerViewsInfo(controller)
+    // The exact view routes of this controller: the nav runtime soft-navigates
+    // only these, so a controller mounted at "/" doesn't hijack the whole origin.
+    const appRoutes = viewInfos.map((v) =>
+      normalizeRoutePath(joinRoute(v.controller.path, v.config?.path ?? '')),
+    )
+
+    viewInfos.forEach((view) => {
       const route = joinRoute(view.controller.path, view.config?.path ?? '')
       const middlewareCtors = [
         ...view.controller.middlewares,
@@ -56,10 +74,38 @@ export function registerUiControllers(
       ]
       logger.info(`view  GET  ${route}`)
 
+      // A parameterized view under boosted nav needs an swr.version(params) so
+      // revalidation keys off the parameter; otherwise it can only revalidate by
+      // hashing a full re-render on every visit.
+      const isParameterized = route.split('/').some((seg) => seg.startsWith(':'))
+      if (view.controller.app && isParameterized && !view.config?.swr?.version) {
+        logger.warn(
+          `view GET ${route}: parameterized app views should declare swr.version(params) ` +
+            `so boosted navigation can revalidate per parameter without re-rendering`,
+        )
+      }
+
       expressApp.get(route, json(), urlencoded({ extended: true }), async (req, res) => {
         const requestContainer = newRequestContainer(baseContainer, req, res)
         try {
           if (await runMiddlewares(middlewareCtors, requestContainer, req, res)) return
+
+          const isApp = view.controller.app === true
+          const softNav = isApp && !!req.get(NAV_HEADER)
+
+          // Cheap revalidation: if the view declares a `version`, answer 304
+          // without running the handler or SSR when it matches If-None-Match.
+          let versionEtag: string | undefined
+          if (softNav && view.config?.swr?.version) {
+            const version = await view.config.swr.version(buildRequest(req))
+            versionEtag = `"v:${version}"`
+            res.set('ETag', versionEtag)
+            res.set('Cache-Control', 'no-cache')
+            if (req.get('If-None-Match') === versionEtag) {
+              res.status(304).end()
+              return
+            }
+          }
 
           const instance = requestContainer.resolve(view.controllerConstructor)
           const args = resolveHandlerArgs(view.paramsTypes, req, validationStore)
@@ -71,15 +117,56 @@ export function registerUiControllers(
           }
 
           const renderer = rendererRegistry.get()
-          const rendered = await renderer.renderToString(result, { dev })
+          // Full loads render inside the controller's layout (the persistent
+          // shell); boosted-nav fragments render just the view (the outlet body).
+          const rendered = await renderer.renderToString(result, {
+            dev,
+            layout: softNav ? undefined : view.controller.layout,
+          })
           const assets = options.pageAssets?.(rendered.islands) ?? {}
+          const styles = [...(rendered.styles ?? []), ...(assets.styles ?? [])]
+
+          // Boosted navigation: send a JSON fragment (+ ETag) instead of the
+          // full document. A matching If-None-Match means nothing changed, so
+          // answer 304 and let the client keep its cached view (no re-render).
+          if (softNav) {
+            const payload = JSON.stringify({
+              html: rendered.html,
+              title: view.config?.title ?? null,
+              meta: view.config?.meta ?? null,
+              scripts: assets.scripts ?? [],
+              styles,
+              maxAge: view.config?.swr?.maxAge ?? 0,
+            })
+            const etag = versionEtag ?? `"${createHash('sha1').update(payload).digest('base64')}"`
+            res.set('ETag', etag)
+            res.set('Cache-Control', 'no-cache')
+            if (req.get('If-None-Match') === etag) {
+              res.status(304).end()
+              return
+            }
+            res.status(200).type('application/json').send(payload)
+            return
+          }
+
+          const scripts = [...(assets.scripts ?? [])]
+          let headHtml = assets.headHtml
+          if (isApp && assets.navScript) {
+            // `<` escaped so a route string can never break out of the inline script.
+            const bootstrap = `<script>window.__wabotApp=${JSON.stringify({
+              routes: appRoutes,
+            }).replace(/</g, '\\u003c')}</script>`
+            headHtml = (headHtml ?? '') + bootstrap
+            scripts.push(assets.navScript)
+          }
+
           const html = renderDocument({
             bodyHtml: rendered.html,
             title: view.config?.title,
             meta: view.config?.meta,
-            styles: [...(rendered.styles ?? []), ...(assets.styles ?? [])],
-            scripts: assets.scripts ?? [],
-            headHtml: assets.headHtml,
+            styles,
+            scripts,
+            headHtml,
             bodyEndHtml: assets.bodyEndHtml,
           })
           res.status(200).type('html').send(html)

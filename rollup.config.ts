@@ -48,6 +48,9 @@ const libConfig: RollupOptions = {
     'src/ui/jsx-runtime.ts',
     'src/ui/jsx-dev-runtime.ts',
     'src/addon/ui/preact/preactClientRuntime.ts',
+    // Referenced by a runtime path (not a static import) when the bundler
+    // generates the nav entry, so it needs to be an explicit input to be emitted.
+    'src/feature/ui-controller/bundler/navRuntime.ts',
   ],
   plugins: [
     tsc(),

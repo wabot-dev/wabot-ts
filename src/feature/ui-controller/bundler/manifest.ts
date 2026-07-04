@@ -13,9 +13,14 @@ export interface IUiManifest {
   base: string
   /** islandId -> built assets. */
   islands: Record<string, IIslandAsset>
+  /** URL of the boosted-navigation client runtime, if it was built. */
+  nav?: string
 }
 
 export const ISLAND_ENTRY_NAMESPACE = 'wabot-island'
+
+/** Reserved island-entry id for the boosted-navigation runtime bundle. */
+export const NAV_ENTRY_ID = '__wabot_nav'
 
 function toUrl(base: string, outdir: string, cwd: string, outPath: string): string {
   const abs = path.resolve(cwd, outPath)
@@ -30,16 +35,21 @@ export function manifestFromMetafile(
 ): IUiManifest {
   const { base, outdir, cwd } = opts
   const islands: Record<string, IIslandAsset> = {}
+  let nav: string | undefined
 
   for (const [outPath, output] of Object.entries(metafile.outputs)) {
     const entryPoint = output.entryPoint
     if (!entryPoint || !entryPoint.startsWith(`${ISLAND_ENTRY_NAMESPACE}:`)) continue
     const id = entryPoint.slice(ISLAND_ENTRY_NAMESPACE.length + 1)
+    if (id === NAV_ENTRY_ID) {
+      nav = toUrl(base, outdir, cwd, outPath)
+      continue
+    }
     const css = output.cssBundle ? [toUrl(base, outdir, cwd, output.cssBundle)] : []
     islands[id] = { js: toUrl(base, outdir, cwd, outPath), css }
   }
 
-  return { base, islands }
+  return { base, islands, nav }
 }
 
 export function emptyManifest(base = '/_wabot/'): IUiManifest {

@@ -29,6 +29,7 @@ export function pageAssetsFromManifest(
   return {
     scripts,
     styles,
+    navScript: manifest.nav,
     bodyEndHtml: options.liveReloadPath ? liveReloadSnippet(options.liveReloadPath) : undefined,
   }
 }

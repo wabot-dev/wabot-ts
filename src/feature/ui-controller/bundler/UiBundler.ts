@@ -1,4 +1,5 @@
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import * as esbuild from 'esbuild'
 import { Logger } from '@/core/logger'
 import { IDiscoveredIsland } from '../island'
@@ -6,9 +7,27 @@ import { IUiClientConfig } from '../renderer'
 import {
   IUiManifest,
   ISLAND_ENTRY_NAMESPACE,
+  NAV_ENTRY_ID,
   emptyManifest,
   manifestFromMetafile,
 } from './manifest'
+
+/** Absolute path to the generic boosted-navigation client core, bundled as an
+ * extra entry so it shares the island runtime chunk. */
+const NAV_RUNTIME_MODULE = fileURLToPath(new URL('./navRuntime', import.meta.url))
+
+/**
+ * Source of the nav entry. Imports the island hydrate/unmount hooks from the
+ * renderer's runtime module (the same module island entries import, so they
+ * share one registry instance) and wires them into the generic nav core.
+ */
+function navEntrySource(runtimeModule: string): string {
+  return (
+    `import { hydrateAll, unmountRemoved } from ${JSON.stringify(runtimeModule)}\n` +
+    `import { startNavigation } from ${JSON.stringify(NAV_RUNTIME_MODULE)}\n` +
+    `startNavigation({ hydrateAll, unmountRemoved })\n`
+  )
+}
 
 export interface IServedFile {
   contents: Uint8Array
@@ -42,6 +61,7 @@ function entrySources(islands: IDiscoveredIsland[], client: IUiClientConfig): Ma
       client.islandEntrySource({ id: island.id, importPath: island.importPath }),
     )
   }
+  sources.set(NAV_ENTRY_ID, navEntrySource(client.runtimeModule))
   return sources
 }
 
@@ -71,7 +91,11 @@ function baseBuildOptions(
 ): esbuild.BuildOptions {
   const jsxMode = client.esbuildJsx?.jsx ?? 'automatic'
   return {
-    entryPoints: islands.map((i) => ({ in: `${ISLAND_ENTRY_NAMESPACE}:${i.id}`, out: i.id })),
+    entryPoints: [
+      ...islands.map((i) => ({ in: `${ISLAND_ENTRY_NAMESPACE}:${i.id}`, out: i.id })),
+      // Boosted-navigation runtime, shared across the app's views.
+      { in: `${ISLAND_ENTRY_NAMESPACE}:${NAV_ENTRY_ID}`, out: '_nav' },
+    ],
     bundle: true,
     splitting: true,
     format: 'esm',

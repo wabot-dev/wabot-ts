@@ -14,6 +14,9 @@ container.resolve(UiRendererRegistry).setDefault(new PreactRenderer())
 // island(), redirect(), renderDocument(), the renderer registry and all types.
 export * from '@/feature/ui-controller'
 
+// Layout <Outlet/> for `app: true` controllers (boosted navigation).
+export { Outlet } from '@/addon/ui/preact/outlet'
+
 // Preact rendering primitives.
 export {
   Fragment,

@@ -9,6 +9,7 @@ import type {
   UiRenderer,
 } from '@/feature/ui-controller'
 import { getIslandMeta, serializeProps } from '@/feature/ui-controller'
+import { OutletContext } from './outlet'
 
 /** Absolute path (no extension) to the browser hydration runtime, resolved by esbuild. */
 const PREACT_CLIENT_RUNTIME = fileURLToPath(new URL('./preactClientRuntime', import.meta.url))
@@ -66,12 +67,19 @@ export class PreactRenderer implements UiRenderer {
       `registerIsland(${JSON.stringify(id)}, Island)\n`,
   }
 
-  renderToString(node: unknown, _context?: IRenderContext): IRenderResult {
+  renderToString(node: unknown, context?: IRenderContext): IRenderResult {
+    // With a layout, render the view inside the shell where <Outlet/> sits.
+    // Without one (or for boosted-nav fragments), render the view directly.
+    const Layout = context?.layout as ((props: any) => any) | undefined
+    const tree = Layout
+      ? h(OutletContext.Provider, { value: node as any }, h(Layout, {}))
+      : (node as any)
+
     const collector: IslandCollector = { islands: [], seen: new Set() }
     const previous = currentCollector
     currentCollector = collector
     try {
-      const html = renderToString(node as any)
+      const html = renderToString(tree)
       return { html, islands: collector.islands, styles: [] }
     } finally {
       currentCollector = previous

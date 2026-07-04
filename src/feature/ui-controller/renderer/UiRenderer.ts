@@ -1,6 +1,13 @@
 export interface IRenderContext {
   /** True while running under the dev server (enables hydration in dev, etc.). */
   dev?: boolean
+  /**
+   * Optional layout component to wrap the view in (the persistent app shell).
+   * The renderer places the view where the layout renders its `<Outlet/>`.
+   * Passed only for full-document loads; omitted for boosted-nav fragments so
+   * only the view (the outlet's content) is rendered.
+   */
+  layout?: unknown
 }
 
 export interface IRenderedIsland {

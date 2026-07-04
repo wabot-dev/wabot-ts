@@ -5,4 +5,8 @@ export interface IUiControllerMetadata {
   controllerConstructor: IConstructor<any>
   path: string
   middlewares: IConstructor<IMiddleware>[]
+  /** Whether this controller opts into client-side ("boosted") navigation. */
+  app?: boolean
+  /** Persistent app-shell component rendered around every view (with an `<Outlet/>`). */
+  layout?: unknown
 }

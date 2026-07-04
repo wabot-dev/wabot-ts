@@ -10,6 +10,8 @@ export function uiController(config: string | IUiControllerConfig) {
       controllerConstructor: target,
       path: typeof config === 'string' ? config : config.path,
       middlewares: typeof config === 'string' ? [] : (config.middlewares ?? []),
+      app: typeof config === 'string' ? false : (config.app ?? false),
+      layout: typeof config === 'string' ? undefined : config.layout,
     })
     injectable()(target)
   }

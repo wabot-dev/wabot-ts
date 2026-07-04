@@ -6,6 +6,7 @@
 export { island, getIslandMeta, isIsland, setIslandId } from '@/feature/ui-controller/island/island'
 export { actionUrl, callAction } from '@/feature/ui-controller/actions'
 export type { ICallActionOptions } from '@/feature/ui-controller/actions'
+export { Outlet } from '@/addon/ui/preact/outlet'
 
 export {
   Fragment,
