@@ -37,6 +37,8 @@ const sharedExternal = [
   'preact-render-to-string',
   '@preact/signals',
   'esbuild',
+  '@hubspot/api-client',
+  '@slack/bolt',
 ]
 
 const libConfig: RollupOptions = {

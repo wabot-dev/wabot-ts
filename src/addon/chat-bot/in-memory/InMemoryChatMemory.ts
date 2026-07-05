@@ -15,9 +15,7 @@ export class InMemoryChatMemory implements IChatMemory {
   private readonly onActivity: (() => void) | null
 
   constructor(chatId?: string, onActivity?: () => void) {
-    this.filePath = chatId
-      ? path.resolve(process.cwd(), PERSIST_DIR, `${chatId}.json`)
-      : null
+    this.filePath = chatId ? path.resolve(process.cwd(), PERSIST_DIR, `${chatId}.json`) : null
     this.onActivity = onActivity ?? null
     this.load()
   }

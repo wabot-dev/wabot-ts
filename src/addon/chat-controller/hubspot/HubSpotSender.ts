@@ -1,0 +1,151 @@
+import { Client } from '@hubspot/api-client'
+import { injectable } from '@/core/injection'
+import { Logger } from '@/core/logger'
+import type { IChatMessageFile } from '@/feature/chat-bot'
+import { HubSpotChannelConfig } from './HubSpotChannelConfig'
+
+export interface IHubSpotSendMessageRequest {
+  threadId: string
+  text?: string
+  richText?: string
+  files?: IChatMessageFile[]
+  senderActorId?: string
+  channelId?: string
+  channelAccountId?: string
+}
+
+export interface IHubSpotSendMessageResult {
+  messageId: string
+}
+
+interface IHubSpotFile {
+  data: Buffer
+  name: string
+}
+
+interface IHubSpotConversationsMessage {
+  type: 'MESSAGE'
+  text?: string
+  richText?: string
+  attachments?: Array<{ fileId: string }>
+  senderActorId?: string
+  channelId?: string
+  channelAccountId?: string
+}
+
+@injectable()
+export class HubSpotSender {
+  private client: Client
+  private accessToken: string
+  private baseUrl: string
+  private logger = new Logger('wabot:hubspot-sender')
+  private defaultSenderActorId: string | undefined
+
+  constructor(config: HubSpotChannelConfig, client?: Client) {
+    this.client = client ?? new Client({ accessToken: config.accessToken })
+    this.accessToken = config.accessToken
+    this.baseUrl = 'https://api.hubapi.com'
+    this.defaultSenderActorId = config.senderActorId
+  }
+
+  async sendMessage(req: IHubSpotSendMessageRequest): Promise<IHubSpotSendMessageResult> {
+    const fileIds: string[] = []
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const uploaded = await this.uploadFile(file)
+        fileIds.push(uploaded.id)
+      }
+    }
+
+    const body: IHubSpotConversationsMessage = {
+      type: 'MESSAGE',
+    }
+    if (req.text) body.text = req.text
+    if (req.richText) body.richText = req.richText
+    if (fileIds.length > 0) {
+      body.attachments = fileIds.map((fileId) => ({ fileId }))
+    }
+    if (req.senderActorId) body.senderActorId = req.senderActorId
+    else if (this.defaultSenderActorId) body.senderActorId = this.defaultSenderActorId
+    if (req.channelId) body.channelId = req.channelId
+    if (req.channelAccountId) body.channelAccountId = req.channelAccountId
+
+    if (!body.text && !body.richText && (!body.attachments || body.attachments.length === 0)) {
+      throw new Error('HubSpot sendMessage requires at least text, richText or files')
+    }
+
+    const path = `/conversations/v3/conversations/threads/${encodeURIComponent(req.threadId)}/messages`
+    const response = await this.client.apiRequest({
+      method: 'POST',
+      path,
+      body: JSON.stringify(body),
+      headers: { 'Content-Type': 'application/json' },
+      defaultJson: false,
+    })
+
+    if (!response.ok) {
+      const errorBody = await response.text()
+      this.logger.error(
+        `HubSpot sendMessage failed for thread '${req.threadId}': ${response.status} ${errorBody}`,
+      )
+      throw new Error(`HubSpot sendMessage failed: ${response.status} ${errorBody}`)
+    }
+
+    const data = (await response.json()) as { id?: string }
+    if (!data.id) {
+      throw new Error('HubSpot sendMessage response did not include an id')
+    }
+
+    this.logger.trace(`HubSpot message sent to thread '${req.threadId}' as '${data.id}'`)
+    return { messageId: data.id }
+  }
+
+  private async uploadFile(file: IChatMessageFile): Promise<{ id: string }> {
+    const httpFile = await toHttpFile(file)
+    const form = new FormData()
+    const fileBytes = new Uint8Array(httpFile.data)
+    form.append('file', new Blob([fileBytes]), httpFile.name)
+    form.append('options', JSON.stringify({ access: 'PUBLIC_INDEXABLE', overwrite: false }))
+    form.append('folderPath', '/')
+    const response = await fetch(`${this.baseUrl}/files/v3/files`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${this.accessToken}` },
+      body: form,
+    })
+    if (!response.ok) {
+      const errorBody = await response.text()
+      this.logger.error(
+        `HubSpot file upload failed for '${httpFile.name}': ${response.status} ${errorBody}`,
+      )
+      throw new Error(`HubSpot file upload failed: ${response.status} ${errorBody}`)
+    }
+    const data = (await response.json()) as { id?: string }
+    if (!data.id) {
+      throw new Error('HubSpot file upload response did not include an id')
+    }
+    return { id: String(data.id) }
+  }
+}
+
+async function toHttpFile(file: IChatMessageFile): Promise<IHubSpotFile> {
+  const name = file.name ?? file.id
+  if (file.base64Url) {
+    const data = decodeBase64Url(file.base64Url)
+    return { data, name }
+  }
+  if (file.publicUrl) {
+    const res = await fetch(file.publicUrl)
+    if (!res.ok) {
+      throw new Error(`Failed to download file from publicUrl: ${res.status}`)
+    }
+    const arrayBuffer = await res.arrayBuffer()
+    return { data: Buffer.from(arrayBuffer), name }
+  }
+  throw new Error('IChatMessageFile has neither base64Url nor publicUrl')
+}
+
+function decodeBase64Url(dataUri: string): Buffer {
+  const commaIdx = dataUri.indexOf(',')
+  const payload = commaIdx >= 0 ? dataUri.slice(commaIdx + 1) : dataUri
+  return Buffer.from(payload, 'base64')
+}
