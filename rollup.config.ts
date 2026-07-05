@@ -101,4 +101,36 @@ const buildScriptConfig: RollupOptions = {
   },
 }
 
-export default [libConfig, buildScriptConfig]
+// The prod build script (dist/build/build.js) is a single inlined bundle, so the
+// `new URL('./preactClientRuntime' | './navRuntime', import.meta.url)` island
+// client-entry paths baked into it resolve next to build.js — i.e. dist/build/.
+// Emit standalone copies there so esbuild can bundle them into island client
+// code during `npm run build` of a consumer project. (dist/src copies from
+// libConfig serve the dev path, which resolves relative to dist/src modules.)
+const buildRuntimesConfig: RollupOptions = {
+  input: {
+    preactClientRuntime: 'src/addon/ui/preact/preactClientRuntime.ts',
+    navRuntime: 'src/feature/ui-controller/bundler/navRuntime.ts',
+  },
+  plugins: [
+    tsc({ declaration: false, declarationMap: false }),
+    alias(),
+    commonjs(),
+    nodeResolve({ preferBuiltins: true }),
+    json(),
+  ],
+  external: sharedExternal,
+  output: {
+    dir: 'dist/build',
+    format: 'es',
+    entryFileNames: '[name].js',
+  },
+  onwarn: function (warning, handler) {
+    if (warning.code === 'THIS_IS_UNDEFINED') {
+      return
+    }
+    handler(warning)
+  },
+}
+
+export default [libConfig, buildScriptConfig, buildRuntimesConfig]
