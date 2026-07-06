@@ -301,6 +301,16 @@ export class ProjectRunner {
       runChatAdapters(chatAdapters)
     }
 
+    // A @socket chat channel (started by runChatControllers below) creates the
+    // Socket.IO server. engine.io only delegates non-socket.io HTTP requests to
+    // Express when Express is already attached to the shared http server at the
+    // moment the Socket.IO server is created; otherwise both answer the same
+    // request and long-polling crashes with ERR_HTTP_HEADERS_SENT. Attach Express
+    // first whenever express-based controllers (UI/REST) are present.
+    if (components.uiControllers.length > 0 || components.restControllers.length > 0) {
+      container.resolve(ExpressProvider).getExpress()
+    }
+
     if (components.chatControllers.length > 0) {
       logger.info(`Starting ${components.chatControllers.length} chat controller(s)`)
       runChatControllers(components.chatControllers)
