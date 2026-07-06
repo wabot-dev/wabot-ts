@@ -53,6 +53,14 @@ const libConfig: RollupOptions = {
     // Referenced by a runtime path (not a static import) when the bundler
     // generates the nav entry, so it needs to be an explicit input to be emitted.
     'src/feature/ui-controller/bundler/navRuntime.ts',
+    // CSS module SSR loader: the `--import` entry and its hooks module (the hooks
+    // are referenced by a runtime `register()` string, so an explicit input).
+    'src/ui/cssModuleLoader.ts',
+    'src/ui/cssModuleHooks.ts',
+    // CSS module registry (public `./ui/css-runtime`, imported by generated CSS
+    // modules) and the shared compile transform.
+    'src/ui/cssRegistry.ts',
+    'src/ui/cssModuleCompile.ts',
   ],
   plugins: [
     tsc(),

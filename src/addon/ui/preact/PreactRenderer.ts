@@ -9,6 +9,7 @@ import type {
   UiRenderer,
 } from '@/feature/ui-controller'
 import { getIslandMeta, serializeProps } from '@/feature/ui-controller'
+import { collectModuleCss } from '@/ui/cssRegistry'
 import { OutletContext } from './outlet'
 
 /** Absolute path (no extension) to the browser hydration runtime, resolved by esbuild. */
@@ -80,7 +81,7 @@ export class PreactRenderer implements UiRenderer {
     currentCollector = collector
     try {
       const html = renderToString(tree)
-      return { html, islands: collector.islands, styles: [] }
+      return { html, islands: collector.islands, styles: [], moduleCss: collectModuleCss() }
     } finally {
       currentCollector = previous
     }

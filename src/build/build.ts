@@ -2,11 +2,32 @@ import { existsSync, realpathSync } from 'node:fs'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import * as esbuild from 'esbuild'
 import { scanProjectFiles } from '@/feature/project-runner/scanner'
 import { isIslandFile, toIslandId } from '@/feature/ui-controller/island/IslandRegistry'
 import { UiBundler } from '@/feature/ui-controller/bundler'
 import { PreactRenderer } from '@/addon/ui/preact'
+import { buildCssModuleSource } from '@/ui/cssModuleCompile'
 import { generateEntry, generateIslandsRegistration, generateManifest } from './manifest'
+
+/**
+ * esbuild plugin so the bundled server resolves `*.module.css` to its scoped
+ * class map (and registers its CSS) exactly like the SSR loader does in dev.
+ * Plain `*.css` is a no-op on the server (injected client-side via <link>).
+ */
+const cssModulesPlugin: esbuild.Plugin = {
+  name: 'wabot-css-modules',
+  setup(build) {
+    build.onLoad({ filter: /\.module\.css$/ }, async (args) => ({
+      contents: await buildCssModuleSource(args.path),
+      loader: 'js',
+    }))
+    build.onLoad({ filter: /\.css$/ }, async () => ({
+      contents: 'export default ""',
+      loader: 'js',
+    }))
+  },
+}
 
 export interface IBuildConfig {
   entry?: string
@@ -88,33 +109,38 @@ export async function runBuild(options: IBuildOptions = {}): Promise<void> {
     )
   }
 
-  let tsup: typeof import('tsup')
   try {
-    tsup = await import('tsup')
-  } catch {
-    throw new Error(
-      `tsup is not installed in the consumer project. Install it as a dev dependency: npm i -D tsup`,
-    )
-  }
-
-  try {
-    await tsup.build({
-      entry: [resolve(manifestDir, 'entry.ts')],
-      format: ['esm'],
-      outDir,
-      clean: true,
+    await rm(outDir, { recursive: true, force: true })
+    // Bundle the server with esbuild directly (not tsup): tsup ignores the JSX
+    // runtime config and forces classic `React.createElement` (→ "React is not
+    // defined" for views), and its CSS pipeline swallows `*.module.css`. esbuild
+    // gives us the automatic JSX runtime and lets the CSS-module plugin run.
+    await esbuild.build({
+      entryPoints: [resolve(manifestDir, 'entry.ts')],
+      outfile: resolve(outDir, 'entry.js'),
+      bundle: true,
+      format: 'esm',
+      platform: 'node',
+      target: 'node20',
       sourcemap,
       minify,
-      splitting: false,
-      bundle: true,
-      target: 'node20',
+      jsx: 'automatic',
+      jsxImportSource: 'preact',
       tsconfig: existsSync(resolve(cwd, 'tsconfig.json'))
         ? resolve(cwd, 'tsconfig.json')
         : undefined,
       external: config.external ?? ['pg'],
+      plugins: [cssModulesPlugin],
+      // ESM output: provide `require` so bundled CommonJS deps (e.g. `debug`,
+      // which does `require('tty')`) work instead of hitting esbuild's dynamic
+      // require shim.
+      banner: {
+        js: "import { createRequire as __wabotCreateRequire } from 'node:module'; const require = __wabotCreateRequire(import.meta.url);",
+      },
+      logLevel: 'warning',
     })
 
-    // Emit island client bundles after tsup (which cleans outDir first).
+    // Emit island client bundles.
     if (hasIslands) {
       const uiOut = resolve(outDir, 'ui')
       const bundler = new UiBundler({

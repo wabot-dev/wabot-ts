@@ -105,7 +105,13 @@ function baseBuildOptions(
     metafile: true,
     alias: opts.alias,
     sourcemap: opts.dev ? 'linked' : false,
-    minify: !opts.dev,
+    // Minify whitespace/syntax in prod but keep identifiers: esbuild's identifier
+    // minification also mangles CSS-module local class names, which must stay as
+    // the deterministic `<basename>_<local>` names the server renders (SSR) so the
+    // hydrated markup matches the stylesheet.
+    minifyWhitespace: !opts.dev,
+    minifySyntax: !opts.dev,
+    minifyIdentifiers: false,
     entryNames: '[name]',
     chunkNames: 'chunks/[name]-[hash]',
     assetNames: 'assets/[name]-[hash]',

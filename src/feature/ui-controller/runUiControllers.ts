@@ -180,6 +180,11 @@ export function registerUiControllers(
 
           const scripts = [...(assets.scripts ?? [])]
           let headHtml = assets.headHtml
+          // Inline the collected `*.module.css` so scoped class names (views and
+          // islands) are styled server-side, matching the hydrated markup.
+          if (rendered.moduleCss) {
+            headHtml = (headHtml ?? '') + `<style>${rendered.moduleCss}</style>`
+          }
           if (isApp && assets.navScript) {
             // `<` escaped so a route string can never break out of the inline script.
             const bootstrap = `<script>window.__wabotApp=${JSON.stringify({

@@ -1,6 +1,6 @@
 {
   "name": "@wabot-dev/framework",
-  "version": "2.0.0-beta.2",
+  "version": "2.0.0-beta.4",
   "description": "Framework for IA Chat Bots",
   "type": "module",
   "main": "dist/src/index.js",
@@ -30,6 +30,12 @@
     "./ui/jsx-dev-runtime": {
       "types": "./dist/src/ui/jsx-dev-runtime.d.ts",
       "import": "./dist/src/ui/jsx-dev-runtime.js"
+    },
+    "./ui/css-loader": {
+      "import": "./dist/src/ui/cssModuleLoader.js"
+    },
+    "./ui/css-runtime": {
+      "import": "./dist/src/ui/cssRegistry.js"
     }
   },
   "license": "MIT",
@@ -86,7 +92,8 @@
     "@rollup/plugin-json": "6.1.0",
     "@rollup/plugin-node-resolve": "16.0.1",
     "@rollup/plugin-typescript": "12.1.2",
-    "rollup": "^4.60.0"
+    "rollup": "^4.60.0",
+    "tsup": "^8.4.0"
   },
   "overrides": {
     "gaxios": {
@@ -128,7 +135,6 @@
     "socket.io-client": "^4.8.1",
     "tslib": "^2.8.1",
     "@hubspot/api-client": "^13.5.0",
-    "tsup": "^8.4.0",
     "tsyringe": "^4.9.1",
     "typescript": "^6.0.3",
     "uuid": "^14.0.0",
