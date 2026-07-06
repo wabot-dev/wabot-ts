@@ -364,6 +364,29 @@ export class ProjectRunner {
 
     logger.info(`Starting ${uiControllers.length} UI controller(s)`)
     runUiControllers(uiControllers, { pageAssets })
+
+    if (!this.preloaded) {
+      this.printUiDevUrl(uiControllers)
+    }
+  }
+
+  /** In dev, print a clickable link to the UI so it's one click away in the terminal. */
+  private printUiDevUrl(uiControllers: IConstructor<any>[]): void {
+    const store = container.resolve(UiControllerMetadataStore)
+    let path = ''
+    for (const controller of uiControllers) {
+      const views = store.getControllerViewsInfo(controller)
+      if (views.length > 0) {
+        const base = views[0].controller.path.replace(/^\/+|\/+$/g, '')
+        path = base ? `/${base}` : ''
+        break
+      }
+    }
+    const url = `http://localhost:${process.env.PORT || 3000}${path}`
+    // OSC 8 hyperlink when attached to a terminal; the raw URL otherwise (most
+    // terminals also linkify a bare URL).
+    const link = process.stdout.isTTY ? `\u001b]8;;${url}\u0007${url}\u001b]8;;\u0007` : url
+    console.log(`\n  →  Wabot UI running at  ${link}\n`)
   }
 
   private async setupDevUiAssets(

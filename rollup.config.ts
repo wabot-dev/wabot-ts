@@ -3,7 +3,16 @@ import commonjs from '@rollup/plugin-commonjs'
 import json from '@rollup/plugin-json'
 import { nodeResolve } from '@rollup/plugin-node-resolve'
 import tsc from '@rollup/plugin-typescript'
+import dts from 'rollup-plugin-dts'
+import { fileURLToPath } from 'node:url'
 import type { RollupOptions } from 'rollup'
+
+// Resolve the `@` / `@/*` tsconfig path alias to real files. The JS builds get
+// this from @rollup/plugin-typescript (tsconfig paths); rollup-plugin-dts needs
+// it spelled out so the emitted `.d.ts` inline internal types instead of leaking
+// unresolved `@/...` imports.
+const srcDir = fileURLToPath(new URL('./src', import.meta.url))
+const dtsAlias = alias({ entries: [{ find: '@', replacement: srcDir }] })
 
 const sharedExternal = [
   'class-transformer',
@@ -141,4 +150,24 @@ const buildRuntimesConfig: RollupOptions = {
   },
 }
 
-export default [libConfig, buildScriptConfig, buildRuntimesConfig]
+// Bundled `.d.ts` for each public entry (replaces `tsup --dts-only`). Emitted
+// alongside the JS into dist/src so the package's `exports` types fields resolve.
+const dtsConfig: RollupOptions = {
+  input: {
+    index: 'src/index.ts',
+    'testing/index': 'src/testing/index.ts',
+    'ui/index': 'src/ui/index.ts',
+    'ui/jsx-runtime': 'src/ui/jsx-runtime.ts',
+    'ui/jsx-dev-runtime': 'src/ui/jsx-dev-runtime.ts',
+  },
+  output: {
+    dir: 'dist/src',
+    format: 'es',
+    entryFileNames: '[name].d.ts',
+    chunkFileNames: '_dts/[name]-[hash].d.ts',
+  },
+  external: sharedExternal,
+  plugins: [dtsAlias, dts({ respectExternal: false })],
+}
+
+export default [libConfig, buildScriptConfig, buildRuntimesConfig, dtsConfig]
