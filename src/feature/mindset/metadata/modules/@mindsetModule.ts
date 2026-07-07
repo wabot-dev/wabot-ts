@@ -1,15 +1,10 @@
-import { container, injectable } from '@/core/injection'
 import { type IConstructor } from '@/core/generics'
-import { MindsetMetadataStore } from '../MindsetMetadataStore'
+import { tools } from '@/feature/tool'
 import { type IMindsetModuleConfig } from './IMindsetModuleConfig'
 
+/** @deprecated use `@tools` from `@/feature/tool`. Mindset modules are now tools. */
 export function mindsetModule<A>(config?: IMindsetModuleConfig) {
   return function (target: IConstructor<A>) {
-    const store = container.resolve(MindsetMetadataStore)
-    store.saveModuleMetadata({
-      constructor: target,
-      config: config,
-    })
-    injectable()(target)
+    tools<A>(config)(target)
   }
 }

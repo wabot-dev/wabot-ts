@@ -1,8 +1,4 @@
-import { IMindsetToolParameter } from './IMindsetToolParameter'
+import type { IToolSchema } from '@/feature/tool/IToolSchema'
 
-export interface IMindsetTool {
-  language: string
-  name: string
-  description: string
-  parameters: IMindsetToolParameter[]
-}
+/** @deprecated use {@link IToolSchema} from `@/feature/tool`. */
+export type IMindsetTool = IToolSchema
