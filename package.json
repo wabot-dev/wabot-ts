@@ -30,6 +30,10 @@
     "./ui/jsx-dev-runtime": {
       "types": "./dist/src/ui/jsx-dev-runtime.d.ts",
       "import": "./dist/src/ui/jsx-dev-runtime.js"
+    },
+    "./monitor": {
+      "types": "./dist/src/addon/monitor/index.d.ts",
+      "import": "./dist/src/addon/monitor/index.js"
     }
   },
   "license": "MIT",
@@ -72,7 +76,7 @@
     "LICENSE.md"
   ],
   "scripts": {
-    "build": "rollup --config rollup.config.ts --configPlugin typescript && tsup --dts-only --format esm --out-dir dist/src src/index.ts && tsup --dts-only --format esm --out-dir dist/src/testing src/testing/index.ts && tsup --dts-only --format esm --out-dir dist/src/ui src/ui/index.ts && tsup --dts-only --format esm --out-dir dist/src/ui src/ui/jsx-runtime.ts && tsup --dts-only --format esm --out-dir dist/src/ui src/ui/jsx-dev-runtime.ts",
+    "build": "rollup --config rollup.config.ts --configPlugin typescript && tsup --dts-only --format esm --out-dir dist/src src/index.ts && tsup --dts-only --format esm --out-dir dist/src/testing src/testing/index.ts && tsup --dts-only --format esm --out-dir dist/src/ui src/ui/index.ts && tsup --dts-only --format esm --out-dir dist/src/ui src/ui/jsx-runtime.ts && tsup --dts-only --format esm --out-dir dist/src/ui src/ui/jsx-dev-runtime.ts && tsup --dts-only --format esm --out-dir dist/src/addon/monitor src/addon/monitor/index.ts",
     "test:units": "node --import @yucacodes/ts  --test './src/**/*.unit.test.ts'",
     "test:integration": "node --import @yucacodes/ts --import ./env.mjs  --test './src/**/*.integration.test.ts'",
     "test:multiprocess": "node --import @yucacodes/ts --import ./env.mjs  --test './src/**/*.multiprocess.test.ts'",
