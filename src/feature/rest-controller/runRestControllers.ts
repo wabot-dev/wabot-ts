@@ -53,7 +53,7 @@ export function registerRestControllers(
         const requestContainer = baseContainer.createChildContainer()
         requestContainer.register(Container, { useValue: requestContainer })
         requestContainer.register(EXPRESS_REQ, { useValue: req })
-        requestContainer.register(EXPRESS_RES, { useValue: req })
+        requestContainer.register(EXPRESS_RES, { useValue: res })
         try {
           const middlewares = endPoint.middlewares.map((x) =>
             requestContainer.resolve(x.middlewareConstructor),
