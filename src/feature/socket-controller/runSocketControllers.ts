@@ -7,10 +7,22 @@ import { Socket } from 'socket.io'
 import { SocketServerProvider } from '../socket'
 import { ISocketEventMetadata, SocketControllerMetadataStore } from './metadata'
 
-export function runSocketControllers(controllers: IConstructor<any>[]) {
+export interface IRunSocketControllersOptions {
+  /** Container used to resolve controllers and create per-connection scopes. */
+  baseContainer?: DependencyContainer
+  /** Socket.IO server provider to use (defaults to the resolved singleton). */
+  socketServerProvider?: SocketServerProvider
+}
+
+export function runSocketControllers(
+  controllers: IConstructor<any>[],
+  options: IRunSocketControllersOptions = {},
+) {
+  const baseContainer = options.baseContainer ?? container
   const logger = new Logger('wabot:socket')
-  const metadataStore = container.resolve(SocketControllerMetadataStore)
-  const socketServerProvider = container.resolve(SocketServerProvider)
+  const metadataStore = baseContainer.resolve(SocketControllerMetadataStore)
+  const socketServerProvider =
+    options.socketServerProvider ?? baseContainer.resolve(SocketServerProvider)
   const socketServer = socketServerProvider.getSocketServer()
 
   controllers.forEach((controller) => {
@@ -23,7 +35,7 @@ export function runSocketControllers(controllers: IConstructor<any>[]) {
     const namespaceServer = socketServer.of(namespace)
 
     namespaceServer.use(async (socket, next) => {
-      const connectionContainer = container.createChildContainer()
+      const connectionContainer = baseContainer.createChildContainer()
       connectionContainer.register(Container, { useValue: connectionContainer })
       try {
         const middlewares =
@@ -60,8 +72,13 @@ export function runSocketControllers(controllers: IConstructor<any>[]) {
             message: 'the socket event handler should have max 2 parameters: (req, socket)',
           })
         }
-        if (event.paramsTypes[0] !== Socket) {
-          const reqType = event.paramsTypes[0]
+        // Detect the injected Socket param by identity OR class name: a consumer
+        // may resolve a different `socket.io` copy (duplicate install / peer dep),
+        // so its `Socket` class is not `===` ours even though it is a socket.
+        const firstType = event.paramsTypes[0]
+        const firstIsSocket = firstType === Socket || firstType?.name === 'Socket'
+        if (!firstIsSocket) {
+          const reqType = firstType
           if (typeof reqType !== 'function') {
             throw new CustomError({
               httpCode: 400,
@@ -113,9 +130,14 @@ export function runSocketControllers(controllers: IConstructor<any>[]) {
           controllerInfo.controller.controllerConstructor,
         )
 
+        // The events map is keyed by method name, so look the connection
+        // handler up by its configured event name (not `events.get('connection')`,
+        // which only matched when the method itself was named `connection`).
+        let connectionEvent: ISocketEventMetadata | undefined
         controllerInfo.events.forEach((event) => {
           logger.trace(`config listener to '${event.config.event}' event on '${namespace}'`)
           if (event.config.event === 'connection') {
+            connectionEvent = event
             return
           }
           socket.on(event.config.event, async (req, callback) => {
@@ -123,7 +145,6 @@ export function runSocketControllers(controllers: IConstructor<any>[]) {
           })
         })
 
-        const connectionEvent = controllerInfo.events.get('connection')
         if (connectionEvent) {
           await eventListener(controllerInstance, socket, connectionEvent, null, null)
         }
