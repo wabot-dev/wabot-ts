@@ -1,6 +1,6 @@
 ---
 name: wabot-mindset
-description: Use when defining a Wabot bot's personality, tool functions, language/model configuration, or chat-scope state. Covers @mindset, @mindsetModule, the IMindset interface (context / identity / skills / limits / workflow / models), IMindsetModels and the model kinds (llm, visionLlm, audioLlm, speechToText, textToSpeech, imageGen, embedding), tool functions exposed via @description, request validation, and ChatOperator for per-chat associations.
+description: Use when defining a Wabot bot's personality, tool functions, language/model configuration, or chat-scope state. Covers @mindset, @tools (formerly @mindsetModule), the IMindset interface (context / identity / skills / limits / workflow / models), IMindsetModels and the model kinds (llm, visionLlm, audioLlm, speechToText, textToSpeech, imageGen, embedding), tool functions exposed via @description, request validation, and ChatOperator for per-chat associations. For dev-facing agents that reuse the same tools, see wabot-agents.
 ---
 
 # Mindset
@@ -73,11 +73,13 @@ Fallback rules:
 
 ## Modules — tool functions
 
-A module is a class decorated with `@mindsetModule()`. Every method decorated with `@description(...)` becomes an LLM tool. Each tool function takes zero or one parameter; if it takes one, it must be a class with validators on every property (see `wabot-validation`).
+A module is a class decorated with `@tools()`. Every method decorated with `@description(...)` becomes an LLM tool. Each tool function takes zero or one parameter; if it takes one, it must be a class with validators on every property (see `wabot-validation`).
+
+> `@mindsetModule` is now a **deprecated alias** of `@tools` — existing modules keep working, but prefer `@tools` in new code. The mindset's config key is still `modules`. The same `@tools` class can be reused by a dev-facing agent (`wabot-agents`).
 
 ```typescript
 import {
-  description, isIn, isNotEmpty, isNumber, isString, max, min, mindsetModule,
+  description, isIn, isNotEmpty, isNumber, isString, max, min, tools,
 } from '@wabot-dev/framework'
 
 export class AddGameRequest {
@@ -87,7 +89,7 @@ export class AddGameRequest {
   title!: string
 }
 
-@mindsetModule({ language: 'english' })
+@tools({ language: 'english' })
 export class BacklogModule {
   constructor(private games: GameRepository) {}
 
@@ -112,7 +114,7 @@ Return types:
 - `Response` objects → status + parsed body included.
 - Thrown errors → captured and turned into an error string the LLM can read; the bot keeps running.
 
-`@mindsetModule({ language })` only affects how the language is announced to the LLM next to the tool. There is no `name` or `description` on this config — the framework does **not** accept those.
+`@tools({ language })` only affects how the language is announced to the LLM next to the tool. The config also accepts `exposeToMindsets?` (default `true`; set `false` for agent-only tools — see `wabot-agents`). There is no `name` or `description` on this config — the framework does **not** accept those.
 
 ## Chat-scoped state — `ChatOperator`
 
@@ -121,7 +123,7 @@ Inside any service resolved within a chat handler (mindsets, modules) you can in
 ```typescript
 import { ChatOperator } from '@wabot-dev/framework'
 
-@mindsetModule({ language: 'english' })
+@tools({ language: 'english' })
 export class LanguageModule {
   constructor(private chat: ChatOperator) {}
 
