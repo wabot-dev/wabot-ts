@@ -29,6 +29,7 @@ export class TestJwt {
     config.secretOrPrivateKey = options.secret ?? 'wabot-test-jwt-secret'
     config.accessExpirationSeconds = options.accessExpirationSeconds ?? 10 * 60
     config.refreshExpirationSeconds = 365 * 24 * 3600
+    config.cookieName = 'wabot_jwt'
     this.config = config
   }
 

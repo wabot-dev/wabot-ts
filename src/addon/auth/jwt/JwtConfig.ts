@@ -10,6 +10,9 @@ export class JwtConfig {
   accessExpirationSeconds: number
   refreshExpirationSeconds: number
 
+  /** Cookie name `@jwtGuard` reads the token from (fallback to the Authorization header). */
+  cookieName: string
+
   constructor(env: Env) {
     this.algorithm = env.requireString('JWT_ALGORITHM', { default: 'HS256' }) as Algorithm
     this.secretOrPublicKey = env.requireString('JWT_SECRET')
@@ -20,5 +23,6 @@ export class JwtConfig {
     this.refreshExpirationSeconds = env.requireNumber('JWT_REFRESH_EXPIRATION_SECONDS', {
       default: 365 * 24 * 3600,
     })
+    this.cookieName = env.requireString('JWT_COOKIE_NAME', { default: 'wabot_jwt' })
   }
 }

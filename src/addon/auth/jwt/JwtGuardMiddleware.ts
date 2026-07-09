@@ -1,6 +1,6 @@
 import { CustomError } from '@/core/error'
 import { DependencyContainer, injectable } from '@/core/injection'
-import { IMiddleware } from '@/feature/rest-controller'
+import { Cookies, IMiddleware } from '@/feature/rest-controller'
 import { Request, Response } from 'express'
 import jwt from 'jsonwebtoken'
 
@@ -15,22 +15,9 @@ export class JwtGuardMiddleware implements IMiddleware {
   ) {}
 
   async handle(req: Request, res: Response, container: DependencyContainer) {
-    const authorization = req.header('Authorization')
-    if (!authorization) {
-      throw new CustomError({ httpCode: 401, message: 'Authorization header not available' })
-    }
-
-    const parts = authorization.split(' ')
-    if (parts.length !== 2) {
-      throw new CustomError({
-        httpCode: 401,
-        message: 'Authorization header must be: Bearer <token>',
-      })
-    }
-
-    const [bearer, token] = parts
-    if (bearer.toLowerCase() !== 'bearer') {
-      throw new CustomError({ httpCode: 401, message: 'Authorization should be a bearer token' })
+    const token = this.tokenFromHeader(req) ?? container.resolve(Cookies).get(this.config.cookieName)
+    if (!token) {
+      throw new CustomError({ httpCode: 401, message: 'Missing authentication token' })
     }
 
     try {
@@ -45,5 +32,21 @@ export class JwtGuardMiddleware implements IMiddleware {
         cause: err instanceof Error ? err : undefined,
       })
     }
+  }
+
+  /** `Authorization: Bearer <token>`. Throws only if the header is present but malformed. */
+  private tokenFromHeader(req: Request): string | undefined {
+    const authorization = req.header('Authorization')
+    if (!authorization) {
+      return undefined
+    }
+    const parts = authorization.split(' ')
+    if (parts.length !== 2 || parts[0].toLowerCase() !== 'bearer') {
+      throw new CustomError({
+        httpCode: 401,
+        message: 'Authorization header must be: Bearer <token>',
+      })
+    }
+    return parts[1]
   }
 }
