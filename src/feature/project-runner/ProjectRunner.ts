@@ -19,6 +19,7 @@ import {
 } from '@/feature/async'
 import { runSocketControllers } from '@/feature/socket-controller'
 import { ExpressProvider } from '@/feature/express'
+import { HttpServerProvider } from '@/feature/http'
 import {
   runUiControllers,
   UiRendererRegistry,
@@ -301,6 +302,11 @@ export class ProjectRunner {
       runChatAdapters(chatAdapters)
     }
 
+    // Register everything (routes + Socket.IO namespaces) before the port opens,
+    // so a client can never connect to a namespace that is not registered yet.
+    const httpServerProvider = container.resolve(HttpServerProvider)
+    httpServerProvider.deferListen()
+
     // A @socket chat channel (started by runChatControllers below) creates the
     // Socket.IO server. engine.io only delegates non-socket.io HTTP requests to
     // Express when Express is already attached to the shared http server at the
@@ -339,6 +345,9 @@ export class ProjectRunner {
       logger.info(`Starting ${components.socketControllers.length} socket controller(s)`)
       runSocketControllers(components.socketControllers)
     }
+
+    // All routes and namespaces are registered — now open the port.
+    httpServerProvider.releaseListen()
   }
 
   private async startUiControllers(
