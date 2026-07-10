@@ -1,5 +1,7 @@
 export * from './metadata'
+export * from './AudioGateway'
 export * from './ChatResolver'
+export * from './resolveAudioGateway'
 export * from './IChannelMessage'
 export * from './IChatChannel'
 export * from './IMessageContext'
