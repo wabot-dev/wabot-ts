@@ -15,6 +15,11 @@ const srcDir = fileURLToPath(new URL('./src', import.meta.url))
 const dtsAlias = alias({ entries: [{ find: '@', replacement: srcDir }] })
 
 const sharedExternal = [
+  // Node built-ins are always external (they can't be bundled). Declaring them
+  // silences "Unresolved dependencies" — notably in the dts build, which has no
+  // node-resolve plugin, when a builtin type leaks into a public signature
+  // (e.g. http.Server, AsyncLocalStorage).
+  /^node:/,
   'class-transformer',
   'class-validator',
   'tslib',
