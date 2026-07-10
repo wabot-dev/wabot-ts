@@ -1,6 +1,6 @@
 ---
 name: wabot-ui
-description: Use when building server-rendered web pages, forms, or interactive UI from a Wabot app. Covers @uiController, @view, @action, @uiMiddleware, the one validated-DTO handler arg, redirect(), islands (island() in *.island.tsx, callAction/actionUrl), signals vs hooks, boosted navigation (app: true) with layout/<Outlet/> and swr, head resource hints, CSS modules, the tsconfig JSX setup, and custom UiRenderer. Argument validation is shared with wabot-validation.
+description: Use when building server-rendered web pages, forms, or interactive UI from a Wabot app. Covers @uiController, @view, @action, @uiMiddleware, the one validated-DTO handler arg, redirect(), islands (island() in *.island.tsx, callAction/actionUrl), signals vs hooks, boosted navigation (app: true) with layout/<Outlet/> and swr, static generation (SSG) via @view({ static }) + StaticPageCache, head resource hints, CSS modules, the tsconfig JSX setup, and custom UiRenderer. Argument validation is shared with wabot-validation.
 ---
 
 # UI controllers
@@ -69,7 +69,7 @@ export class BoardController {
 ```
 
 - **`@uiController(path | { path, middlewares?, app?, layout?, head? })`** — `path` is the base every view/action mounts under.
-- **`@view(subpath | { path?, title?, meta?, swr? })`** → `GET <controllerPath>/<path>`. Returns a JSX node (SSR'd) or `redirect(...)`. `title`/`meta` fill the document `<head>`.
+- **`@view(subpath | { path?, title?, meta?, static?, swr? })`** → `GET <controllerPath>/<path>`. Returns a JSX node (SSR'd) or `redirect(...)`. `title`/`meta` fill the document `<head>`. `static` serves the route as a cached statically generated page (see below).
 - **`@action(subpath | { path? })`** → `POST <controllerPath>/_action/<path>` (path defaults to the method name). Returns a JSON-serializable value (circular refs stripped) or `redirect(...)`.
 - **Handler args:** at most **one** parameter — a class the framework validates exactly like a rest-controller request DTO (see `wabot-validation`). The request object is `body`, `query`, and route `params` merged. Omit the parameter for handlers that need no input.
 - **`redirect(location, status = 302)`** — return it from a view or action to send an HTTP redirect instead of rendering.
@@ -172,6 +172,25 @@ export class PanelController {
 - **`layout: Component`** — a persistent shell rendered once around every view; it renders `<Outlet/>` where the current view goes. During boosted nav only the outlet swaps, so the shell and its islands keep their state. Full loads render inside the layout; boosted-nav fragments render just the view.
 - **`swr: { maxAge?, version? }`** on `@view` tunes the boosted-nav cache. `maxAge` (seconds) serves a revisit from cache without revalidating. `version(request)` returns a short deterministic string; boosted-nav revalidation answers `304` from it *without running the handler or SSR*. Parameterized `app` views should declare `swr.version` keyed off their route params.
 - **`head: { preconnect?, preload? }`** on `@uiController` emits `<link rel="preconnect|preload">` hints on full loads (the natural home for app-wide fonts — the head persists across boosted nav).
+
+## Static generation (SSG)
+
+Mark a **public, stateless** view `static` to render it once and serve the cached HTML for every request — no per-request handler or SSR. Islands in a static page still hydrate and run on the client.
+
+```tsx
+@uiController({ path: '/' })
+export class LandingController {
+  @view({ title: 'Home', static: { revalidate: 300 } })
+  async index() { return <Landing services={await this.catalog.list()} /> }
+}
+```
+
+- **`static: true`** — generated once (non-parameterized routes are pre-rendered at startup) and kept until restart.
+- **`static: { revalidate: N }`** — ISR: serve the cached page; once older than `N` seconds the next request gets it *while a fresh copy regenerates in the background* (stale-while-revalidate).
+- Parameterized routes (`/x/:id`) are generated lazily on first request and cached per URL.
+- Responses carry a strong `ETag` (→ `304` on `If-None-Match`) and a `Cache-Control` matching `revalidate`.
+- **Middleware/guards are skipped** for a static view (the cached document is shared across all visitors) — never mark an authenticated route static.
+- Invalidate on demand by injecting **`StaticPageCache`**: `this.pages.invalidate('/x/42')` (or `invalidateAll()`) after the underlying data changes; the next request re-renders. `await pages.ready()` resolves once the startup pre-render settles (handy when data is seeded *after* boot — then `invalidate(path)`).
 
 ## Styling
 
