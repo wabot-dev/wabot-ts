@@ -1,6 +1,6 @@
 ---
 name: wabot-mindset
-description: Use when defining a Wabot bot's personality, tool functions, language/model configuration, or chat-scope state. Covers @mindset, @tools (formerly @mindsetModule), the IMindset interface (describe() → IMindsetDescription with identity + context/skills/limits/workflow, and models()), IMindsetModels and the model kinds (llm, visionLlm, audioLlm, speechToText, textToSpeech, imageGen, embedding), tool functions exposed via @description, agents the mindset can call autonomously via @mindset({ agents }) with per-agent allow/deny tool gating, request validation, and ChatOperator for per-chat associations. For dev-facing agents that reuse the same tools, see wabot-agents.
+description: Use when defining a Wabot bot's personality, tool functions, language/model configuration, or chat-scope state. Covers @mindset, @tools (formerly @mindsetModule), the IMindset interface (describe() → IMindsetDescription with identity + context/skills/limits/workflow, and models()), caching describe()/models() via @mindset({ cache }) + MindsetCache, IMindsetModels and the model kinds (llm, visionLlm, audioLlm, speechToText, textToSpeech, imageGen, embedding), tool functions exposed via @description, agents the mindset can call autonomously via @mindset({ agents }) with per-agent allow/deny tool gating, request validation, and ChatOperator for per-chat associations. For dev-facing agents that reuse the same tools, see wabot-agents.
 ---
 
 # Mindset
@@ -50,6 +50,17 @@ export class PixelMindset implements IMindset {
 `IMindsetIdentity` (the `identity` field) has exactly: `name`, `language`, `personality?`, `emotions?`. There is no `age`, no `tone`, no `style`.
 
 `@mindset()` applies `@injectable()` for you. Do not stack `@singleton()`.
+
+### Caching `describe()` / `models()`
+
+By default `describe()` + `models()` run once per message (memoized across a message's model round-trips) and recompute for the next message. If the persona is **static** (does not read per-chat state), add `cache` so they run **once per mindset class**, shared across all chats/messages:
+
+```typescript
+@mindset({ tools: [...], cache: true })              // until restart
+@mindset({ tools: [...], cache: { revalidate: 300 } }) // recompute after 300s
+```
+
+Invalidate on demand with the injectable **`MindsetCache`**: `mindsets.invalidate(PixelMindset)` / `mindsets.invalidateAll()`. Do **not** cache a mindset whose `describe()` reads per-chat state (`ChatOperator`) — the cache is per class, so it would leak across chats.
 
 ## Models
 
@@ -171,7 +182,7 @@ You don't write the system prompt by hand — `MindsetOperator.systemPrompt()` a
 
 - Implement the two methods `describe()` and `models()` — the old per-section methods (`context`/`identity`/`skills`/`limits`/`workflow`) and `llms()` were removed.
 - Every tool function: at most one parameter, every field of that parameter has a type validator AND `@description`.
-- Don't put business logic in the `describe()` fields — they're *strings*. Push logic into tools or services.
+- Don't put business logic in the `describe()` fields — they're *strings*. Push logic into tools or services. If `describe()` reads per-chat state, do **not** set `cache`.
 - Don't decorate the mindset class with `@singleton()` — mindsets are chat-scoped and the runner builds one per chat.
 - Refer to validators and `@description` rules in `wabot-validation`.
 

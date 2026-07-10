@@ -8,7 +8,12 @@ import {
 } from './IMindset'
 
 import { MindsetMetadataStore } from './metadata/MindsetMetadataStore'
-import { mindsetToolClasses } from './metadata/mindsets/IMindsetConfig'
+import {
+  IMindsetCacheConfig,
+  mindsetToolClasses,
+  normalizeMindsetCache,
+} from './metadata/mindsets/IMindsetConfig'
+import { ILoadedMindset, MindsetCache } from './MindsetCache'
 import { DescriptionMetadataStore } from '@/core/description'
 import { IToolSchema, ToolInvoker, ToolMetadataStore } from '@/feature/tool'
 import {
@@ -28,6 +33,9 @@ export class MindsetOperator {
   private toolInvoker: ToolInvoker
   /** Agents this mindset may call autonomously, exposed as tools (if any). */
   private agentToolset?: IMindsetAgentTools
+  private cacheConfig?: IMindsetCacheConfig
+  /** Per-operator memo: one `describe()`+`models()` per message, across round-trips. */
+  private loaded?: Promise<ILoadedMindset>
 
   constructor(
     private mindset: Mindset,
@@ -35,8 +43,10 @@ export class MindsetOperator {
     metadataStore: MindsetMetadataStore,
     toolMetadataStore: ToolMetadataStore,
     descriptionStore: DescriptionMetadataStore,
+    private cache: MindsetCache,
   ) {
     this.metadata = metadataStore.getMindsetInfo(this.mindset.constructor as any)
+    this.cacheConfig = normalizeMindsetCache(this.metadata.config?.cache)
     this.toolInvoker = new ToolInvoker(
       mindsetToolClasses(this.metadata.config),
       container,
@@ -55,12 +65,44 @@ export class MindsetOperator {
     }
   }
 
+  /**
+   * Load the mindset's persona + models. Memoized per operator (so a message's
+   * many model round-trips run `describe()`/`models()` once), and — when the
+   * mindset opts in via `@mindset({ cache })` — reused process-globally per
+   * mindset class through {@link MindsetCache}, honoring `revalidate`.
+   */
+  private load(): Promise<ILoadedMindset> {
+    if (this.loaded) return this.loaded
+    this.loaded = this.doLoad()
+    return this.loaded
+  }
+
+  private async doLoad(): Promise<ILoadedMindset> {
+    const cls = this.mindset.constructor
+    if (this.cacheConfig) {
+      const cached = this.cache.get(cls)
+      if (cached && !this.isStale(cached)) return cached
+    }
+    const [description, models] = await Promise.all([
+      this.mindset.describe(),
+      this.mindset.models(),
+    ])
+    const loaded: ILoadedMindset = { description, models, generatedAt: Date.now() }
+    if (this.cacheConfig) this.cache.set(cls, loaded)
+    return loaded
+  }
+
+  private isStale(loaded: ILoadedMindset): boolean {
+    const ttl = this.cacheConfig?.revalidate
+    return ttl != null && Date.now() - loaded.generatedAt >= ttl * 1000
+  }
+
   async identity(): Promise<IMindsetIdentity> {
-    return (await this.mindset.describe()).identity
+    return (await this.load()).description.identity
   }
 
   async models(): Promise<IMindsetModels> {
-    return this.mindset.models()
+    return (await this.load()).models
   }
 
   async resolveModels(kind: IMindsetModelKind): Promise<IMindsetModelRef[]> {
@@ -76,7 +118,7 @@ export class MindsetOperator {
   }
 
   async systemPrompt(): Promise<string> {
-    const description = await this.mindset.describe()
+    const description = (await this.load()).description
     let { context, skills, limits, workflow } = description
     const identity = description.identity
 

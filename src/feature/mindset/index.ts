@@ -1,5 +1,6 @@
 export * from './metadata'
 export * from './IMindset'
+export * from './MindsetCache'
 export * from './MindsetOperator'
 export * from './IMindsetTool'
 export * from './IMindsetToolParameter'

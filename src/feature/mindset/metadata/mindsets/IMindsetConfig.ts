@@ -18,6 +18,31 @@ export interface IMindsetConfig {
    * gate which of the agent's tools are reachable (`allow`/`deny`).
    */
   agents?: IMindsetAgentBinding[]
+  /**
+   * Cache the mindset's `describe()` + `models()` so they are computed **once per
+   * mindset class** and reused across every chat and message, instead of on every
+   * model round-trip. Opt-in — only enable it when the persona is static (does
+   * NOT read per-chat state such as `ChatOperator`).
+   *
+   * - `true` — cached for the process lifetime (until restart or manual invalidation).
+   * - `{ revalidate: N }` — cached, then recomputed on the next use after N seconds.
+   *
+   * Invalidate on demand with the injectable `MindsetCache`.
+   */
+  cache?: boolean | IMindsetCacheConfig
+}
+
+export interface IMindsetCacheConfig {
+  /** Seconds before a cached description is recomputed on next use. Omit = never expire. */
+  revalidate?: number
+}
+
+/** Normalize `@mindset({ cache })` into `undefined` (no cache) or a config object. */
+export function normalizeMindsetCache(
+  cache: IMindsetConfig['cache'],
+): IMindsetCacheConfig | undefined {
+  if (!cache) return undefined
+  return cache === true ? {} : cache
 }
 
 /**
