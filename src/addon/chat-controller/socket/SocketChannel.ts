@@ -1,6 +1,6 @@
 import { IConstructor } from '@/core/generics'
 import { injectable } from '@/core/injection'
-import { type IChatChannel } from '@/feature/chat-controller'
+import { AudioGateway, type IChatChannel, resolveAudioGateway } from '@/feature/chat-controller'
 import { ISocketChannelMessage } from './ISocketChannelMessage'
 import { socketChannelName } from './socketChannelName'
 import {
@@ -13,7 +13,13 @@ import { Socket } from 'socket.io'
 import { SocketChannelConfig } from './SocketChannelConfig'
 import { isArray, isModel, isNotEmpty, isOptional, isRecord, isString } from '@/core/validation'
 import { Auth } from '@/core/auth'
-import type { IChatMessageDocument, IChatMessageImage } from '@/feature/chat-bot'
+import { isChatMessageEmpty } from '@/feature/chat-bot'
+import type {
+  IChatMessage,
+  IChatMessageAudio,
+  IChatMessageDocument,
+  IChatMessageImage,
+} from '@/feature/chat-bot'
 
 export class SocketChannelMessageFile {
   @isString()
@@ -47,6 +53,7 @@ export interface ISocketChannelReceivedMessage {
   metadata?: Record<string, string>
   images?: SocketChannelMessageFile[]
   documents?: SocketChannelMessageFile[]
+  audios?: SocketChannelMessageFile[]
 }
 
 export class SocketChannelReceivedMessage implements ISocketChannelReceivedMessage {
@@ -76,6 +83,11 @@ export class SocketChannelReceivedMessage implements ISocketChannelReceivedMessa
   @isModel(SocketChannelMessageFile)
   @isOptional()
   documents?: SocketChannelMessageFile[]
+
+  @isArray()
+  @isModel(SocketChannelMessageFile)
+  @isOptional()
+  audios?: SocketChannelMessageFile[]
 }
 
 function toChatFile(
@@ -106,6 +118,7 @@ export class SocketChannel implements IChatChannel {
 
   private callBack: ((message: ISocketChannelMessage) => Promise<void>) | null = null
   private controller: IConstructor<any> | null = null
+  private audio: AudioGateway | null = resolveAudioGateway()
 
   constructor(private config: SocketChannelConfig) {
     this.configController()
@@ -133,19 +146,46 @@ export class SocketChannel implements IChatChannel {
         const documents = message.documents
           ?.map(toChatFile)
           .filter((x): x is IChatMessageDocument => !!x)
+        const audios = message.audios?.map(toChatFile).filter((x): x is IChatMessageAudio => !!x)
+
+        // Transcribe an incoming voice message at the boundary. Without a
+        // configured audio model the audio is ignored (never analyzed).
+        let text = message.text?.trim() || undefined
+        let inboundWasAudio = false
+        if (audios && audios.length > 0 && !text && channel.audio?.canTranscribe) {
+          const transcript = await channel.audio.transcribe(audios[0])
+          if (transcript) {
+            text = transcript
+            inboundWasAudio = true
+          }
+        }
+
+        const chatMessage: IChatMessage = {
+          text,
+          senderName: message.senderName,
+          metadata: message.metadata,
+          images: images && images.length > 0 ? images : undefined,
+          documents: documents && documents.length > 0 ? documents : undefined,
+          audios: audios && audios.length > 0 ? audios : undefined,
+        }
+
+        if (isChatMessageEmpty(chatMessage)) return
 
         await channel.callBack({
           channel: socketChannelName,
           chatConnection,
-          message: {
-            text: message.text,
-            senderName: message.senderName,
-            metadata: message.metadata,
-            images: images && images.length > 0 ? images : undefined,
-            documents: documents && documents.length > 0 ? documents : undefined,
-          },
-          reply: async (message) => {
-            socket.emit('message', message)
+          message: chatMessage,
+          reply: async (replyMessage: IChatMessage) => {
+            let out = replyMessage
+            if (
+              !(replyMessage.audios && replyMessage.audios.length > 0) &&
+              replyMessage.text &&
+              channel.audio?.shouldReplyWithVoice(inboundWasAudio)
+            ) {
+              const audio = await channel.audio.synthesize(replyMessage.text)
+              if (audio) out = { ...replyMessage, audios: [audio] }
+            }
+            socket.emit('message', out)
           },
           injectInstances: [
             [Socket, socket],

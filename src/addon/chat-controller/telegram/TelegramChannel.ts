@@ -1,16 +1,18 @@
-import { Api, Bot } from 'grammy'
+import { Api, Bot, Context, InputFile } from 'grammy'
 import type { Message } from 'grammy/types'
 
 import { TelegramChannelConfig } from './TelegramChannelConfig'
 import { injectable } from '@/core/injection'
 import { Logger } from '@/core/logger'
-import { IChatChannel } from '@/feature/chat-controller'
+import { AudioGateway, IChatChannel, resolveAudioGateway } from '@/feature/chat-controller'
 import {
   IChatConnection,
   IChatMessage,
+  IChatMessageAudio,
   IChatMessageDocument,
   IChatMessageFile,
   IChatMessageImage,
+  isChatMessageEmpty,
 } from '@/feature/chat-bot'
 import { ITelegramChannelMessage } from './ITelegramChannelMessage'
 import { markdownToTelegramHtml } from './markdownToTelegramHtml'
@@ -22,6 +24,7 @@ export class TelegramChannel implements IChatChannel {
 
   private bot: Bot
   private logger = new Logger('wabot:telegram-channel')
+  private audio: AudioGateway | null = resolveAudioGateway()
 
   constructor(private config: TelegramChannelConfig) {
     this.bot = new Bot(this.config.botToken)
@@ -39,23 +42,45 @@ export class TelegramChannel implements IChatChannel {
         channelName: TelegramChannel.channelName,
       }
 
-      const { images, documents } = await this.extractMedia(ctx.api, ctx.message)
+      const { images, documents, audios } = await this.extractMedia(ctx.api, ctx.message)
+
+      // Transcribe an incoming voice note into text at the boundary. Without a
+      // configured audio model the voice note is ignored (never analyzed).
+      let text = ctx.message.text ?? ctx.message.caption
+      let inboundWasAudio = false
+      if (audios.length > 0 && !text && this.audio?.canTranscribe) {
+        const transcript = await this.audio.transcribe(audios[0])
+        if (transcript) {
+          text = transcript
+          inboundWasAudio = true
+        }
+      }
+
+      const message: IChatMessage = {
+        senderId: ctx.from.id.toString(),
+        senderName: ctx.from.first_name,
+        text,
+        images: images.length > 0 ? images : undefined,
+        documents: documents.length > 0 ? documents : undefined,
+        audios: audios.length > 0 ? audios : undefined,
+      }
+
+      if (isChatMessageEmpty(message)) {
+        return
+      }
 
       await callback({
         channel: telegramChannelName,
         chatConnection,
-        message: {
-          senderId: ctx.from.id.toString(),
-          senderName: ctx.from.first_name,
-          text: ctx.message.text ?? ctx.message.caption,
-          images: images.length > 0 ? images : undefined,
-          documents: documents.length > 0 ? documents : undefined,
-        },
+        message,
         reply: async (replyMessage: IChatMessage) => {
-          if (!replyMessage.text) return
-          await ctx.reply(markdownToTelegramHtml(replyMessage.text), {
-            parse_mode: 'HTML',
-          })
+          if (replyMessage.text) {
+            await ctx.reply(markdownToTelegramHtml(replyMessage.text), {
+              parse_mode: 'HTML',
+            })
+          }
+          const voice = await this.resolveReplyAudio(replyMessage, inboundWasAudio)
+          if (voice) await this.sendReplyAudio(ctx, voice)
         },
       })
     })
@@ -64,9 +89,14 @@ export class TelegramChannel implements IChatChannel {
   private async extractMedia(
     api: Api,
     message: Message,
-  ): Promise<{ images: IChatMessageImage[]; documents: IChatMessageDocument[] }> {
+  ): Promise<{
+    images: IChatMessageImage[]
+    documents: IChatMessageDocument[]
+    audios: IChatMessageAudio[]
+  }> {
     const images: IChatMessageImage[] = []
     const documents: IChatMessageDocument[] = []
+    const audios: IChatMessageAudio[] = []
 
     if (message.photo && message.photo.length > 0) {
       // Photos arrive in multiple sizes; the last entry is the highest resolution.
@@ -94,7 +124,50 @@ export class TelegramChannel implements IChatChannel {
       if (file) (mimeType.startsWith('image/') ? images : documents).push(file)
     }
 
-    return { images, documents }
+    // Voice notes and audio clips both feed the audio flow.
+    const clip = message.voice ?? message.audio
+    if (clip) {
+      const name = message.audio?.file_name
+      const file = await this.downloadChatFile(
+        api,
+        clip.file_id,
+        clip.file_unique_id,
+        clip.mime_type ?? (message.voice ? 'audio/ogg' : 'audio/mpeg'),
+        name,
+      )
+      if (file) audios.push(file)
+    }
+
+    return { images, documents, audios }
+  }
+
+  private async resolveReplyAudio(
+    reply: IChatMessage,
+    inboundWasAudio: boolean,
+  ): Promise<IChatMessageAudio | undefined> {
+    if (reply.audios && reply.audios.length > 0) return reply.audios[0]
+    if (reply.text && this.audio?.shouldReplyWithVoice(inboundWasAudio)) {
+      return this.audio.synthesize(reply.text)
+    }
+    return undefined
+  }
+
+  private async sendReplyAudio(ctx: Context, audio: IChatMessageAudio): Promise<void> {
+    const asVoice = audio.mimeType.includes('ogg') || audio.mimeType.includes('opus')
+    const filename = audio.name ?? (asVoice ? 'reply.ogg' : 'reply.mp3')
+    const input = audio.base64Url
+      ? new InputFile(this.decodeBase64(audio.base64Url), filename)
+      : new InputFile(new URL(audio.publicUrl!), filename)
+    if (asVoice) {
+      await ctx.replyWithVoice(input)
+    } else {
+      await ctx.replyWithAudio(input)
+    }
+  }
+
+  private decodeBase64(dataUrl: string): Buffer {
+    const base64 = dataUrl.includes(',') ? dataUrl.slice(dataUrl.indexOf(',') + 1) : dataUrl
+    return Buffer.from(base64, 'base64')
   }
 
   private async downloadChatFile(

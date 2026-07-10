@@ -42,6 +42,7 @@ const extractMedia = (channel: TelegramChannel, api: Api, message: Partial<Messa
   (channel as any).extractMedia(api, message) as Promise<{
     images: any[]
     documents: any[]
+    audios: any[]
   }>
 
 test.describe('TelegramChannel.extractMedia', () => {
@@ -152,6 +153,6 @@ test.describe('TelegramChannel.extractMedia', () => {
 
   test('returns empty arrays when there is no media', async () => {
     const result = await extractMedia(makeChannel(), makeApi([]), { text: 'just text' })
-    assert.deepEqual(result, { images: [], documents: [] })
+    assert.deepEqual(result, { images: [], documents: [], audios: [] })
   })
 })
