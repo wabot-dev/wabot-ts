@@ -3,6 +3,7 @@ import { singleton } from '@/core/injection'
 import { type IMindsetModuleMetadata } from './modules/IMindsetModuleMetadata'
 
 import { type IMindsetMetadata } from './mindsets/IMindsetMetadata'
+import { mindsetToolClasses } from './mindsets/IMindsetConfig'
 import { IConstructor } from '@/core/generics'
 import { IMindset } from '../IMindset'
 import { ToolMetadataStore } from '@/feature/tool'
@@ -33,7 +34,7 @@ export class MindsetMetadataStore {
     }
     return {
       config: mindset.config,
-      modules: mindset.config?.modules?.map((x) => this.getModuleInfo(x)) ?? [],
+      modules: mindsetToolClasses(mindset.config).map((x) => this.getModuleInfo(x)),
     }
   }
 }

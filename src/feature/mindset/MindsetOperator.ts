@@ -10,8 +10,14 @@ import {
 } from './IMindset'
 
 import { MindsetMetadataStore } from './metadata/MindsetMetadataStore'
+import { mindsetToolClasses } from './metadata/mindsets/IMindsetConfig'
 import { DescriptionMetadataStore } from '@/core/description'
 import { IToolSchema, ToolInvoker, ToolMetadataStore } from '@/feature/tool'
+import {
+  IMindsetAgentTools,
+  IMindsetAgentToolsProvider,
+  MINDSET_AGENT_TOOLS_PROVIDER,
+} from './IMindsetAgentToolsProvider'
 
 const MODEL_KIND_FALLBACK: Partial<Record<IMindsetModelKind, IMindsetModelKind>> = {
   visionLlm: 'llm',
@@ -22,6 +28,8 @@ const MODEL_KIND_FALLBACK: Partial<Record<IMindsetModelKind, IMindsetModelKind>>
 export class MindsetOperator implements IMindset {
   private metadata: ReturnType<MindsetMetadataStore['getMindsetInfo']>
   private toolInvoker: ToolInvoker
+  /** Agents this mindset may call autonomously, exposed as tools (if any). */
+  private agentToolset?: IMindsetAgentTools
 
   constructor(
     private mindset: Mindset,
@@ -32,11 +40,21 @@ export class MindsetOperator implements IMindset {
   ) {
     this.metadata = metadataStore.getMindsetInfo(this.mindset.constructor as any)
     this.toolInvoker = new ToolInvoker(
-      this.metadata.config?.modules ?? [],
+      mindsetToolClasses(this.metadata.config),
       container,
       toolMetadataStore,
       descriptionStore,
     )
+
+    const agents = this.metadata.config?.agents ?? []
+    if (agents.length > 0) {
+      // Reserve the module tool names so an agent tool can never shadow a real
+      // `@tools` function. The provider is registered by the agent feature (which
+      // is loaded, since declaring agents means importing agent classes).
+      const reserved = new Set(this.toolInvoker.schema().map((t) => t.name))
+      const provider = container.resolve<IMindsetAgentToolsProvider>(MINDSET_AGENT_TOOLS_PROVIDER)
+      this.agentToolset = provider.create(agents, container, reserved)
+    }
   }
 
   context(): Promise<string> {
@@ -132,10 +150,13 @@ export class MindsetOperator implements IMindset {
   }
 
   tools(): IToolSchema[] {
-    return this.toolInvoker.schema()
+    const toolSchemas = this.toolInvoker.schema()
+    if (!this.agentToolset) return toolSchemas
+    return [...toolSchemas, ...this.agentToolset.schema()]
   }
 
   callFunction(name: string, params: string): Promise<string> {
+    if (this.agentToolset?.has(name)) return this.agentToolset.call(name, params)
     return this.toolInvoker.call(name, params)
   }
 }
