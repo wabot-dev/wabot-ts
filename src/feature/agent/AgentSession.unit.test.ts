@@ -1,17 +1,17 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { container, Container } from '@/core/injection'
 import { description } from '@/core/description'
 import { isBoolean, isNumber } from '@/core/validation'
-import { ChatAdapter, IChatItem } from '@/feature/chat-bot'
+import { IChatItem } from '@/feature/chat-bot'
 import { IMindsetModels } from '@/feature/mindset'
 import { tools } from '@/feature/tool'
 import { MockChatAdapter } from '@/testing/MockChatAdapter'
+import { createAgentHarness } from '@/testing/agentHarness'
 
 import { agent } from './@agent'
-import { AgentOperator } from './AgentOperator'
 import { Agent } from './IAgent'
+import { IAgentBudget } from './AgentSession'
 import { AgentReply, ANSWER_TOOL_NAME, AgentPausedError } from './AgentReply'
 
 const toolCalls: string[] = []
@@ -51,13 +51,10 @@ class MathAgent extends Agent {
   }
 }
 
-function makeSession(mock: MockChatAdapter, options = {}) {
-  const child = container.createChildContainer()
-  child.register(Container, { useValue: child })
-  child.register(Agent, { useClass: MathAgent })
-  child.registerInstance(ChatAdapter, mock as unknown as ChatAdapter)
-  const operator = child.resolve(AgentOperator)
-  return operator.session(options)
+function makeSession(mock: MockChatAdapter, options: { budget?: IAgentBudget; context?: string } = {}) {
+  let builder = createAgentHarness({ agent: MathAgent, adapter: mock }).for()
+  if (options.budget) builder = builder.withBudget(options.budget)
+  return builder.session(options.context)
 }
 
 test('ask() returns a validated, typed answer via the answer tool', async () => {
