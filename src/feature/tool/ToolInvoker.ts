@@ -33,46 +33,80 @@ export interface IToolInvokerOptions {
 export class ToolInvoker {
   private logger = new Logger('wabot:tool-invoker')
 
+  private readonly toolClasses: IConstructor<any>[]
+
   constructor(
-    private toolClasses: IConstructor<any>[],
+    toolClasses: IConstructor<any>[],
     private container: Container,
     private metadataStore: ToolMetadataStore,
     private descriptionStore: DescriptionMetadataStore,
     private options: IToolInvokerOptions = {},
-  ) {}
+  ) {
+    // De-duplicate the class list so a class listed twice doesn't look like a
+    // name collision below.
+    this.toolClasses = [...new Set(toolClasses)]
+  }
 
   schema(): IToolSchema[] {
-    const deps = { descriptionStore: this.descriptionStore }
-    return this.toolClasses
+    const built = this.toolClasses
       .map((ctor) => this.metadataStore.getToolClassInfo(ctor))
-      .map((info) =>
+      .flatMap((info) =>
         info.functions
           .filter((fn) => this.isAllowed(info, fn))
-          .map((fn) => {
-            const argsValidatorsInfo = fn.argsValidatorsInfo
-            const propertyValidators = argsValidatorsInfo?.properties ?? {}
-
-            return {
-              language: info.config?.language ?? 'english',
-              name: fn.name,
-              description: fn.description,
-              parameters: fn.argsDescriptions.map((arg) => {
-                const propInfo = propertyValidators[arg.propertyName]
-                const schema = buildPropertySchema(
-                  propInfo?.validators ?? [],
-                  this.paramDescription(arg.description, arg.typeDescriptor),
-                  deps,
-                )
-                return {
-                  name: arg.propertyName,
-                  required: !propInfo?.isOptional,
-                  schema,
-                }
-              }),
-            }
-          }),
+          .map((fn) => ({
+            owner: (fn.moduleConstructor as { name?: string })?.name ?? 'unknown',
+            schema: this.buildFunctionSchema(info, fn),
+          })),
       )
-      .flat()
+    this.assertUniqueNames(built)
+    return built.map((b) => b.schema)
+  }
+
+  private buildFunctionSchema(info: IToolClassInfo, fn: IToolFunctionInfo): IToolSchema {
+    const deps = { descriptionStore: this.descriptionStore }
+    const propertyValidators = fn.argsValidatorsInfo?.properties ?? {}
+    return {
+      language: info.config?.language ?? 'english',
+      name: fn.name,
+      description: fn.description,
+      parameters: fn.argsDescriptions.map((arg) => {
+        const propInfo = propertyValidators[arg.propertyName]
+        return {
+          name: arg.propertyName,
+          required: !propInfo?.isOptional,
+          schema: buildPropertySchema(
+            propInfo?.validators ?? [],
+            this.paramDescription(arg.description, arg.typeDescriptor),
+            deps,
+          ),
+        }
+      }),
+    }
+  }
+
+  /**
+   * Two exposed tool functions with the same name are ambiguous — the model
+   * can't disambiguate them and {@link call} would silently dispatch to the
+   * first. Fail fast with a clear message instead.
+   */
+  private assertUniqueNames(built: { owner: string; schema: IToolSchema }[]): void {
+    const ownersByName = new Map<string, string[]>()
+    for (const b of built) {
+      const owners = ownersByName.get(b.schema.name) ?? []
+      owners.push(b.owner)
+      ownersByName.set(b.schema.name, owners)
+    }
+    const conflicts = [...ownersByName.entries()].filter(([, owners]) => owners.length > 1)
+    if (conflicts.length > 0) {
+      const details = conflicts.map(([name, owners]) => `'${name}' (${owners.join(', ')})`).join('; ')
+      throw new CustomError({
+        httpCode: 500,
+        code: 'DUPLICATE_TOOL_NAME',
+        message:
+          `Duplicate tool name(s) exposed to the model: ${details}. Tool function ` +
+          `names must be unique across the set; rename a method or exclude one with allow/deny.`,
+      })
+    }
   }
 
   async call(name: string, params: string): Promise<string> {

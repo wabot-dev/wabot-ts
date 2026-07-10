@@ -97,3 +97,48 @@ test('deny-list removes a tool by function name', () => {
     ['reset'],
   )
 })
+
+@tools()
+class MoreCalculatorTools {
+  @description('Add two numbers (a second, conflicting definition)')
+  add(req: AddReq) {
+    return req.a + req.b
+  }
+}
+
+test('schema() fails fast on a duplicate tool name across classes', () => {
+  const invoker = new ToolInvoker(
+    [CalculatorTools, MoreCalculatorTools],
+    container as unknown as Container,
+    container.resolve(ToolMetadataStore),
+    container.resolve(DescriptionMetadataStore),
+  )
+  assert.throws(() => invoker.schema(), /Duplicate tool name.*'add'/s)
+})
+
+test('a duplicate can be resolved by excluding one side with deny', () => {
+  const invoker = new ToolInvoker(
+    [CalculatorTools, MoreCalculatorTools],
+    container as unknown as Container,
+    container.resolve(ToolMetadataStore),
+    container.resolve(DescriptionMetadataStore),
+    { deny: [MoreCalculatorTools] },
+  )
+  assert.deepEqual(
+    invoker.schema().map((t) => t.name),
+    ['add'],
+  )
+})
+
+test('the same class listed twice is not a false conflict', () => {
+  const invoker = new ToolInvoker(
+    [CalculatorTools, CalculatorTools],
+    container as unknown as Container,
+    container.resolve(ToolMetadataStore),
+    container.resolve(DescriptionMetadataStore),
+  )
+  assert.deepEqual(
+    invoker.schema().map((t) => t.name),
+    ['add'],
+  )
+})
