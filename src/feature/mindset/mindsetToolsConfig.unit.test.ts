@@ -3,7 +3,7 @@ import test from 'node:test'
 
 import { description } from '@/core/description'
 import { tools } from '@/feature/tool'
-import { IMindsetIdentity, IMindsetModels } from '@/feature/mindset'
+import { IMindsetDescription, IMindsetModels } from '@/feature/mindset'
 import { mindset } from './metadata'
 import { IMindset } from './IMindset'
 import { createChatBotHarness } from '@/testing/chatBotHarness'
@@ -33,20 +33,14 @@ class OtherGreetTools {
 }
 
 abstract class TestMindset implements IMindset {
-  async identity(): Promise<IMindsetIdentity> {
-    return { name: 'T', language: 'english' }
-  }
-  async context() {
-    return 'ctx'
-  }
-  async skills() {
-    return 'skills'
-  }
-  async limits() {
-    return 'limits'
-  }
-  async workflow() {
-    return 'flow'
+  async describe(): Promise<IMindsetDescription> {
+    return {
+      identity: { name: 'T', language: 'english' },
+      context: 'ctx',
+      skills: 'skills',
+      limits: 'limits',
+      workflow: 'flow',
+    }
   }
   async models(): Promise<IMindsetModels> {
     return { llm: [{ provider: 'mock', model: 'm' }] }

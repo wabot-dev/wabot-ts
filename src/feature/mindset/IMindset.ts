@@ -35,38 +35,32 @@ export interface IMindsetModels {
   embedding?: IMindsetModelRef[]
 }
 
-export interface IMindset {
-  context(): Promise<string>
-  identity(): Promise<IMindsetIdentity>
-  skills(): Promise<string>
-  limits(): Promise<string>
-  workflow(): Promise<string>
-  models?(): Promise<IMindsetModels>
-  /** @deprecated implement {@link IMindset.models} instead */
-  llms?(): Promise<IMindsetLlm[]>
+/**
+ * The mindset's persona, returned by {@link IMindset.describe} in a single call.
+ * `identity` stays structured (the framework reads `name`/`language`); the rest
+ * are the labeled prompt sections the framework composes into the system prompt.
+ */
+export interface IMindsetDescription {
+  identity: IMindsetIdentity
+  context: string
+  skills: string
+  limits: string
+  workflow: string
 }
 
+export interface IMindset {
+  /** The persona/instructions of the mindset (identity + prompt sections). */
+  describe(): Promise<IMindsetDescription>
+  /** Models the mindset may use, by kind. */
+  models(): Promise<IMindsetModels>
+}
+
+/** DI token + throw-everything base, mirroring {@link Agent}. */
 export class Mindset implements IMindset {
-  context(): Promise<string> {
+  describe(): Promise<IMindsetDescription> {
     throw new Error('Method not implemented.')
   }
-  identity(): Promise<IMindsetIdentity> {
-    throw new Error('Method not implemented.')
-  }
-  skills(): Promise<string> {
-    throw new Error('Method not implemented.')
-  }
-  limits(): Promise<string> {
-    throw new Error('Method not implemented.')
-  }
-  workflow(): Promise<string> {
-    throw new Error('Method not implemented.')
-  }
-  models?(): Promise<IMindsetModels> {
-    throw new Error('Method not implemented.')
-  }
-  /** @deprecated implement {@link Mindset.models} instead */
-  llms?(): Promise<IMindsetLlm[]> {
+  models(): Promise<IMindsetModels> {
     throw new Error('Method not implemented.')
   }
 }

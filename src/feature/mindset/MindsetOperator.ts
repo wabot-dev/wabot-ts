@@ -1,8 +1,6 @@
 import { Container, injectable } from '@/core/injection'
 import {
-  type IMindset,
   type IMindsetIdentity,
-  IMindsetLlm,
   IMindsetModelKind,
   IMindsetModelRef,
   IMindsetModels,
@@ -25,7 +23,7 @@ const MODEL_KIND_FALLBACK: Partial<Record<IMindsetModelKind, IMindsetModelKind>>
 }
 
 @injectable()
-export class MindsetOperator implements IMindset {
+export class MindsetOperator {
   private metadata: ReturnType<MindsetMetadataStore['getMindsetInfo']>
   private toolInvoker: ToolInvoker
   /** Agents this mindset may call autonomously, exposed as tools (if any). */
@@ -57,39 +55,12 @@ export class MindsetOperator implements IMindset {
     }
   }
 
-  context(): Promise<string> {
-    return this.mindset.context()
-  }
-
-  identity(): Promise<IMindsetIdentity> {
-    return this.mindset.identity()
-  }
-
-  skills(): Promise<string> {
-    return this.mindset.skills()
-  }
-
-  limits(): Promise<string> {
-    return this.mindset.limits()
-  }
-
-  workflow(): Promise<string> {
-    return this.mindset.workflow()
-  }
-
-  /** @deprecated use {@link MindsetOperator.models} */
-  async llms(): Promise<IMindsetLlm[]> {
-    if (this.mindset.llms) return this.mindset.llms()
-    const models = await this.models()
-    return models.llm ?? []
+  async identity(): Promise<IMindsetIdentity> {
+    return (await this.mindset.describe()).identity
   }
 
   async models(): Promise<IMindsetModels> {
-    if (this.mindset.models) return this.mindset.models()
-    if (this.mindset.llms) return { llm: await this.mindset.llms() }
-    throw new Error(
-      `Invalid ${this.mindset.constructor.name} - models() or llms() must be implemented`,
-    )
+    return this.mindset.models()
   }
 
   async resolveModels(kind: IMindsetModelKind): Promise<IMindsetModelRef[]> {
@@ -105,13 +76,9 @@ export class MindsetOperator implements IMindset {
   }
 
   async systemPrompt(): Promise<string> {
-    let [context, identity, skills, limits, workflow] = await Promise.all([
-      this.context(),
-      this.identity(),
-      this.skills(),
-      this.limits(),
-      this.workflow(),
-    ])
+    const description = await this.mindset.describe()
+    let { context, skills, limits, workflow } = description
+    const identity = description.identity
 
     const language = identity.language.replaceAll('#', ' ')
     const name = identity.name.replaceAll('#', ' ')

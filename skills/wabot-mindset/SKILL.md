@@ -1,6 +1,6 @@
 ---
 name: wabot-mindset
-description: Use when defining a Wabot bot's personality, tool functions, language/model configuration, or chat-scope state. Covers @mindset, @tools (formerly @mindsetModule), the IMindset interface (context / identity / skills / limits / workflow / models), IMindsetModels and the model kinds (llm, visionLlm, audioLlm, speechToText, textToSpeech, imageGen, embedding), tool functions exposed via @description, agents the mindset can call autonomously via @mindset({ agents }) with per-agent allow/deny tool gating, request validation, and ChatOperator for per-chat associations. For dev-facing agents that reuse the same tools, see wabot-agents.
+description: Use when defining a Wabot bot's personality, tool functions, language/model configuration, or chat-scope state. Covers @mindset, @tools (formerly @mindsetModule), the IMindset interface (describe() → IMindsetDescription with identity + context/skills/limits/workflow, and models()), IMindsetModels and the model kinds (llm, visionLlm, audioLlm, speechToText, textToSpeech, imageGen, embedding), tool functions exposed via @description, agents the mindset can call autonomously via @mindset({ agents }) with per-agent allow/deny tool gating, request validation, and ChatOperator for per-chat associations. For dev-facing agents that reuse the same tools, see wabot-agents.
 ---
 
 # Mindset
@@ -13,28 +13,26 @@ A mindset is the policy + personality layer of a Wabot bot. It produces the syst
 import {
   mindset,
   type IMindset,
-  type IMindsetIdentity,
+  type IMindsetDescription,
   type IMindsetModels,
 } from '@wabot-dev/framework'
 
 @mindset({ tools: [LanguageTools, BacklogTools] })
 export class PixelMindset implements IMindset {
-  async context(): Promise<string> {
-    return 'The player chats with you to manage their videogame backlog.'
-  }
-
-  async identity(): Promise<IMindsetIdentity> {
+  async describe(): Promise<IMindsetDescription> {
     return {
-      name: 'Pixel',
-      language: 'english',
-      personality: 'Cheerful 8-bit shopkeeper with a hint of sarcasm.',
-      // emotions is optional
+      identity: {
+        name: 'Pixel',
+        language: 'english',
+        personality: 'Cheerful 8-bit shopkeeper with a hint of sarcasm.',
+        // emotions is optional
+      },
+      context: 'The player chats with you to manage their videogame backlog.',
+      skills: 'List, add, remove, recommend games.',
+      limits: 'Never invent games the player did not mention.',
+      workflow: 'Greet → ask language → manage backlog.',
     }
   }
-
-  async skills(): Promise<string> { return 'List, add, remove, recommend games.' }
-  async limits(): Promise<string> { return 'Never invent games the player did not mention.' }
-  async workflow(): Promise<string> { return 'Greet → ask language → manage backlog.' }
 
   async models(): Promise<IMindsetModels> {
     return {
@@ -47,9 +45,9 @@ export class PixelMindset implements IMindset {
 }
 ```
 
-`IMindset` has six methods. `models()` is technically optional in the type but **must** be implemented — the legacy `llms()` is deprecated and the operator throws if neither is present.
+`IMindset` has exactly **two methods** (like `IAgent`): `describe()` returns the persona in one `IMindsetDescription` (`identity` + the labeled prompt sections `context` / `skills` / `limits` / `workflow`, which the framework composes into the system prompt with headers); `models()` returns the models by kind. Both are required.
 
-`IMindsetIdentity` has exactly these fields: `name`, `language`, `personality?`, `emotions?`. There is no `age`, no `tone`, no `style` — those would be runtime errors.
+`IMindsetIdentity` (the `identity` field) has exactly: `name`, `language`, `personality?`, `emotions?`. There is no `age`, no `tone`, no `style`.
 
 `@mindset()` applies `@injectable()` for you. Do not stack `@singleton()`.
 
@@ -171,9 +169,9 @@ You don't write the system prompt by hand — `MindsetOperator.systemPrompt()` a
 
 ## Rules
 
-- Implement `models()`, not `llms()`. The latter is deprecated and only kept as fallback.
+- Implement the two methods `describe()` and `models()` — the old per-section methods (`context`/`identity`/`skills`/`limits`/`workflow`) and `llms()` were removed.
 - Every tool function: at most one parameter, every field of that parameter has a type validator AND `@description`.
-- Don't put business logic in `context/skills/limits/workflow` — those return *strings*. Push logic into modules or services.
+- Don't put business logic in the `describe()` fields — they're *strings*. Push logic into tools or services.
 - Don't decorate the mindset class with `@singleton()` — mindsets are chat-scoped and the runner builds one per chat.
 - Refer to validators and `@description` rules in `wabot-validation`.
 
