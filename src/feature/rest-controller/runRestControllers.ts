@@ -95,7 +95,11 @@ export function registerRestControllers(
             controllerInstance,
             endPointArgs,
           )
-          res.status(200).json(response ?? null)
+          // A handler that wrote the response itself (via @inject(EXPRESS_RES),
+          // e.g. to stream or send a non-JSON body) has already answered.
+          if (!res.headersSent) {
+            res.status(200).json(response ?? null)
+          }
         } catch (err) {
           logger.error(`${method.toUpperCase()} ${route} failed`, err)
           if (err instanceof Error) {
