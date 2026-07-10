@@ -19,3 +19,18 @@ export function registerModuleCss(id: string, css: string): void {
 export function collectModuleCss(): string {
   return Array.from(registry.values()).join('')
 }
+
+// --- Plain-CSS assets (`import href from './x.css'`) --------------------------
+// A plain (non-module) stylesheet is registered here keyed by a content hash and
+// served once as a cacheable file at `/_wabot/css/<hash>.css`. The import returns
+// that URL, so it can be used in `@uiController({ head: { stylesheets: [href] } })`.
+
+const assets = new Map<string, string>()
+
+export function registerCssAsset(hash: string, css: string): void {
+  assets.set(hash, css)
+}
+
+export function getCssAsset(hash: string): string | undefined {
+  return assets.get(hash)
+}

@@ -7,13 +7,13 @@ import { scanProjectFiles } from '@/feature/project-runner/scanner'
 import { isIslandFile, toIslandId } from '@/feature/ui-controller/island/IslandRegistry'
 import { UiBundler } from '@/feature/ui-controller/bundler'
 import { PreactRenderer } from '@/addon/ui/preact'
-import { buildCssModuleSource } from '@/ui/cssModuleCompile'
+import { buildCssAssetSource, buildCssModuleSource } from '@/ui/cssModuleCompile'
 import { generateEntry, generateIslandsRegistration, generateManifest } from './manifest'
 
 /**
- * esbuild plugin so the bundled server resolves `*.module.css` to its scoped
- * class map (and registers its CSS) exactly like the SSR loader does in dev.
- * Plain `*.css` is a no-op on the server (injected client-side via <link>).
+ * esbuild plugin so the bundled server resolves stylesheets exactly like the SSR
+ * loader does in dev: `*.module.css` → scoped class map, plain `*.css` → a
+ * cacheable asset URL (registers its CSS, served at /_wabot/css/<hash>.css).
  */
 const cssModulesPlugin: esbuild.Plugin = {
   name: 'wabot-css-modules',
@@ -22,8 +22,8 @@ const cssModulesPlugin: esbuild.Plugin = {
       contents: await buildCssModuleSource(args.path),
       loader: 'js',
     }))
-    build.onLoad({ filter: /\.css$/ }, async () => ({
-      contents: 'export default ""',
+    build.onLoad({ filter: /\.css$/ }, async (args) => ({
+      contents: await buildCssAssetSource(args.path),
       loader: 'js',
     }))
   },

@@ -13,7 +13,7 @@
 // `node --import @wabot-dev/framework/ui/css-loader ...`.
 
 import { fileURLToPath } from 'node:url'
-import { buildCssModuleSource } from './cssModuleCompile'
+import { buildCssAssetSource, buildCssModuleSource } from './cssModuleCompile'
 
 type NextLoad = (url: string, context: unknown) => unknown
 
@@ -26,9 +26,13 @@ export async function load(url: string, context: unknown, nextLoad: NextLoad) {
     }
   }
   if (url.startsWith('file://') && url.endsWith('.css')) {
-    // A plain global stylesheet is injected via <link> by the bundler, so it is a
-    // no-op module on the server.
-    return { format: 'module' as const, shortCircuit: true, source: 'export default ""' }
+    // A plain stylesheet becomes a cacheable asset: it registers its CSS and the
+    // default export is the URL it's served at (use it in head.stylesheets).
+    return {
+      format: 'module' as const,
+      shortCircuit: true,
+      source: await buildCssAssetSource(fileURLToPath(url)),
+    }
   }
   return nextLoad(url, context)
 }

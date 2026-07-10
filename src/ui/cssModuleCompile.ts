@@ -7,11 +7,18 @@
 // The generated module exports the class map (default) and registers its CSS
 // text with the server-side registry as an import-time side effect.
 
+import { createHash } from 'node:crypto'
+import { readFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import * as esbuild from 'esbuild'
 
 /** Public specifier the generated modules import the registry from. */
 const CSS_RUNTIME_SPECIFIER = '@wabot-dev/framework/ui/css-runtime'
+
+/** URL a plain-CSS asset is served at (see `getCssAsset` + the UI runner route). */
+export function cssAssetHref(hash: string): string {
+  return `/_wabot/css/${hash}.css`
+}
 
 interface ICompiled {
   /** esbuild's JS output — a self-contained module exporting the class map. */
@@ -55,5 +62,20 @@ export async function buildCssModuleSource(file: string): Promise<string> {
     `import { registerModuleCss as __registerModuleCss } from ${JSON.stringify(CSS_RUNTIME_SPECIFIER)}\n` +
     mapModule +
     `\n__registerModuleCss(${JSON.stringify(file)}, ${JSON.stringify(css)})\n`
+  )
+}
+
+/**
+ * Build the JS module source for a plain (non-module) `*.css`: registers the CSS
+ * under a content hash and exports the URL it is served at, so
+ * `import href from './x.css'` yields a cacheable stylesheet URL.
+ */
+export async function buildCssAssetSource(file: string): Promise<string> {
+  const css = await readFile(file, 'utf8')
+  const hash = createHash('sha1').update(css).digest('hex').slice(0, 16)
+  return (
+    `import { registerCssAsset as __registerCssAsset } from ${JSON.stringify(CSS_RUNTIME_SPECIFIER)}\n` +
+    `__registerCssAsset(${JSON.stringify(hash)}, ${JSON.stringify(css)})\n` +
+    `export default ${JSON.stringify(cssAssetHref(hash))}\n`
   )
 }
