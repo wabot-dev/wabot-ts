@@ -1,6 +1,6 @@
 ---
 name: wabot-testing
-description: Use when writing or debugging tests for a Wabot project — deterministic unit tests for chatbots (mindsets + tools), chat controllers, REST controllers, async commands/cron, validation models and repositories, plus real-LLM evals. Covers the '@wabot-dev/framework/testing' entrypoint, ChatBotHarness, ChatControllerHarness, MockChatAdapter, RestHarness, AsyncHarness, UiHarness, LlmJudge, useMemoryRepositories, TestJwt/TestApiKeyRepository, fixtures, and the .unit.test.ts / .eval.test.ts conventions.
+description: Use when writing or debugging tests for a Wabot project — deterministic unit tests for chatbots (mindsets + tools), chat controllers, REST controllers, async commands/cron, validation models and repositories, plus real-LLM evals. Covers the '@wabot-dev/framework/testing' entrypoint, ChatBotHarness, ChatControllerHarness, AgentHarness, MockChatAdapter, RestHarness, AsyncHarness, UiHarness, SocketHarness, LlmJudge, useMemoryRepositories, TestJwt/TestApiKeyRepository, fixtures, and the .unit.test.ts / .eval.test.ts conventions.
 ---
 
 # Testing Wabot projects
@@ -71,6 +71,22 @@ const turn = await harness.invoke('onCmdMessage', 'remember what I like?')
 ```
 
 `invoke()` returns the same `{ replies, toolCalls, items }` turn shape; `await harness.history()` is async here.
+
+## Agent tests — `AgentHarness`
+
+Test a dev-facing `@agent` deterministically. `createAgentHarness` is a thin wrapper over the production `AgentFactory`, so `harness.for()` is the real builder (`forMindset`/`allowTools`/`denyTools`/`withBudget`/`withContext`), and `harness.session(context?)` is the shortcut.
+
+```typescript
+import { createAgentHarness, MockChatAdapter } from '@wabot-dev/framework/testing'
+import { ANSWER_TOOL_NAME } from '@wabot-dev/framework'
+
+const harness = createAgentHarness({ agent: TriageAgent, register: [[Db, fakeDb]] })
+harness.adapter.callTool(ANSWER_TOOL_NAME, { urgent: true })
+const result = await harness.for().forMindset().allowTools([KbTools]).session().ask('…', TriageResult)
+assert.deepEqual(harness.adapter.lastRequest!.tools.map((t) => t.name), ['kbSearch'])
+```
+
+`createAgentHarness({ agent, adapter?, register?, authInfo? })` mirrors `createChatBotHarness`. See `wabot-agents` for the full agent API. (An agent exposed to a mindset via `@mindset({ agents })` can also be exercised end-to-end through `createChatBotHarness().callTool('ask_<slug>', …)`.)
 
 ## Evals with real models — `LlmJudge` (`.eval.test.ts`)
 

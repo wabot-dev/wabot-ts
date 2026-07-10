@@ -1,6 +1,6 @@
 ---
 name: wabot-agents
-description: Use when building dev-facing agents, asking an LLM for a typed/deterministic answer or yes/no, giving orders, or letting a mindset delegate to an agent with controlled context and tool access. Covers @agent, IAgent, AgentFactory, AgentSession (ask / confirm / order), typed structured output, AgentReply (answer / question / stopped), context attachments (attachChat / attachMessage — e.g. "should the bot respond?"), the shared @tools decorator, and tool gating (allowTools / denyTools / exposeToMindsets / budget).
+description: Use when building dev-facing agents, asking an LLM for a typed/deterministic answer or yes/no, giving orders, or letting a mindset delegate to an agent — either autonomously via @mindset({ agents }) or from a tool — with controlled context and tool access. Covers @agent (incl. description), IAgent, AgentFactory, AgentSession (ask / confirm / order), typed structured output, AgentReply (answer / question / stopped), context attachments (attachChat / attachMessage — e.g. "should the bot respond?"), the shared @tools decorator, tool gating (allowTools / denyTools / exposeToMindsets / budget), and testing agents with createAgentHarness.
 ---
 
 # Agents & shared tools
@@ -56,7 +56,7 @@ export class SupportAgent implements IAgent {
 }
 ```
 
-`IAgent` has exactly `instructions()` and `models()`. Implement the interface — do **not** `extends Agent` (`Agent` is a throw-everything DI token, like `Mindset`). `models()` reuses `IMindsetModels` / the model kinds from `wabot-mindset` (agents use the `llm` kind). `@agent()` applies `@injectable()` for you — do not stack `@singleton()`.
+`IAgent` has exactly `instructions()` and `models()`. Implement the interface — do **not** `extends Agent` (`Agent` is a throw-everything DI token, like `Mindset`). `models()` reuses `IMindsetModels` / the model kinds from `wabot-mindset` (agents use the `llm` kind). `@agent()` applies `@injectable()` for you — do not stack `@singleton()`. `@agent({ tools?, description? })`: `description` is the short blurb shown to a mindset's model when the agent is exposed via `@mindset({ agents })` (see below).
 
 ## Use an agent — `AgentFactory` + `AgentSession`
 
@@ -127,7 +127,33 @@ const shouldRespond = await this.agents.for(GateAgent).session()
 
 ## Mindset → agent delegation (controlled context)
 
-Let a mindset reach an agent by calling it from one of the mindset's `@tools`. Build the agent through the fluent builder to get four guarantees:
+There are two ways a mindset reaches an agent:
+
+1. **Autonomously** — declare the agent on `@mindset({ agents })` and the mindset's model calls it itself (see below). Best when *the model* should decide when to consult the agent.
+2. **From a tool** — call `AgentFactory` inside one of the mindset's `@tools` methods (shown after). Best when *your code* decides, or you need a typed `ask<T>` result.
+
+### Autonomous — `@mindset({ agents })`
+
+Each agent binding becomes a callable tool (`ask_<agent_slug>`) with a single free-text `input`. Calling it runs a fresh, isolated, budget-capped session (`.order(input)`) and returns the agent's reply text to the chat loop. Give the agent a `description` so the mindset's model knows when to use it:
+
+```typescript
+@agent({ tools: [KbSearchTools, AdminTools], description: 'Answers hard product questions from the KB.' })
+export class SpecialistAgent implements IAgent { /* instructions() / models() */ }
+
+@mindset({
+  modules: [FaqTools],
+  agents: [
+    { agent: SpecialistAgent, allow: [KbSearchTools], budget: { maxTokens: 8000 } },
+  ],
+})
+export class SupportMindset implements IMindset { /* … */ }
+```
+
+`allow`/`deny` on the binding are exactly the tool gating below; `forMindset` is always applied. The agent gets only the model's task text (no chat history), capped by `budget` (default `maxTokens: 4000, maxSteps: 8`). A `stopped` turn comes back as text (never throws into the loop). This is the declarative equivalent of the manual delegation below — use it when the model, not your code, should decide to delegate.
+
+### From a tool — `AgentFactory`
+
+Build the agent through the fluent builder to get four guarantees:
 
 ```typescript
 @tools()
@@ -164,4 +190,29 @@ The builder also has `.denyTools([...])` and `.withContext(str)` (same as passin
 
 ## Testing
 
-There is no dedicated agent harness yet. Test agents with the scripted `MockChatAdapter` from `@wabot-dev/framework/testing`: bind your agent as `Agent` in a child container, register the mock as `ChatAdapter`, resolve `AgentOperator`, and script the turns. To drive `ask` / `confirm`, queue an answer-tool turn — `mock.callTool(ANSWER_TOOL_NAME, { ... })` (import `ANSWER_TOOL_NAME` from the framework). See `wabot-testing` for `MockChatAdapter` and the DI-child-container pattern used by `createChatBotHarness`.
+Use **`createAgentHarness`** from `@wabot-dev/framework/testing` — a thin wrapper over the real `AgentFactory` path (same code as production), driven by the scripted `MockChatAdapter`.
+
+```ts
+import { createAgentHarness, MockChatAdapter } from '@wabot-dev/framework/testing'
+import { ANSWER_TOOL_NAME } from '@wabot-dev/framework'
+
+const harness = createAgentHarness({
+  agent: TriageAgent,
+  register: [[Db, fakeDb]], // wire the agent's @tools dependencies
+})
+
+// harness.for() is the real builder: forMindset/allowTools/denyTools/withBudget/withContext
+harness.adapter.callTool(ANSWER_TOOL_NAME, { urgent: true })
+const result = await harness.for().forMindset().allowTools([KbTools]).session().ask('…', TriageResult)
+
+// or the shortcut for a default session:
+harness.adapter.reply('done')
+const reply = await harness.session('optional context').order('do the thing')
+
+// assert on what the model was sent:
+assert.deepEqual(harness.adapter.lastRequest!.tools.map((t) => t.name), ['kbSearch'])
+```
+
+- `createAgentHarness({ agent, adapter?, register?, authInfo? })` mirrors `createChatBotHarness`. `register` wires the agent's tool dependencies; `authInfo` assigns the scoped `Auth`.
+- `harness.for()` → the production `AgentBuilder`; `harness.session(context?)` is `for().session(context)`. Then call `ask`/`confirm`/`order`/`attach*` on the session.
+- Script turns with `MockChatAdapter`: `reply(text)`, `callTool(name, args)`, `enqueue(...)`. For `ask`/`confirm`, queue an answer-tool turn: `adapter.callTool(ANSWER_TOOL_NAME, { ... })`. Remember a tool-call turn must be followed by another scripted turn. See `wabot-testing`.

@@ -1,11 +1,11 @@
 ---
 name: wabot-mindset
-description: Use when defining a Wabot bot's personality, tool functions, language/model configuration, or chat-scope state. Covers @mindset, @tools (formerly @mindsetModule), the IMindset interface (context / identity / skills / limits / workflow / models), IMindsetModels and the model kinds (llm, visionLlm, audioLlm, speechToText, textToSpeech, imageGen, embedding), tool functions exposed via @description, request validation, and ChatOperator for per-chat associations. For dev-facing agents that reuse the same tools, see wabot-agents.
+description: Use when defining a Wabot bot's personality, tool functions, language/model configuration, or chat-scope state. Covers @mindset, @tools (formerly @mindsetModule), the IMindset interface (context / identity / skills / limits / workflow / models), IMindsetModels and the model kinds (llm, visionLlm, audioLlm, speechToText, textToSpeech, imageGen, embedding), tool functions exposed via @description, agents the mindset can call autonomously via @mindset({ agents }) with per-agent allow/deny tool gating, request validation, and ChatOperator for per-chat associations. For dev-facing agents that reuse the same tools, see wabot-agents.
 ---
 
 # Mindset
 
-A mindset is the policy + personality layer of a Wabot bot. It produces the system prompt and exposes tool functions to the LLM through modules.
+A mindset is the policy + personality layer of a Wabot bot. It produces the system prompt and exposes tool functions to the LLM through its `tools`.
 
 ## Mindset class
 
@@ -17,7 +17,7 @@ import {
   type IMindsetModels,
 } from '@wabot-dev/framework'
 
-@mindset({ modules: [LanguageModule, BacklogModule] })
+@mindset({ tools: [LanguageTools, BacklogTools] })
 export class PixelMindset implements IMindset {
   async context(): Promise<string> {
     return 'The player chats with you to manage their videogame backlog.'
@@ -71,11 +71,13 @@ Fallback rules:
 
 `provider` is matched against registered chat adapters (`openai`, `anthropic`, `google`, `openrouter`, `deepseek`, `wabot`). If you omit it, the registry's default provider is used.
 
-## Modules — tool functions
+## Tools — tool functions
 
-A module is a class decorated with `@tools()`. Every method decorated with `@description(...)` becomes an LLM tool. Each tool function takes zero or one parameter; if it takes one, it must be a class with validators on every property (see `wabot-validation`).
+A tool class is decorated with `@tools()`. Every method decorated with `@description(...)` becomes an LLM tool. Each tool function takes zero or one parameter; if it takes one, it must be a class with validators on every property (see `wabot-validation`). List the classes under `@mindset({ tools: [...] })`.
 
-> `@mindsetModule` is now a **deprecated alias** of `@tools` — existing modules keep working, but prefer `@tools` in new code. The mindset's config key is still `modules`. The same `@tools` class can be reused by a dev-facing agent (`wabot-agents`).
+> **Config key:** use `tools` on `@mindset`. The old key **`modules` is deprecated** (still works — both are merged if set together). The decorator `@mindsetModule` is likewise a deprecated alias of `@tools`. The same `@tools` class can be reused by a dev-facing agent (`wabot-agents`).
+
+> **Tool names must be unique** across a mindset's tools (and its `agents`). Two exposed functions with the same name — whether from two tool classes or an agent tool colliding with a `@tools` method — throw at first use (`DUPLICATE_TOOL_NAME`). Rename the method, or exclude one side (`allow`/`deny` on an agent binding, or a distinct agent `name`).
 
 ```typescript
 import {
@@ -90,7 +92,7 @@ export class AddGameRequest {
 }
 
 @tools({ language: 'english' })
-export class BacklogModule {
+export class BacklogTools {
   constructor(private games: GameRepository) {}
 
   @description("Add a new game to the player's backlog")
@@ -115,6 +117,25 @@ Return types:
 - Thrown errors → captured and turned into an error string the LLM can read; the bot keeps running.
 
 `@tools({ language })` only affects how the language is announced to the LLM next to the tool. The config also accepts `exposeToMindsets?` (default `true`; set `false` for agent-only tools — see `wabot-agents`). There is no `name` or `description` on this config — the framework does **not** accept those.
+
+## Agents the mindset can call — `agents`
+
+A mindset can also call **agents** (`wabot-agents`) autonomously. List them under `agents` on `@mindset`; each becomes one callable tool (`ask_<agent_slug>`) whose single free-text `input` the model fills. Invoking it runs a **fresh, isolated** agent session and feeds the agent's reply text back into the chat loop.
+
+```ts
+@mindset({
+  tools: [CatalogTools],
+  agents: [
+    SlotAdvisorAgent,                                    // defaults
+    { agent: RefundAgent, allow: [RefundTools], name: 'ask_refunds' },
+  ],
+})
+```
+
+- A binding is the bare agent class or `{ agent, allow?, deny?, name?, description?, budget? }`.
+- **`allow` / `deny`** gate which of the agent's own tools are reachable in this delegation (by tool class or function name) — the control point for "what can this agent do when my mindset calls it". `forMindset` exposure rules are always enforced (an `exposeToMindsets: false` tool stays hidden unless allow-listed).
+- **`name`** overrides the tool name (default `ask_<slug>`; must not collide with a `@tools` method name — that throws). **`description`** overrides `@agent({ description })` (one is required, or startup throws).
+- **`budget`** overrides the conservative default cap (`maxTokens: 4000, maxSteps: 8`). The agent gets **only** the task text — no chat history is forwarded.
 
 ## Chat-scoped state — `ChatOperator`
 
