@@ -87,6 +87,7 @@
     "types:check": "tsc --noEmit"
   },
   "devDependencies": {
+    "@types/ws": "^8.5.10",
     "@rollup/plugin-alias": "5.1.1",
     "@rollup/plugin-commonjs": "28.0.3",
     "@rollup/plugin-json": "6.1.0",
@@ -133,6 +134,7 @@
     "short-uuid": "^6.0.3",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
+    "ws": "^8.18.0",
     "tslib": "^2.8.1",
     "@hubspot/api-client": "^13.5.0",
     "tsyringe": "^4.9.1",
