@@ -32,6 +32,9 @@ export class TwilioVoiceMediaStream implements IVoiceMediaStream {
   private dtmfListeners: ((digit: string) => void)[] = []
   private closeListeners: (() => void)[] = []
   private startListeners: ((start: ITwilioStreamStart) => void)[] = []
+  private markListeners: ((name: string) => void)[] = []
+  private markSeq = 0
+  private outstandingMarks = 0
 
   constructor(private socket: ITwilioMediaSocket) {}
 
@@ -53,6 +56,14 @@ export class TwilioVoiceMediaStream implements IVoiceMediaStream {
   onStart(listener: (start: ITwilioStreamStart) => void) {
     this.startListeners.push(listener)
   }
+  /** Fires when Twilio confirms a played chunk (its `mark` echo). */
+  onMark(listener: (name: string) => void) {
+    this.markListeners.push(listener)
+  }
+  /** How many played chunks have not yet been confirmed by Twilio. */
+  get pendingPlayback(): number {
+    return this.outstandingMarks
+  }
 
   play(audioBase64: string) {
     if (this.closed || !this.streamSid) return
@@ -63,9 +74,15 @@ export class TwilioVoiceMediaStream implements IVoiceMediaStream {
         media: { payload: audioBase64 },
       }),
     )
+    // Tag each chunk with a mark so Twilio echoes it back when playback finishes.
+    const name = `m${++this.markSeq}`
+    this.outstandingMarks++
+    this.socket.send(JSON.stringify({ event: 'mark', streamSid: this.streamSid, mark: { name } }))
   }
   clear() {
     if (this.closed || !this.streamSid) return
+    // Twilio drops queued audio (and its pending marks) on clear.
+    this.outstandingMarks = 0
     this.socket.send(JSON.stringify({ event: 'clear', streamSid: this.streamSid }))
   }
   hangup() {
@@ -106,6 +123,12 @@ export class TwilioVoiceMediaStream implements IVoiceMediaStream {
       case 'dtmf': {
         const digit = msg.dtmf?.digit
         if (typeof digit === 'string') this.dtmfListeners.forEach((l) => l(digit))
+        break
+      }
+      case 'mark': {
+        if (this.outstandingMarks > 0) this.outstandingMarks--
+        const name = msg.mark?.name
+        if (typeof name === 'string') this.markListeners.forEach((l) => l(name))
         break
       }
       case 'stop':

@@ -18,12 +18,15 @@ class FakeMediaStream implements IVoiceMediaStream {
   clears = 0
   hangups = 0
   private audioListeners: ((a: string) => void)[] = []
+  private dtmfListeners: ((d: string) => void)[] = []
   private closeListeners: (() => void)[] = []
 
   onAudio(l: (a: string) => void) {
     this.audioListeners.push(l)
   }
-  onDtmf() {}
+  onDtmf(l: (d: string) => void) {
+    this.dtmfListeners.push(l)
+  }
   onClose(l: () => void) {
     this.closeListeners.push(l)
   }
@@ -40,6 +43,9 @@ class FakeMediaStream implements IVoiceMediaStream {
   emitAudio(a: string) {
     this.audioListeners.forEach((l) => l(a))
   }
+  emitDtmf(d: string) {
+    this.dtmfListeners.forEach((l) => l(d))
+  }
   emitClose() {
     this.closeListeners.forEach((l) => l())
   }
@@ -49,6 +55,8 @@ class FakeEngineSession implements IRealtimeVoiceEngineSession {
   appended: string[] = []
   toolResults: { callId: string; output: string }[] = []
   responses: (string | undefined)[] = []
+  userTexts: string[] = []
+  cancels = 0
   closes = 0
   private audioL?: (a: string) => void
   private speechL?: () => void
@@ -63,6 +71,12 @@ class FakeEngineSession implements IRealtimeVoiceEngineSession {
   }
   createResponse(instructions?: string) {
     this.responses.push(instructions)
+  }
+  cancelResponse() {
+    this.cancels++
+  }
+  sendUserText(text: string) {
+    this.userTexts.push(text)
   }
   close() {
     this.closes++
@@ -133,7 +147,8 @@ test.describe('RealtimeVoiceSession', () => {
 
     assert.equal(engine.openConfig?.audioFormat, 'g711_ulaw')
     assert.equal(engine.openConfig?.instructions, 'Actúa como asistente')
-    assert.equal(engine.openConfig?.tools.length, 1)
+    const toolNames = engine.openConfig?.tools.map((t) => t.name)
+    assert.deepEqual(toolNames, ['get_time', 'end_call']) // end_call auto-added
   })
 
   test('bridges caller audio to the engine and engine audio to the caller', async () => {
@@ -148,13 +163,35 @@ test.describe('RealtimeVoiceSession', () => {
     assert.deepEqual(media.played, ['bot-frame'])
   })
 
-  test('flushes queued playback on barge-in', async () => {
+  test('barge-in flushes playback and cancels the model response', async () => {
     const media = new FakeMediaStream()
     const engine = new FakeEngine()
     await RealtimeVoiceSession.start({ media, engine, connection, instructions: 'x' })
 
     engine.session.emitSpeechStarted()
     assert.equal(media.clears, 1)
+    assert.equal(engine.session.cancels, 1)
+  })
+
+  test('forwards caller DTMF to the model as a user turn', async () => {
+    const media = new FakeMediaStream()
+    const engine = new FakeEngine()
+    await RealtimeVoiceSession.start({ media, engine, connection, instructions: 'x' })
+
+    media.emitDtmf('5')
+    assert.equal(engine.session.userTexts.length, 1)
+    assert.match(engine.session.userTexts[0], /5/)
+  })
+
+  test('the built-in end_call tool hangs up', async () => {
+    const media = new FakeMediaStream()
+    const engine = new FakeEngine()
+    await RealtimeVoiceSession.start({ media, engine, connection, instructions: 'x' })
+
+    engine.session.emitFunctionCall({ callId: 'c1', name: 'end_call', arguments: '{}' })
+    assert.equal(media.hangups, 1)
+    assert.equal(engine.session.closes, 1)
+    assert.equal(engine.session.toolResults[0]?.callId, 'c1')
   })
 
   test('routes a tool call and returns the result to the model', async () => {

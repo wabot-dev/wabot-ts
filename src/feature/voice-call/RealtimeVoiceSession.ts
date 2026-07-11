@@ -21,6 +21,18 @@ export interface IRealtimeVoiceSessionOptions {
   /** If set, the bot speaks first with this instruction when the call connects. */
   greeting?: string
   provider?: string
+  /** Expose a built-in `end_call` tool so the bot can hang up (default true). */
+  endCall?: boolean
+}
+
+/** Built-in tool the model can call to hang up gracefully. */
+export const END_CALL_TOOL_NAME = 'end_call'
+
+const END_CALL_TOOL: IToolSchema = {
+  language: 'english',
+  name: END_CALL_TOOL_NAME,
+  description: 'End the phone call. Only call this after you have said goodbye.',
+  parameters: [],
 }
 
 /**
@@ -42,7 +54,7 @@ export class RealtimeVoiceSession {
   static async start(options: IRealtimeVoiceSessionOptions): Promise<RealtimeVoiceSession> {
     const engineSession = await options.engine.open({
       instructions: options.instructions,
-      tools: options.tools ?? [],
+      tools: withEndCallTool(options.tools ?? [], options.endCall !== false),
       audioFormat: options.media.format,
       voice: options.voice,
       provider: options.provider,
@@ -66,12 +78,20 @@ export class RealtimeVoiceSession {
     const engine = this.engineSession
 
     this.media.onAudio((audio) => engine.appendAudio(audio))
-    this.media.onDtmf((digit) => this.logger.debug('caller dtmf', { digit }))
+    this.media.onDtmf((digit) => {
+      this.logger.debug('caller dtmf', { digit })
+      // Surface keypad input to the model so it can react (IVR-style flows).
+      engine.sendUserText(`The caller pressed the keypad digit "${digit}".`)
+    })
     this.media.onClose(() => this.close('caller-hangup'))
 
     engine.onAudio((audio) => this.media.play(audio))
-    // Barge-in: the caller started talking, so drop any bot audio still queued.
-    engine.onSpeechStarted(() => this.media.clear())
+    // Barge-in: the caller started talking. Drop bot audio still queued on the
+    // wire AND cancel the model's in-progress response so it stops generating.
+    engine.onSpeechStarted(() => {
+      this.media.clear()
+      engine.cancelResponse()
+    })
     engine.onFunctionCall((call) => void this.handleFunctionCall(call))
     engine.onError((error) =>
       this.logger.error(
@@ -83,6 +103,12 @@ export class RealtimeVoiceSession {
   }
 
   private async handleFunctionCall(call: IRealtimeFunctionCall) {
+    if (call.name === END_CALL_TOOL_NAME) {
+      this.engineSession.submitToolResult(call.callId, 'Call ended.')
+      this.close('bot-ended')
+      return
+    }
+
     const { callFunction } = this.options
     if (!callFunction) {
       this.engineSession.submitToolResult(call.callId, 'No tool handler is configured')
@@ -128,4 +154,10 @@ export class RealtimeVoiceSession {
       })
     }
   }
+}
+
+function withEndCallTool(tools: IToolSchema[], enabled: boolean): IToolSchema[] {
+  if (!enabled) return tools
+  if (tools.some((tool) => tool.name === END_CALL_TOOL_NAME)) return tools
+  return [...tools, END_CALL_TOOL]
 }

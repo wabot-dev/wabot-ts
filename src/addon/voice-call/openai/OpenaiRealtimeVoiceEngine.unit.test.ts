@@ -152,6 +152,26 @@ test.describe('OpenaiRealtimeVoiceEngineSession', () => {
     assert.deepEqual(responses[1].response, {})
   })
 
+  test('cancelResponse sends response.cancel (barge-in)', () => {
+    const socket = new FakeSocket()
+    const session = new OpenaiRealtimeVoiceEngineSession(socket, config())
+    session.cancelResponse()
+    assert.equal(socket.last().type, 'response.cancel')
+  })
+
+  test('sendUserText injects a user turn and requests a response', () => {
+    const socket = new FakeSocket()
+    const session = new OpenaiRealtimeVoiceEngineSession(socket, config())
+    session.sendUserText('El usuario presionó 5')
+
+    const msgs = socket.parsed()
+    const item = msgs.find((m) => m.type === 'conversation.item.create')
+    assert.equal(item.item.role, 'user')
+    assert.equal(item.item.content[0].type, 'input_text')
+    assert.equal(item.item.content[0].text, 'El usuario presionó 5')
+    assert.equal(msgs.at(-1).type, 'response.create')
+  })
+
   test('propagates socket close and error', () => {
     const socket = new FakeSocket()
     const session = new OpenaiRealtimeVoiceEngineSession(socket, config())

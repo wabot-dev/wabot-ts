@@ -74,19 +74,37 @@ test.describe('TwilioVoiceMediaStream', () => {
 
     media.handleMessage(startMessage())
     media.play('spoken')
-    assert.deepEqual(socket.sent.at(-1), {
-      event: 'media',
-      streamSid: 'MZ123',
-      media: { payload: 'spoken' },
-    })
+    const mediaMsg = socket.sent.find((m) => m.event === 'media')
+    assert.deepEqual(mediaMsg, { event: 'media', streamSid: 'MZ123', media: { payload: 'spoken' } })
   })
 
-  test('clear() sends a clear event for barge-in', () => {
+  test('play() also emits a mark and tracks pending playback', () => {
     const socket = new FakeSocket()
     const media = new TwilioVoiceMediaStream(socket)
     media.handleMessage(startMessage())
+
+    media.play('a')
+    media.play('b')
+    const marks = socket.sent.filter((m) => m.event === 'mark')
+    assert.equal(marks.length, 2)
+    assert.equal(media.pendingPlayback, 2)
+
+    // Twilio confirms the first chunk played.
+    const fired: string[] = []
+    media.onMark((name) => fired.push(name))
+    media.handleMessage(JSON.stringify({ event: 'mark', mark: { name: marks[0].mark.name } }))
+    assert.equal(media.pendingPlayback, 1)
+    assert.deepEqual(fired, [marks[0].mark.name])
+  })
+
+  test('clear() sends a clear event and resets pending playback', () => {
+    const socket = new FakeSocket()
+    const media = new TwilioVoiceMediaStream(socket)
+    media.handleMessage(startMessage())
+    media.play('a')
     media.clear()
     assert.deepEqual(socket.sent.at(-1), { event: 'clear', streamSid: 'MZ123' })
+    assert.equal(media.pendingPlayback, 0)
   })
 
   test('stop event closes the stream once and notifies listeners', () => {

@@ -28,6 +28,10 @@ export interface IRealtimeVoiceEngineSession {
   submitToolResult(callId: string, output: string): void
   /** Ask the model to produce a response now (greeting, or after a tool result). */
   createResponse(instructions?: string): void
+  /** Cancel the model's in-progress response (used for barge-in). */
+  cancelResponse(): void
+  /** Inject a user turn and request a response (e.g. DTMF or a system note). */
+  sendUserText(text: string): void
   /** Close the model connection. */
   close(): void
 

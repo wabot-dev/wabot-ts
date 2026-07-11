@@ -118,6 +118,20 @@ export class OpenaiRealtimeVoiceEngineSession implements IRealtimeVoiceEngineSes
     )
   }
 
+  cancelResponse() {
+    this.socket.send(JSON.stringify({ type: 'response.cancel' }))
+  }
+
+  sendUserText(text: string) {
+    this.socket.send(
+      JSON.stringify({
+        type: 'conversation.item.create',
+        item: { type: 'message', role: 'user', content: [{ type: 'input_text', text }] },
+      }),
+    )
+    this.createResponse()
+  }
+
   close() {
     this.socket.close()
   }
