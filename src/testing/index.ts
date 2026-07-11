@@ -9,6 +9,7 @@ export * from './agentHarness'
 export * from './LlmJudge'
 export * from './fixtures'
 export * from './conformance/chatAdapterConformanceCases'
+export * from './conformance/audioAdapterConformanceCases'
 
 export * from './restHarness'
 export * from './uiHarness'
