@@ -71,17 +71,19 @@ const config = (over: Partial<IRealtimeVoiceSessionConfig> = {}): IRealtimeVoice
 })
 
 test.describe('OpenaiRealtimeVoiceEngineSession', () => {
-  test('configure() sends session.update with codec, voice, VAD and tools', () => {
+  test('configure() sends the GA session.update with codec, voice, VAD and tools', () => {
     const socket = new FakeSocket()
     const session = new OpenaiRealtimeVoiceEngineSession(socket, config())
     session.configure()
 
     const msg = socket.last()
     assert.equal(msg.type, 'session.update')
-    assert.equal(msg.session.input_audio_format, 'g711_ulaw')
-    assert.equal(msg.session.output_audio_format, 'g711_ulaw')
-    assert.equal(msg.session.voice, 'verse')
-    assert.equal(msg.session.turn_detection.type, 'server_vad')
+    assert.equal(msg.session.type, 'realtime') // GA shape
+    assert.deepEqual(msg.session.output_modalities, ['audio'])
+    assert.equal(msg.session.audio.input.format.type, 'audio/pcmu') // g711_ulaw → pcmu
+    assert.equal(msg.session.audio.output.format.type, 'audio/pcmu')
+    assert.equal(msg.session.audio.output.voice, 'verse')
+    assert.equal(msg.session.audio.input.turn_detection.type, 'server_vad')
     assert.equal(msg.session.tool_choice, 'auto')
     assert.equal(msg.session.tools.length, 1)
     assert.equal(msg.session.tools[0].name, 'get_time')

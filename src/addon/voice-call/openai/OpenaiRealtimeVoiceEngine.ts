@@ -7,12 +7,18 @@ import {
   IRealtimeVoiceEngineSession,
   IRealtimeVoiceSessionConfig,
   realtimeVoiceEngine,
+  VoiceAudioFormat,
 } from '@/feature/voice-call'
 import { IRealtimeSocket } from './IRealtimeSocket'
 import { openaiRealtimeWsSocket } from './openaiRealtimeWsSocket'
 
 const DEFAULT_MODEL = 'gpt-realtime'
 const DEFAULT_VOICE = 'alloy'
+
+/** Maps our codec to the GA Realtime audio format object. */
+function audioFormat(format: VoiceAudioFormat) {
+  return format === 'pcm16' ? { type: 'audio/pcm', rate: 24000 } : { type: 'audio/pcmu' }
+}
 
 function mapTool(tool: IToolSchema) {
   const properties: Record<string, unknown> = {}
@@ -56,9 +62,9 @@ export class OpenaiRealtimeVoiceEngine implements IRealtimeVoiceEngine {
     const apiKey = process.env.OPENAI_API_KEY ?? ''
     return openaiRealtimeWsSocket({
       url: `wss://api.openai.com/v1/realtime?model=${encodeURIComponent(model)}`,
+      // GA Realtime API: no OpenAI-Beta header (the beta shape is disabled).
       headers: {
         Authorization: `Bearer ${apiKey}`,
-        'OpenAI-Beta': 'realtime=v1',
       },
     })
   }
@@ -82,18 +88,20 @@ export class OpenaiRealtimeVoiceEngineSession implements IRealtimeVoiceEngineSes
 
   /** Sends the initial session configuration (called once the socket is open). */
   configure() {
+    const format = audioFormat(this.config.audioFormat)
     this.socket.send(
       JSON.stringify({
         type: 'session.update',
         session: {
+          type: 'realtime',
           instructions: this.config.instructions,
-          voice: this.config.voice ?? DEFAULT_VOICE,
-          input_audio_format: this.config.audioFormat,
-          output_audio_format: this.config.audioFormat,
-          turn_detection: { type: 'server_vad' },
+          output_modalities: ['audio'],
+          audio: {
+            input: { format, turn_detection: { type: 'server_vad' } },
+            output: { format, voice: this.config.voice ?? DEFAULT_VOICE },
+          },
           tools: this.config.tools.map(mapTool),
           tool_choice: this.config.tools.length > 0 ? 'auto' : 'none',
-          modalities: ['audio', 'text'],
         },
       }),
     )
