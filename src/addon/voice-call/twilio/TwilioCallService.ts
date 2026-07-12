@@ -2,7 +2,7 @@ import { singleton } from '@/core/injection'
 import { IConstructor } from '@/core/generics'
 import { Logger } from '@/core/logger'
 import { IMindset } from '@/feature/mindset'
-import { OutboundCallGate, OutboundCallIntents, VoiceBotRegistry } from '@/feature/voice-call'
+import { OutboundCallIntents, VoiceBotRegistry } from '@/feature/voice-call'
 import { TwilioVoiceConfig } from './TwilioVoiceConfig'
 import { toE164Colombia } from './phoneNumber'
 
@@ -23,8 +23,10 @@ export interface IInitiateCallResult {
 
 /**
  * Places outbound calls via the Twilio REST API. On answer Twilio fetches the
- * same webhook as inbound, so the call runs through the Phase 2 media bridge.
- * Consent is enforced before dialing.
+ * same webhook as inbound, so the call runs through the media bridge.
+ *
+ * This just dials. Consent / who-may-be-called is the application's policy —
+ * gate it before calling `initiate` (e.g. check your own consent store).
  */
 @singleton()
 export class TwilioCallService {
@@ -32,14 +34,12 @@ export class TwilioCallService {
 
   constructor(
     private config: TwilioVoiceConfig,
-    private gate: OutboundCallGate,
     private bots: VoiceBotRegistry,
     private intents: OutboundCallIntents,
   ) {}
 
   async initiate(req: IInitiateCallRequest): Promise<IInitiateCallResult> {
     const to = toE164Colombia(req.to)
-    await this.gate.assertAllowed(to)
 
     const botName = this.resolveBotName(req.bot)
     const intentId = this.intents.create({ bot: botName, greeting: req.greeting, voice: req.voice })

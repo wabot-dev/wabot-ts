@@ -1,4 +1,3 @@
-export * from './consent'
 export * from './metadata'
 export * from './IIncomingVoiceCall'
 export * from './IRealtimeVoiceEngine'
