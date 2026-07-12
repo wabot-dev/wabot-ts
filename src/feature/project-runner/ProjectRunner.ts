@@ -6,6 +6,12 @@ import { IConstructor } from '@/core/generics'
 import { Locker } from '@/core/lock'
 import { ChatRepository, IChatAdapter, runChatAdapters } from '@/feature/chat-bot'
 import { runChatControllers } from '@/feature/chat-controller'
+import {
+  IRealtimeVoiceEngine,
+  runRealtimeVoiceEngines,
+  runVoiceControllers,
+  VoiceControllerMetadataStore,
+} from '@/feature/voice-call'
 import { runRestControllers } from '@/feature/rest-controller'
 import {
   runCommandHandlers,
@@ -98,6 +104,7 @@ const DEFAULT_ADAPTER_LOADERS: Record<
 
 interface DiscoveredComponents {
   chatControllers: IConstructor<any>[]
+  voiceControllers: IConstructor<any>[]
   restControllers: IConstructor<any>[]
   commandHandlers: IConstructor<ICommandHandler<any>>[]
   cronHandlers: IConstructor<ICronHandler>[]
@@ -205,6 +212,9 @@ export class ProjectRunner {
       chatControllers: container
         .resolve(ControllerMetadataStore)
         .getAllChatControllerConstructors() as IConstructor<any>[],
+      voiceControllers: container
+        .resolve(VoiceControllerMetadataStore)
+        .getAllVoiceControllerConstructors() as IConstructor<any>[],
       restControllers: container
         .resolve(RestControllerMetadataStore)
         .getAllRestControllerConstructors(),
@@ -313,7 +323,11 @@ export class ProjectRunner {
     // moment the Socket.IO server is created; otherwise both answer the same
     // request and long-polling crashes with ERR_HTTP_HEADERS_SENT. Attach Express
     // first whenever express-based controllers (UI/REST) are present.
-    if (components.uiControllers.length > 0 || components.restControllers.length > 0) {
+    if (
+      components.uiControllers.length > 0 ||
+      components.restControllers.length > 0 ||
+      components.voiceControllers.length > 0
+    ) {
       container.resolve(ExpressProvider).getExpress()
     }
 
@@ -344,6 +358,19 @@ export class ProjectRunner {
     if (components.socketControllers.length > 0) {
       logger.info(`Starting ${components.socketControllers.length} socket controller(s)`)
       runSocketControllers(components.socketControllers)
+    }
+
+    if (components.voiceControllers.length > 0) {
+      const voiceEngines = await this.resolveDefaultVoiceEngines()
+      if (voiceEngines.length > 0) {
+        runRealtimeVoiceEngines(voiceEngines)
+      } else {
+        logger.warn(
+          'Voice controllers found but no realtime voice engine loaded (set OPENAI_API_KEY).',
+        )
+      }
+      logger.info(`Starting ${components.voiceControllers.length} voice controller(s)`)
+      runVoiceControllers(components.voiceControllers)
     }
 
     // All routes and namespaces are registered — now open the port.
@@ -464,6 +491,20 @@ export class ProjectRunner {
       )
     }
     return results.filter((a): a is IConstructor<IChatAdapter> => a != null)
+  }
+
+  private async resolveDefaultVoiceEngines(): Promise<IConstructor<IRealtimeVoiceEngine>[]> {
+    const apiKey = process.env.OPENAI_API_KEY
+    if (!apiKey || apiKey.trim() === '') return []
+    try {
+      const { OpenaiRealtimeVoiceEngine } = await import(
+        '../../addon/voice-call/openai/OpenaiRealtimeVoiceEngine'
+      )
+      logger.info(`Using ${OpenaiRealtimeVoiceEngine.name}`)
+      return [OpenaiRealtimeVoiceEngine]
+    } catch {
+      return []
+    }
   }
 }
 

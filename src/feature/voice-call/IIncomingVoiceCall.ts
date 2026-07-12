@@ -5,6 +5,8 @@ import { IVoiceMediaStream } from './IVoiceMediaStream'
 export interface IVoiceCall {
   connection: IVoiceCallConnection
   media: IVoiceMediaStream
+  /** Suggested opening line (e.g. from an outbound `initiate` intent). */
+  greeting?: string
 }
 
 /** What a voice channel emits when a call connects (adds per-call DI overrides). */

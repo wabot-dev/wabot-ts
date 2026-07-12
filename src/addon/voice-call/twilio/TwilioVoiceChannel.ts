@@ -4,7 +4,12 @@ import { injectable } from '@/core/injection'
 import { Logger } from '@/core/logger'
 import { ExpressProvider } from '@/feature/express'
 import { HttpServerProvider } from '@/feature/http'
-import { IIncomingVoiceCall, IVoiceCallConnection, IVoiceChannel } from '@/feature/voice-call'
+import {
+  IIncomingVoiceCall,
+  IVoiceCallConnection,
+  IVoiceChannel,
+  OutboundCallIntents,
+} from '@/feature/voice-call'
 import { TwilioVoiceConfig } from './TwilioVoiceConfig'
 import { TwilioVoiceMediaStream } from './TwilioVoiceMediaStream'
 import { connectStreamTwiml } from './twiml'
@@ -24,20 +29,29 @@ export class TwilioVoiceChannel implements IVoiceChannel {
     private config: TwilioVoiceConfig,
     private expressProvider: ExpressProvider,
     private httpServerProvider: HttpServerProvider,
+    private intents: OutboundCallIntents,
   ) {}
 
   listen(callback: (call: IIncomingVoiceCall) => Promise<void>): void {
+    if (!this.config.publicBaseUrl) {
+      this.logger.warn('twilio voice channel not configured (PUBLIC_BASE_URL missing); skipping')
+      return
+    }
+
     const app = this.expressProvider.getExpress()
     const httpServer = this.httpServerProvider.getHttpServer()
     const streamUrl = this.config.mediaStreamUrl()
 
-    // 1. Voice webhook → TwiML that opens the media stream; forward call metadata.
+    // 1. Voice webhook → TwiML that opens the media stream; forward call metadata
+    //    and the outbound-intent token (if any) as <Parameter>s.
     app.post(this.config.webhookPath, express.urlencoded({ extended: false }), (req, res) => {
       const body = (req.body ?? {}) as Record<string, string>
+      const query = req.query as Record<string, string | undefined>
       const parameters: Record<string, string> = {}
       if (body.From) parameters.from = body.From
       if (body.To) parameters.to = body.To
       if (body.CallSid) parameters.callSid = body.CallSid
+      if (query.intent) parameters.intent = query.intent
       res.type('text/xml').send(connectStreamTwiml({ streamUrl, parameters }))
     })
 
@@ -60,14 +74,19 @@ export class TwilioVoiceChannel implements IVoiceChannel {
       ws.on('error', (err) => this.logger.warn('media socket error', { message: err.message }))
 
       media.onStart((start) => {
+        // Outbound calls dialed via TwilioCallService carry an intent token that
+        // holds the per-call greeting (e.g. the reminder message).
+        const intent = start.customParameters.intent
+          ? this.intents.take(start.customParameters.intent)
+          : undefined
         const connection: IVoiceCallConnection = {
           callId: start.callSid ?? start.streamSid,
           from: start.customParameters.from ?? '',
           to: start.customParameters.to ?? '',
-          direction: 'inbound',
+          direction: intent ? 'outbound' : 'inbound',
           channelName: twilioVoiceChannelName,
         }
-        void callback({ connection, media }).catch((err) =>
+        void callback({ connection, media, greeting: intent?.greeting }).catch((err) =>
           this.logger.error(
             'voice call handler failed',
             err instanceof Error ? { message: err.message } : { err },
