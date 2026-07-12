@@ -1,10 +1,10 @@
 import { Pool } from 'pg'
 
 import { singleton } from '@/core/injection'
-import type { ICronRow, IErrorRow, IJobStats, INameCount } from './IMonitorStats'
+import type { ICronRow, IErrorRow, IJobRow, IJobStats, IMessageRow, INameCount } from './IMonitorStats'
 
 /**
- * Read-only aggregate queries over the framework's own tables (schema `wabot`).
+ * Read-only aggregate + list queries over the framework's own tables (schema `wabot`).
  *
  * Does NOT mutate, does NOT create tables, and does NOT extend PgCrudRepository
  * — its query() maps rows into entities and assumes a `data` column, which is
@@ -12,10 +12,7 @@ import type { ICronRow, IErrorRow, IJobStats, INameCount } from './IMonitorStats
  *
  * Each public method swallows query errors and returns a safe default (0 / []),
  * so a missing table on a fresh DB or a single bad row can never take down the
- * whole dashboard. The framework repos create these tables lazily on first use,
- * so in any running bot they already exist.
- *
- * PG-only: Pool is registered by ProjectRunner only when DATABASE_URL is set.
+ * dashboard. PG-only: Pool is registered by ProjectRunner only with DATABASE_URL.
  */
 @singleton()
 export class MonitorStatsRepository {
@@ -59,6 +56,34 @@ export class MonitorStatsRepository {
     ])
   }
 
+  async countMessages(type?: string): Promise<number> {
+    return this.count(
+      `SELECT COUNT(*)::int AS count FROM wabot.chat_item
+        WHERE ($1::text IS NULL OR data->>'type' = $1)`,
+      [type ?? null],
+    )
+  }
+
+  async listMessages(type: string | undefined, limit: number, offset: number): Promise<IMessageRow[]> {
+    try {
+      const { rows } = await this.pool.query(
+        `SELECT id, chat_id, created_at, data FROM wabot.chat_item
+          WHERE ($1::text IS NULL OR data->>'type' = $1)
+          ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
+        [type ?? null, limit, offset],
+      )
+      return rows.map((r: any) => ({
+        id: r.id,
+        chatId: r.chat_id,
+        type: r.data?.type ?? '',
+        text: extractText(r.data),
+        createdAt: r.created_at ? new Date(r.created_at).getTime() : 0,
+      }))
+    } catch {
+      return []
+    }
+  }
+
   // ---- errors (wabot.job rows carrying data.error) ----
 
   async countErrors(): Promise<number> {
@@ -75,6 +100,11 @@ export class MonitorStatsRepository {
   }
 
   async recentErrors(): Promise<IErrorRow[]> {
+    const all = await this.listErrors(10, 0)
+    return all
+  }
+
+  async listErrors(limit: number, offset: number): Promise<IErrorRow[]> {
     try {
       const { rows } = await this.pool.query(
         `SELECT id,
@@ -84,7 +114,8 @@ export class MonitorStatsRepository {
                 data->'error'->>'stack' AS stack
            FROM wabot.job
           WHERE data->'error' IS NOT NULL
-          ORDER BY time DESC LIMIT 10`,
+          ORDER BY time DESC LIMIT $1 OFFSET $2`,
+        [limit, offset],
       )
       // node-pg returns bigint as string — coerce back to number.
       return rows.map((r: any) => ({
@@ -116,12 +147,12 @@ export class MonitorStatsRepository {
         `SELECT
            COUNT(*) FILTER (WHERE (data->>'startedAt') IS NOT NULL
                               AND data->>'successAt' IS NULL
-                              AND data->>'failedAt' IS NULL) AS running,
+                              AND data->>'failedAt' IS NULL)::int AS running,
            COUNT(*) FILTER (WHERE (data->>'failedAt') IS NULL
                               AND (data->>'successAt') IS NULL
-                              AND (data->>'startedAt') IS NULL) AS pending,
-           COUNT(*) FILTER (WHERE (data->>'successAt') IS NOT NULL) AS succeeded,
-           COUNT(*) FILTER (WHERE (data->>'failedAt') IS NOT NULL) AS failed
+                              AND (data->>'startedAt') IS NULL)::int AS pending,
+           COUNT(*) FILTER (WHERE (data->>'successAt') IS NOT NULL)::int AS succeeded,
+           COUNT(*) FILTER (WHERE (data->>'failedAt') IS NOT NULL)::int AS failed
          FROM wabot.job`,
       )
       const r = rows[0] as any
@@ -133,6 +164,40 @@ export class MonitorStatsRepository {
       }
     } catch {
       return { running: 0, pending: 0, succeeded: 0, failed: 0 }
+    }
+  }
+
+  async countJobs(state?: string): Promise<number> {
+    const pred = this.jobStatePredicate(state)
+    return this.count(`SELECT COUNT(*)::int AS count FROM wabot.job${pred ? ` WHERE ${pred}` : ''}`)
+  }
+
+  async listJobs(state: string | undefined, limit: number, offset: number): Promise<IJobRow[]> {
+    try {
+      const pred = this.jobStatePredicate(state)
+      const { rows } = await this.pool.query(
+        `SELECT id, created_at, data FROM wabot.job${pred ? ` WHERE ${pred}` : ''}
+          ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
+        [limit, offset],
+      )
+      return rows.map((r: any) => {
+        const d = r.data ?? {}
+        const startedAt = num(d.startedAt)
+        const successAt = num(d.successAt)
+        const failedAt = num(d.failedAt)
+        return {
+          id: r.id,
+          commandName: d.commandName ?? '',
+          state: jobState(startedAt, successAt, failedAt),
+          scheduledAt: num(d.scheduledAt),
+          startedAt,
+          successAt,
+          failedAt,
+          errorMessage: d.error?.message ?? null,
+        }
+      })
+    } catch {
+      return []
     }
   }
 
@@ -149,7 +214,6 @@ export class MonitorStatsRepository {
                 (data->>'nextRunAt')::bigint AS "nextRunAt"
            FROM wabot.cron_job ORDER BY name`,
       )
-      // bigint columns come back as strings — coerce.
       return rows.map((r: any) => ({
         name: r.name,
         commandName: r.commandName,
@@ -164,6 +228,21 @@ export class MonitorStatsRepository {
   }
 
   // ---- helpers ----
+
+  private jobStatePredicate(state?: string): string | null {
+    switch (state) {
+      case 'running':
+        return "(data->>'startedAt') IS NOT NULL AND data->>'successAt' IS NULL AND data->>'failedAt' IS NULL"
+      case 'pending':
+        return "(data->>'failedAt') IS NULL AND (data->>'successAt') IS NULL AND (data->>'startedAt') IS NULL"
+      case 'succeeded':
+        return "(data->>'successAt') IS NOT NULL"
+      case 'failed':
+        return "(data->>'failedAt') IS NOT NULL"
+      default:
+        return null
+    }
+  }
 
   private async count(sql: string, params?: unknown[]): Promise<number> {
     try {
@@ -182,4 +261,23 @@ export class MonitorStatsRepository {
       return []
     }
   }
+}
+
+function num(v: any): number | null {
+  return v == null ? null : Number(v)
+}
+
+function jobState(startedAt: number | null, successAt: number | null, failedAt: number | null): IJobRow['state'] {
+  if (successAt != null) return 'succeeded'
+  if (failedAt != null) return 'failed'
+  if (startedAt != null) return 'running'
+  return 'pending'
+}
+
+/** Pulls a display text from any chat_item data variant. */
+function extractText(data: any): string | null {
+  if (!data) return null
+  if (data.type === 'functionCall') return data.functionCall?.name ? `fn:${data.functionCall.name}` : null
+  const msg = data.humanMessage ?? data.botMessage
+  return msg?.text ?? null
 }

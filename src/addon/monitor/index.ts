@@ -10,9 +10,12 @@
  *   // then open /monitor?key=<MONITOR_API_KEY>
  */
 export { MonitorController } from './MonitorController'
+export { ChatBrowserController } from './ChatBrowserController'
 export { MonitorStatsService } from './MonitorStatsService'
 export { MonitorStatsRepository } from './MonitorStatsRepository'
+export { ChatBrowserRepository } from './ChatBrowserRepository'
 export { MonitorAuthMiddleware } from './MonitorAuthMiddleware'
 // Shared UI kit + auth: reusable building blocks for custom domain monitors.
-export { KpiCard, BarList, Section } from './ui/components'
+export { BarList, DataTable, KpiCard, MonitorShell, Pager, Section } from './ui/components'
 export * from './IMonitorStats'
+export * from './IChatsBrowser'

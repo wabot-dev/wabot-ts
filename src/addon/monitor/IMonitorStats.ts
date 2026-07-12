@@ -63,3 +63,24 @@ export interface IMonitorDashboard {
   /** epoch ms */
   generatedAt: number
 }
+
+// ---- list rows for the detail views (paginated) ----
+
+export interface IJobRow {
+  id: string
+  commandName: string
+  state: 'running' | 'pending' | 'succeeded' | 'failed'
+  scheduledAt: number | null
+  startedAt: number | null
+  successAt: number | null
+  failedAt: number | null
+  errorMessage: string | null
+}
+
+export interface IMessageRow {
+  id: string
+  chatId: string
+  type: string
+  text: string | null
+  createdAt: number
+}
