@@ -4,7 +4,7 @@ import { container } from '@/core/injection'
 import { Logger } from '@/core/logger'
 import { IConstructor } from '@/core/generics'
 import { Locker } from '@/core/lock'
-import { ChatRepository, IChatAdapter, runChatAdapters } from '@/feature/chat-bot'
+import { ChatRepository, IChatAdapter, runAudioAdapters, runChatAdapters } from '@/feature/chat-bot'
 import { runChatControllers } from '@/feature/chat-controller'
 import {
   IRealtimeVoiceEngine,
@@ -312,6 +312,16 @@ export class ProjectRunner {
       runChatAdapters(chatAdapters)
     }
 
+    // Audio adapters (voice-note STT/TTS) auto-load like chat adapters; which
+    // models a bot uses is declared in its mindset models() (speechToText /
+    // textToSpeech).
+    if (components.chatControllers.length > 0) {
+      const audioAdapters = await this.resolveDefaultAudioAdapters()
+      if (audioAdapters.length > 0) {
+        runAudioAdapters(audioAdapters)
+      }
+    }
+
     // Register everything (routes + Socket.IO namespaces) before the port opens,
     // so a client can never connect to a namespace that is not registered yet.
     const httpServerProvider = container.resolve(HttpServerProvider)
@@ -491,6 +501,20 @@ export class ProjectRunner {
       )
     }
     return results.filter((a): a is IConstructor<IChatAdapter> => a != null)
+  }
+
+  private async resolveDefaultAudioAdapters(): Promise<IConstructor<any>[]> {
+    const apiKey = process.env.OPENAI_API_KEY
+    if (!apiKey || apiKey.trim() === '') return []
+    try {
+      const [transcriberMod, synthMod] = await Promise.all([
+        import('../../addon/chat-bot/openia/OpenaiAudioTranscriber'),
+        import('../../addon/chat-bot/openia/OpenaiAudioSpeechSynthesizer'),
+      ])
+      return [transcriberMod.OpenaiAudioTranscriber, synthMod.OpenaiAudioSpeechSynthesizer]
+    } catch {
+      return []
+    }
   }
 
   private async resolveDefaultVoiceEngines(): Promise<IConstructor<IRealtimeVoiceEngine>[]> {

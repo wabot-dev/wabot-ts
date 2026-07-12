@@ -4,7 +4,7 @@ import type { Message } from 'grammy/types'
 import { TelegramChannelConfig } from './TelegramChannelConfig'
 import { injectable } from '@/core/injection'
 import { Logger } from '@/core/logger'
-import { AudioGateway, IChatChannel, resolveAudioGateway } from '@/feature/chat-controller'
+import { IChatChannel } from '@/feature/chat-controller'
 import {
   IChatConnection,
   IChatMessage,
@@ -24,7 +24,6 @@ export class TelegramChannel implements IChatChannel {
 
   private bot: Bot
   private logger = new Logger('wabot:telegram-channel')
-  private audio: AudioGateway | null = resolveAudioGateway()
 
   constructor(private config: TelegramChannelConfig) {
     this.bot = new Bot(this.config.botToken)
@@ -44,22 +43,12 @@ export class TelegramChannel implements IChatChannel {
 
       const { images, documents, audios } = await this.extractMedia(ctx.api, ctx.message)
 
-      // Transcribe an incoming voice note into text at the boundary. Without a
-      // configured audio model the voice note is ignored (never analyzed).
-      let text = ctx.message.text ?? ctx.message.caption
-      let inboundWasAudio = false
-      if (audios.length > 0 && !text && this.audio?.canTranscribe) {
-        const transcript = await this.audio.transcribe(audios[0])
-        if (transcript) {
-          text = transcript
-          inboundWasAudio = true
-        }
-      }
-
+      // The bot (ChatBot) transcribes voice notes with the mindset's
+      // speechToText model; the channel just carries the audio.
       const message: IChatMessage = {
         senderId: ctx.from.id.toString(),
         senderName: ctx.from.first_name,
-        text,
+        text: ctx.message.text ?? ctx.message.caption,
         images: images.length > 0 ? images : undefined,
         documents: documents.length > 0 ? documents : undefined,
         audios: audios.length > 0 ? audios : undefined,
@@ -79,7 +68,7 @@ export class TelegramChannel implements IChatChannel {
               parse_mode: 'HTML',
             })
           }
-          const voice = await this.resolveReplyAudio(replyMessage, inboundWasAudio)
+          const voice = replyMessage.audios?.[0]
           if (voice) await this.sendReplyAudio(ctx, voice)
         },
       })
@@ -139,17 +128,6 @@ export class TelegramChannel implements IChatChannel {
     }
 
     return { images, documents, audios }
-  }
-
-  private async resolveReplyAudio(
-    reply: IChatMessage,
-    inboundWasAudio: boolean,
-  ): Promise<IChatMessageAudio | undefined> {
-    if (reply.audios && reply.audios.length > 0) return reply.audios[0]
-    if (reply.text && this.audio?.shouldReplyWithVoice(inboundWasAudio)) {
-      return this.audio.synthesize(reply.text)
-    }
-    return undefined
   }
 
   private async sendReplyAudio(ctx: Context, audio: IChatMessageAudio): Promise<void> {

@@ -1,5 +1,4 @@
 export * from './AudioAdapterRegistry'
-export * from './AudioConfig'
 export * from './AudioSpeechSynthesizer'
 export * from './AudioTranscriber'
 export * from './Chat'

@@ -14,8 +14,9 @@ import { AudioAdapterMetadataStore } from './metadata'
  * {@link AudioTranscriber} / {@link AudioSpeechSynthesizer} tokens to union
  * implementations that route by provider. Mirrors {@link runChatAdapters}.
  *
- * Which capabilities are actually used is decided by `AudioConfig`
- * (transcriptionModel / synthesisModel); an unused kind simply stays idle.
+ * Which models a bot uses is declared in its mindset `models()` (speechToText /
+ * textToSpeech); this only registers the per-provider adapters. The runner
+ * auto-loads these, so apps rarely call it directly.
  */
 export function runAudioAdapters(
   adapters: IConstructor<IAudioTranscriber | IAudioSpeechSynthesizer>[],
