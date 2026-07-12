@@ -10,7 +10,7 @@ import { injectable } from '@/core/injection'
 @injectable()
 export class TwilioVoiceConfig {
   constructor(
-    public publicBaseUrl: string,
+    public publicBaseUrl: string = process.env.PUBLIC_BASE_URL ?? '',
     public accountSid: string = process.env.TWILIO_ACCOUNT_SID ?? '',
     public authToken: string = process.env.TWILIO_AUTH_TOKEN ?? '',
     public fromNumber: string = process.env.TWILIO_NUMBER ?? '',

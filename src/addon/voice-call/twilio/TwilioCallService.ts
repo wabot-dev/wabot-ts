@@ -50,17 +50,15 @@ export class TwilioCallService {
     return { callId: sid, to }
   }
 
-  private resolveBotName(bot?: string | IConstructor<IMindset>): string {
+  private resolveBotName(bot?: string | IConstructor<IMindset>): string | undefined {
     if (typeof bot === 'string') return bot
     if (bot) {
       this.bots.register({ name: bot.name, mindset: bot })
       return bot.name
     }
-    const defaultName = this.bots.defaultBotName()
-    if (!defaultName) {
-      throw new Error('No voice bot registered; call runTwilioVoice(...) before initiating calls.')
-    }
-    return defaultName
+    // No explicit bot: the answering voice controller decides which bot handles
+    // the call, so the intent carries only the greeting.
+    return this.bots.defaultBotName()
   }
 
   private buildWebhookUrl(intentId: string): string {

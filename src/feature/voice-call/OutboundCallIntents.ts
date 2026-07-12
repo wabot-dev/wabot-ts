@@ -2,8 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { singleton } from '@/core/injection'
 
 export interface IOutboundCallIntent {
-  /** Bot key (see {@link VoiceBotRegistry}) that should answer this call. */
-  bot: string
+  /** Optional bot key; the answering voice controller usually decides the bot. */
+  bot?: string
   greeting?: string
   voice?: string
 }
