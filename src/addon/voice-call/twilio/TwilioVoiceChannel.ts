@@ -1,0 +1,91 @@
+import express from 'express'
+import { WebSocketServer } from 'ws'
+import { injectable } from '@/core/injection'
+import { Logger } from '@/core/logger'
+import { ExpressProvider } from '@/feature/express'
+import { HttpServerProvider } from '@/feature/http'
+import { IIncomingVoiceCall, IVoiceCallConnection, IVoiceChannel } from '@/feature/voice-call'
+import { TwilioVoiceConfig } from './TwilioVoiceConfig'
+import { TwilioVoiceMediaStream } from './TwilioVoiceMediaStream'
+import { connectStreamTwiml } from './twiml'
+import { twilioVoiceChannelName } from './twilioVoiceChannelName'
+
+/**
+ * Twilio Programmable Voice as an IVoiceChannel: a webhook returns
+ * `<Connect><Stream>` TwiML and a raw WebSocket media endpoint bridges each
+ * call. It only surfaces incoming calls — the voice controller picks the bot.
+ */
+@injectable()
+export class TwilioVoiceChannel implements IVoiceChannel {
+  private logger = new Logger('wabot:twilio-voice-channel')
+  private wss?: WebSocketServer
+
+  constructor(
+    private config: TwilioVoiceConfig,
+    private expressProvider: ExpressProvider,
+    private httpServerProvider: HttpServerProvider,
+  ) {}
+
+  listen(callback: (call: IIncomingVoiceCall) => Promise<void>): void {
+    const app = this.expressProvider.getExpress()
+    const httpServer = this.httpServerProvider.getHttpServer()
+    const streamUrl = this.config.mediaStreamUrl()
+
+    // 1. Voice webhook → TwiML that opens the media stream; forward call metadata.
+    app.post(this.config.webhookPath, express.urlencoded({ extended: false }), (req, res) => {
+      const body = (req.body ?? {}) as Record<string, string>
+      const parameters: Record<string, string> = {}
+      if (body.From) parameters.from = body.From
+      if (body.To) parameters.to = body.To
+      if (body.CallSid) parameters.callSid = body.CallSid
+      res.type('text/xml').send(connectStreamTwiml({ streamUrl, parameters }))
+    })
+
+    // 2. Bidirectional media stream (raw WebSocket) on the shared HTTP server.
+    const wss = new WebSocketServer({ noServer: true })
+    this.wss = wss
+    httpServer.on('upgrade', (req, socket, head) => {
+      const pathname = new URL(req.url ?? '', 'http://localhost').pathname
+      if (pathname !== this.config.mediaPath) return // let other handlers deal with it
+      wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req))
+    })
+
+    wss.on('connection', (ws) => {
+      const media = new TwilioVoiceMediaStream({
+        send: (data) => ws.send(data),
+        close: () => ws.close(),
+      })
+      ws.on('message', (data) => media.handleMessage(data.toString()))
+      ws.on('close', () => media.handleClose())
+      ws.on('error', (err) => this.logger.warn('media socket error', { message: err.message }))
+
+      media.onStart((start) => {
+        const connection: IVoiceCallConnection = {
+          callId: start.callSid ?? start.streamSid,
+          from: start.customParameters.from ?? '',
+          to: start.customParameters.to ?? '',
+          direction: 'inbound',
+          channelName: twilioVoiceChannelName,
+        }
+        void callback({ connection, media }).catch((err) =>
+          this.logger.error(
+            'voice call handler failed',
+            err instanceof Error ? { message: err.message } : { err },
+          ),
+        )
+      })
+    })
+  }
+
+  connect(): void {
+    this.expressProvider.listen()
+    this.logger.info('twilio voice ready', {
+      webhook: this.config.webhookPath,
+      media: this.config.mediaPath,
+    })
+  }
+
+  disconnect(): void {
+    this.wss?.close()
+  }
+}

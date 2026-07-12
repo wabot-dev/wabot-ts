@@ -10,10 +10,17 @@ import {
   type IMindsetModels,
   mindset,
 } from '@/feature/mindset'
-import { runRealtimeVoiceEngines } from '@/feature/voice-call'
+import {
+  runRealtimeVoiceEngines,
+  runVoiceControllers,
+  VoiceBot,
+  voiceBot,
+  voiceController,
+} from '@/feature/voice-call'
+import type { IVoiceCall } from '@/feature/voice-call'
 import { OpenaiRealtimeVoiceEngine } from '../openai/OpenaiRealtimeVoiceEngine'
+import { twilioVoice } from './@twilioVoice'
 import { TwilioVoiceConfig } from './TwilioVoiceConfig'
-import { runTwilioVoice } from './runTwilioVoice'
 
 // A tiny mindset so we don't depend on the example app.
 @mindset({})
@@ -32,6 +39,24 @@ class VoiceTestBot implements IMindset {
   }
 }
 
+// Own port so we don't collide with a running dev server. Set before the
+// decorator config is evaluated (module load) and before the server binds.
+const PORT = process.env.VOICE_TEST_PORT ?? '4599'
+process.env.PORT = PORT
+const publicBaseUrl = `http://localhost:${PORT}`
+
+@voiceController()
+class TestVoiceController {
+  constructor(@voiceBot(VoiceTestBot) private bot: VoiceBot) {}
+
+  @twilioVoice({ publicBaseUrl })
+  async onCall(call: IVoiceCall) {
+    await this.bot.answer(call, {
+      greeting: 'Greet the caller with a single short word in English.',
+    })
+  }
+}
+
 function waitListening(server: Server): Promise<void> {
   return new Promise((resolve) => {
     if (server.listening) resolve()
@@ -41,27 +66,19 @@ function waitListening(server: Server): Promise<void> {
 
 const skipInbound = process.env.OPENAI_API_KEY ? false : 'OPENAI_API_KEY not set'
 
-test.describe('Twilio voice bridge (real server + real OpenAI)', { skip: skipInbound }, () => {
+test.describe('Twilio voice controller (real server + real OpenAI)', { skip: skipInbound }, () => {
   test(
-    'webhook returns Stream TwiML and the media bridge streams the bot audio',
+    'routes an incoming call to its @voiceBot and streams the bot audio',
     { timeout: 45_000 },
     async () => {
-      // Own port so we don't collide with a running dev server.
-      process.env.PORT = process.env.VOICE_TEST_PORT ?? '4599'
-      const port = process.env.PORT
-
       runRealtimeVoiceEngines([OpenaiRealtimeVoiceEngine])
-      runTwilioVoice({
-        mindset: VoiceTestBot,
-        config: new TwilioVoiceConfig(`http://localhost:${port}`, 'ACtest', 'tok', '+15005550006'),
-        greeting: 'Greet the caller with a single short word in English.',
-      })
+      runVoiceControllers([TestVoiceController])
 
       const server = container.resolve(HttpServerProvider).getHttpServer()
       await waitListening(server)
 
       // 1. Voice webhook → <Connect><Stream> TwiML.
-      const res = await fetch(`http://localhost:${port}/voice/twilio/incoming`, {
+      const res = await fetch(`http://localhost:${PORT}/voice/twilio/incoming`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
@@ -74,7 +91,7 @@ test.describe('Twilio voice bridge (real server + real OpenAI)', { skip: skipInb
       assert.match(twiml, /<Connect><Stream url="ws:\/\/localhost:\d+\/voice\/twilio\/media">/)
 
       // 2. Media stream: act as Twilio, expect the bot's greeting audio back.
-      const ws = new WebSocket(`ws://localhost:${port}/voice/twilio/media`)
+      const ws = new WebSocket(`ws://localhost:${PORT}/voice/twilio/media`)
       const mediaFrames: string[] = []
       try {
         await new Promise<void>((resolve, reject) => {
@@ -120,8 +137,7 @@ test.describe('Twilio voice bridge (real server + real OpenAI)', { skip: skipInb
 })
 
 // Places a REAL outbound call that SPEAKS a ~10s Latin-American Spanish message
-// via Twilio's text-to-speech. Opt in with TWILIO_* + VOICE_TEST_CALL_TO=<your
-// phone>. It rings the number and costs a little.
+// via Twilio TTS. Opt in with TWILIO_* + VOICE_TEST_CALL_TO=<your phone>.
 const skipOutbound =
   process.env.TWILIO_ACCOUNT_SID && process.env.VOICE_TEST_CALL_TO
     ? false
@@ -132,9 +148,7 @@ const SPANISH_MESSAGE =
   'amablemente que tiene una cita agendada para mañana. Por favor, confírmenos su ' +
   'asistencia. ¡Muchas gracias y que tenga un excelente día!'
 
-/** Dials `to` and plays `message` with a LatAm Spanish Polly voice (~10s). */
 async function dialSpokenMessage(config: TwilioVoiceConfig, to: string, message: string) {
-  // Polly LatAm Spanish (neural). Drop "-Neural" if the account lacks neural voices.
   const twiml =
     `<?xml version="1.0" encoding="UTF-8"?>` +
     `<Response><Say voice="Polly.Mia-Neural" language="es-MX">${message}</Say></Response>`
