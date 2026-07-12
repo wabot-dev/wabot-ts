@@ -1,24 +1,52 @@
 import { injectable } from '@/core/injection'
 
+export interface ITwilioVoiceConfigOptions {
+  publicBaseUrl?: string
+  accountSid?: string
+  authToken?: string
+  fromNumber?: string
+  webhookPath?: string
+  mediaPath?: string
+  voice?: string
+  language?: string
+  /** Verify Twilio's `X-Twilio-Signature` on inbound webhooks for this channel. */
+  verifySignature?: boolean
+}
+
 /**
- * Configuration for the Twilio voice channel.
+ * Configuration for a Twilio voice channel.
  *
  * `publicBaseUrl` is the externally reachable origin Twilio uses to reach this
  * server (e.g. an ngrok URL in dev, your domain in prod). It is used to build
  * both the webhook and the media `wss://` URL.
+ *
+ * Each `@twilioVoice` decorator builds its own instance, so different channels
+ * can use different `webhookPath`/`mediaPath` routes and their own signature
+ * settings. Unset values fall back to environment variables / defaults.
  */
 @injectable()
 export class TwilioVoiceConfig {
-  constructor(
-    public publicBaseUrl: string = process.env.PUBLIC_BASE_URL ?? '',
-    public accountSid: string = process.env.TWILIO_ACCOUNT_SID ?? '',
-    public authToken: string = process.env.TWILIO_AUTH_TOKEN ?? '',
-    public fromNumber: string = process.env.TWILIO_NUMBER ?? '',
-    public webhookPath: string = '/voice/twilio/incoming',
-    public mediaPath: string = '/voice/twilio/media',
-    public voice: string = 'alloy',
-    public language: string = 'es-CO',
-  ) {}
+  publicBaseUrl: string
+  accountSid: string
+  authToken: string
+  fromNumber: string
+  webhookPath: string
+  mediaPath: string
+  voice: string
+  language: string
+  verifySignature: boolean
+
+  constructor(options: ITwilioVoiceConfigOptions = {}) {
+    this.publicBaseUrl = options.publicBaseUrl ?? process.env.PUBLIC_BASE_URL ?? ''
+    this.accountSid = options.accountSid ?? process.env.TWILIO_ACCOUNT_SID ?? ''
+    this.authToken = options.authToken ?? process.env.TWILIO_AUTH_TOKEN ?? ''
+    this.fromNumber = options.fromNumber ?? process.env.TWILIO_NUMBER ?? ''
+    this.webhookPath = options.webhookPath ?? '/voice/twilio/incoming'
+    this.mediaPath = options.mediaPath ?? '/voice/twilio/media'
+    this.voice = options.voice ?? 'alloy'
+    this.language = options.language ?? 'es-CO'
+    this.verifySignature = options.verifySignature ?? false
+  }
 
   /** wss:// URL for the bidirectional Media Stream. */
   mediaStreamUrl(): string {

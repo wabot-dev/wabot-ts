@@ -13,3 +13,13 @@ export function toE164Colombia(input: string): string {
   if (digits.length === 10) return `+57${digits}`
   return `+${digits}`
 }
+
+/**
+ * Country-agnostic E.164 normalization: strips formatting and returns the
+ * digits with a leading `+`. Use it to compare caller-ID (`from`) numbers that
+ * may belong to any country/account, without assuming Colombia.
+ */
+export function normalizeE164(input: string): string {
+  const digits = input.trim().replace(/\D/g, '')
+  return digits ? `+${digits}` : ''
+}

@@ -171,7 +171,9 @@ async function dialSpokenMessage(config: TwilioVoiceConfig, to: string, message:
 test.describe('Twilio outbound dial (real Twilio REST)', { skip: skipOutbound }, () => {
   test('places a real call that speaks a ~10s Spanish message', { timeout: 30_000 }, async () => {
     const to = process.env.VOICE_TEST_CALL_TO as string
-    const config = new TwilioVoiceConfig(process.env.PUBLIC_BASE_URL ?? 'https://example.com')
+    const config = new TwilioVoiceConfig({
+      publicBaseUrl: process.env.PUBLIC_BASE_URL ?? 'https://example.com',
+    })
     const sid = await dialSpokenMessage(config, to, SPANISH_MESSAGE)
     assert.match(sid, /^CA[0-9a-f]{32}$/)
   })

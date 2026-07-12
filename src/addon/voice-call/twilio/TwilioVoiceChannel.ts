@@ -10,8 +10,10 @@ import {
   IVoiceChannel,
   OutboundCallIntents,
 } from '@/feature/voice-call'
+import { TwilioAccountRegistry } from './TwilioAccountRegistry'
 import { TwilioVoiceConfig } from './TwilioVoiceConfig'
 import { TwilioVoiceMediaStream } from './TwilioVoiceMediaStream'
+import { isValidTwilioSignature } from './twilioSignature'
 import { connectStreamTwiml } from './twiml'
 import { twilioVoiceChannelName } from './twilioVoiceChannelName'
 
@@ -30,6 +32,7 @@ export class TwilioVoiceChannel implements IVoiceChannel {
     private expressProvider: ExpressProvider,
     private httpServerProvider: HttpServerProvider,
     private intents: OutboundCallIntents,
+    private accounts: TwilioAccountRegistry,
   ) {}
 
   listen(callback: (call: IIncomingVoiceCall) => Promise<void>): void {
@@ -47,6 +50,16 @@ export class TwilioVoiceChannel implements IVoiceChannel {
     app.post(this.config.webhookPath, express.urlencoded({ extended: false }), (req, res) => {
       const body = (req.body ?? {}) as Record<string, string>
       const query = req.query as Record<string, string | undefined>
+
+      if (this.config.verifySignature && !this.isSignedByTwilio(req, body)) {
+        this.logger.warn('rejected webhook with invalid Twilio signature', {
+          path: this.config.webhookPath,
+          to: body.To,
+        })
+        res.status(403).type('text/plain').send('Invalid Twilio signature')
+        return
+      }
+
       const parameters: Record<string, string> = {}
       if (body.From) parameters.from = body.From
       if (body.To) parameters.to = body.To
@@ -94,6 +107,18 @@ export class TwilioVoiceChannel implements IVoiceChannel {
         )
       })
     })
+  }
+
+  /**
+   * Validates `X-Twilio-Signature` against the exact URL Twilio requested and
+   * the POST body. Tries the token of the account that owns the called number
+   * (multi-account routes) and this channel's configured token.
+   */
+  private isSignedByTwilio(req: express.Request, body: Record<string, string>): boolean {
+    const signature = req.header('X-Twilio-Signature')
+    const url = this.config.publicBaseUrl.replace(/\/+$/, '') + req.originalUrl
+    const tokens = [this.accounts.accountForNumber(body.To ?? '')?.authToken, this.config.authToken]
+    return tokens.some((token) => !!token && isValidTwilioSignature(token, signature, url, body))
   }
 
   connect(): void {
