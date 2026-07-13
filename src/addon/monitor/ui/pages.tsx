@@ -47,7 +47,11 @@ export function HubPage({ stats }: { stats: IMonitorDashboard }) {
             {
               head: 'Estado',
               cell: (r: ICronRow) =>
-                r.enabled ? <span class="tag tag-ok">on</span> : <span class="tag tag-off">off</span>,
+                r.enabled ? (
+                  <span class="badge badge-success"><span class="dot dot-success"></span>on</span>
+                ) : (
+                  <span class="badge badge-danger"><span class="dot dot-danger"></span>off</span>
+                ),
             },
             { head: 'Última', cell: (r: ICronRow) => <span class="mono">{fmtTime(r.lastRunAt)}</span> },
             { head: 'Próxima', cell: (r: ICronRow) => <span class="mono">{fmtTime(r.nextRunAt)}</span> },
@@ -58,8 +62,24 @@ export function HubPage({ stats }: { stats: IMonitorDashboard }) {
   )
 }
 
-const stateTag = (state: IJobRow['state']): string =>
-  state === 'succeeded' ? 'tag tag-done' : state === 'failed' ? 'tag tag-fail' : state === 'running' ? 'tag tag-run' : 'tag tag-pend'
+const stateBadge = (state: IJobRow['state']) => {
+  const badge =
+    state === 'succeeded' ? 'badge-success' : state === 'failed' ? 'badge-danger' : state === 'running' ? 'badge-info' : 'badge-warning'
+  const dot =
+    state === 'running'
+      ? 'dot dot-info dot-pulse'
+      : state === 'succeeded'
+        ? 'dot dot-success'
+        : state === 'failed'
+          ? 'dot dot-danger'
+          : 'dot dot-warning'
+  return (
+    <span class={`badge ${badge}`}>
+      <span class={dot}></span>
+      {state}
+    </span>
+  )
+}
 
 export function ErrorsPage(props: {
   rows: IErrorRow[]
@@ -137,7 +157,7 @@ export function JobsPage(props: {
             ))}
           </select>
         </label>
-        <button>Filtrar</button>
+        <button class="btn">Filtrar</button>
       </form>
       <DataTable
         rows={rows}
@@ -145,7 +165,7 @@ export function JobsPage(props: {
         columns={[
           { head: 'ID', cell: (r: IJobRow) => <span class="mono">{r.id}</span> },
           { head: 'Comando', cell: (r: IJobRow) => <span class="mono">{r.commandName}</span> },
-          { head: 'Estado', cell: (r: IJobRow) => <span class={stateTag(r.state)}>{r.state}</span> },
+          { head: 'Estado', cell: (r: IJobRow) => stateBadge(r.state) },
           { head: 'Iniciado', cell: (r: IJobRow) => <span class="mono">{fmtTime(r.startedAt)}</span> },
           { head: 'Error', cell: (r: IJobRow) => r.errorMessage ?? '—' },
         ]}
@@ -188,7 +208,7 @@ export function MessagesPage(props: {
             ))}
           </select>
         </label>
-        <button>Filtrar</button>
+        <button class="btn">Filtrar</button>
       </form>
       <DataTable
         rows={rows}
@@ -197,11 +217,14 @@ export function MessagesPage(props: {
           { head: 'Hora', cell: (r: IMessageRow) => <span class="mono">{fmtTime(r.createdAt)}</span> },
           {
             head: 'Chat',
-            cell: (r: IMessageRow) => (
-              <a class="mono" href={`/monitor/chats/${encodeURIComponent(r.chatId)}`}>
-                {r.chatId}
-              </a>
-            ),
+            cell: (r: IMessageRow) =>
+              r.chatId ? (
+                <a class="mono" href={`/monitor/chats/${encodeURIComponent(r.chatId)}`}>
+                  {r.chatId}
+                </a>
+              ) : (
+                '—'
+              ),
           },
           { head: 'Tipo', cell: (r: IMessageRow) => r.type },
           { head: 'Texto', cell: (r: IMessageRow) => r.text ?? '—' },

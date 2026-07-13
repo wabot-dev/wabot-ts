@@ -1,6 +1,6 @@
 import { uiController, view } from '@/ui'
 import { MonitorAuthMiddleware } from './MonitorAuthMiddleware'
-import { ChatBrowserRepository } from './ChatBrowserRepository'
+import { ChatBrowserRepository, THREAD_LIMIT } from './ChatBrowserRepository'
 import { ChatIdParam, ListChatsQuery } from './QueryDto'
 import { ChatDetailPage, ChatListPage } from './ui/chat'
 import { limitOf, pageOf } from './ui/format'
@@ -11,7 +11,7 @@ import { limitOf, pageOf } from './ui/format'
  * collapsible function calls. SSR, no client JS; auth via MonitorAuthMiddleware.
  * Shares the `/monitor` base path with MonitorController (disjoint sub-paths).
  */
-@uiController({ path: '/monitor', middlewares: [MonitorAuthMiddleware] })
+@uiController({ path: '/monitor', middlewares: [MonitorAuthMiddleware], head: { preconnect: ['https://design.wabot.dev'] } })
 export class ChatBrowserController {
   constructor(private browser: ChatBrowserRepository) {}
 
@@ -34,6 +34,6 @@ export class ChatBrowserController {
       this.browser.chatHeader(id),
       this.browser.chatThread(id),
     ])
-    return <ChatDetailPage header={header} items={items} />
+    return <ChatDetailPage header={header} items={items} truncated={items.length >= THREAD_LIMIT} />
   }
 }

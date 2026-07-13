@@ -3,6 +3,9 @@ import { Pool } from 'pg'
 import { singleton } from '@/core/injection'
 import type { IChatSummary, IChatThreadItem } from './IChatsBrowser'
 
+/** Cap on how many thread items a detail view loads at once. */
+export const THREAD_LIMIT = 1000
+
 /**
  * Read-only chat browser/debugger queries. Lists conversations (with last
  * activity + message count) and loads a chat's message thread. Same shape and
@@ -69,7 +72,7 @@ export class ChatBrowserRepository {
     }
   }
 
-  async chatThread(id: string, limit = 1000): Promise<IChatThreadItem[]> {
+  async chatThread(id: string, limit = THREAD_LIMIT): Promise<IChatThreadItem[]> {
     try {
       const { rows } = await this.pool.query(
         `SELECT id, created_at, data FROM wabot.chat_item WHERE chat_id = $1 ORDER BY created_at ASC LIMIT $2`,

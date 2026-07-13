@@ -34,9 +34,10 @@ export class MonitorAuthMiddleware implements IMiddleware {
     }
 
     if (fromQuery && fromCookie !== expected) {
+      const secure = req.secure || req.headers['x-forwarded-proto'] === 'https'
       res.setHeader(
         'Set-Cookie',
-        `${COOKIE_NAME}=${encodeURIComponent(expected)}; Path=/; HttpOnly; SameSite=Strict`,
+        `${COOKIE_NAME}=${encodeURIComponent(expected)}; Path=/; HttpOnly; SameSite=Strict${secure ? '; Secure' : ''}`,
       )
     }
   }

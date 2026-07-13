@@ -25,7 +25,7 @@ const dashboard: IMonitorDashboard = {
     ],
     last24h: 77,
   },
-  errors: { total: 3, last24h: 1, recent: [], byCommand: [{ name: 'sync-leads', count: 3 }] },
+  errors: { total: 3, last24h: 1, byCommand: [{ name: 'sync-leads', count: 3 }] },
   jobs: { running: 2, pending: 5, succeeded: 800, failed: 3 },
   cron: [
     { name: 'nightly', commandName: 'sync', cron: '0 0 * * *', enabled: true, lastRunAt: null, nextRunAt: null },

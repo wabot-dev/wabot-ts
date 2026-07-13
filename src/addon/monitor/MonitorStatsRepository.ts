@@ -99,11 +99,6 @@ export class MonitorStatsRepository {
     )
   }
 
-  async recentErrors(): Promise<IErrorRow[]> {
-    const all = await this.listErrors(10, 0)
-    return all
-  }
-
   async listErrors(limit: number, offset: number): Promise<IErrorRow[]> {
     try {
       const { rows } = await this.pool.query(

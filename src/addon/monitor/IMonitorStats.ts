@@ -32,7 +32,6 @@ export interface IMessageStats {
 export interface IErrorStats {
   total: number
   last24h: number
-  recent: IErrorRow[]
   byCommand: INameCount[]
 }
 
@@ -79,7 +78,7 @@ export interface IJobRow {
 
 export interface IMessageRow {
   id: string
-  chatId: string
+  chatId: string | null
   type: string
   text: string | null
   createdAt: number

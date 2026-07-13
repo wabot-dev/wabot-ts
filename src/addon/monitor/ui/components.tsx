@@ -15,11 +15,11 @@ export function KpiCard({
   const body = (
     <>
       <div class="kpi-value">{value}</div>
-      <div class="kpi-label">{label}</div>
+      <div class="card-label">{label}</div>
       {sub ? <div class="kpi-sub">{sub}</div> : null}
     </>
   )
-  return href ? <a class="kpi" href={href}>{body}</a> : <div class="kpi">{body}</div>
+  return href ? <a class="card kpi" href={href}>{body}</a> : <div class="card kpi">{body}</div>
 }
 
 export function BarList({ items }: { items: { name: string; count: number }[] }) {
@@ -42,8 +42,8 @@ export function BarList({ items }: { items: { name: string; count: number }[] })
 
 export function Section({ title, children }: { title: string; children: ComponentChildren }) {
   return (
-    <section class="section">
-      <h3>{title}</h3>
+    <section class="card section">
+      <h3 class="card-label">{title}</h3>
       {children}
     </section>
   )
@@ -57,19 +57,28 @@ const NAV: Array<[string, string]> = [
   ['Messages', 'messages'],
 ]
 
-/** Shared shell: injects the CSS once and renders the sidebar nav + page body. */
+/** Shared shell: links the Wabot design system, injects the monitor CSS, and
+ *  renders the sidebar nav + page body. Light by default; set data-theme="dark"
+ *  on .shell for dark mode (tokens swap automatically). */
 export function MonitorShell({ active, children }: { active?: string; children: ComponentChildren }) {
   return (
     <div class="shell">
+      <link rel="stylesheet" href="https://design.wabot.dev/assets/colors_and_type.css" />
       <style dangerouslySetInnerHTML={{ __html: MONITOR_CSS }} />
-      <nav class="nav">
-        <h1>Monitor</h1>
-        {NAV.map(([label, path]) => (
-          <a href={`/monitor${path ? '/' + path : ''}`} class={active === path ? 'active' : ''}>
-            {label}
-          </a>
-        ))}
-      </nav>
+      <aside class="sidebar">
+        <h6>Monitor</h6>
+        <nav>
+          <ul>
+            {NAV.map(([label, path]) => (
+              <li>
+                <a href={`/monitor${path ? '/' + path : ''}`} class={active === path ? 'active' : ''}>
+                  {label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </aside>
       <main class="main">{children}</main>
     </div>
   )
@@ -101,11 +110,11 @@ export function Pager(props: { page: number; totalPages: number; hrefFor: (n: nu
   const { page, totalPages } = props
   return (
     <div class="pager">
-      {page > 1 ? <a href={props.hrefFor(page - 1)}>← Anterior</a> : <span class="muted">← Anterior</span>}
+      {page > 1 ? <a href={props.hrefFor(page - 1)}>Anterior</a> : <span class="muted">Anterior</span>}
       <span>
         Página {page} de {Math.max(1, totalPages)}
       </span>
-      {page < totalPages ? <a href={props.hrefFor(page + 1)}>Siguiente →</a> : <span class="muted">Siguiente →</span>}
+      {page < totalPages ? <a href={props.hrefFor(page + 1)}>Siguiente</a> : <span class="muted">Siguiente</span>}
     </div>
   )
 }

@@ -12,7 +12,7 @@ import { ErrorsPage, HubPage, JobsPage, MessagesPage } from './ui/pages'
  * MonitorAuthMiddleware. Shares the `/monitor` base path with ChatBrowserController
  * (disjoint sub-paths).
  */
-@uiController({ path: '/monitor', middlewares: [MonitorAuthMiddleware] })
+@uiController({ path: '/monitor', middlewares: [MonitorAuthMiddleware], head: { preconnect: ['https://design.wabot.dev'] } })
 export class MonitorController {
   constructor(
     private stats: MonitorStatsService,

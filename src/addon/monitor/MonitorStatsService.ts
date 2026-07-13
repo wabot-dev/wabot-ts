@@ -27,7 +27,6 @@ export class MonitorStatsService {
       msgLast24h,
       errTotal,
       errLast24h,
-      errRecent,
       errByCommand,
       jobs,
       cron,
@@ -41,7 +40,6 @@ export class MonitorStatsService {
       this.repo.countMessagesSince(since24h),
       this.repo.countErrors(),
       this.repo.countErrorsSince(now - DAY_MS),
-      this.repo.recentErrors(),
       this.repo.errorsByCommand(),
       this.repo.jobCounts(),
       this.repo.cronRows(),
@@ -63,7 +61,6 @@ export class MonitorStatsService {
       errors: {
         total: errTotal,
         last24h: errLast24h,
-        recent: errRecent,
         byCommand: errByCommand,
       },
       jobs,

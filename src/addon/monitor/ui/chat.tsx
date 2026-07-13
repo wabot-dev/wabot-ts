@@ -85,7 +85,7 @@ export function ChatListPage(props: {
           Buscar ID
           <input name="q" value={query.q ?? ''} />
         </label>
-        <button>Filtrar</button>
+        <button class="btn">Filtrar</button>
       </form>
       <DataTable
         rows={rows}
@@ -103,8 +103,12 @@ export function ChatListPage(props: {
   )
 }
 
-export function ChatDetailPage(props: { header: IChatSummary | null; items: IChatThreadItem[] }) {
-  const { header, items } = props
+export function ChatDetailPage(props: {
+  header: IChatSummary | null
+  items: IChatThreadItem[]
+  truncated: boolean
+}) {
+  const { header, items, truncated } = props
   return (
     <MonitorShell active="chats">
       <div class="topbar">
@@ -118,7 +122,10 @@ export function ChatDetailPage(props: { header: IChatSummary | null; items: ICha
       ) : items.length === 0 ? (
         <p class="empty">Sin mensajes</p>
       ) : (
-        <div class="thread">{items.map((it) => <MessageBubble item={it} />)}</div>
+        <>
+          {truncated ? <p class="empty">Mostrando los primeros {items.length} mensajes — el chat puede tener más.</p> : null}
+          <div class="thread">{items.map((it) => <MessageBubble item={it} />)}</div>
+        </>
       )}
     </MonitorShell>
   )
