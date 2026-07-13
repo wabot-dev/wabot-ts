@@ -19,12 +19,19 @@ export interface IPreloadLink {
 /** An origin to `<link rel="preconnect">` (e.g. a font CDN). */
 export type IPreconnect = string | { href: string; crossorigin?: boolean }
 
-/** Extra `<head>` resource hints rendered on full document loads. */
+/** Extra `<head>` resources rendered on full document loads. */
 export interface IControllerHead {
   /** Origins to open a connection to early (TLS handshake), e.g. a font host. */
   preconnect?: IPreconnect[]
   /** Resources to fetch early in parallel (fonts, hero image, …). */
   preload?: IPreloadLink[]
+  /**
+   * External stylesheet hrefs, rendered as `<link rel="stylesheet">` in the head.
+   * Use this for a global/design-system stylesheet served as a cacheable file
+   * (loaded once, shared across pages and kept across boosted navigation) instead
+   * of inlining CSS into every page.
+   */
+  stylesheets?: string[]
 }
 
 export interface IUiControllerConfig {

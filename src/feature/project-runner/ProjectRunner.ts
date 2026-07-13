@@ -4,8 +4,14 @@ import { container } from '@/core/injection'
 import { Logger } from '@/core/logger'
 import { IConstructor } from '@/core/generics'
 import { Locker } from '@/core/lock'
-import { ChatRepository, IChatAdapter, runChatAdapters } from '@/feature/chat-bot'
+import { ChatRepository, IChatAdapter, runAudioAdapters, runChatAdapters } from '@/feature/chat-bot'
 import { runChatControllers } from '@/feature/chat-controller'
+import {
+  IRealtimeVoiceEngine,
+  runRealtimeVoiceEngines,
+  runVoiceControllers,
+  VoiceControllerMetadataStore,
+} from '@/feature/voice-call'
 import { runRestControllers } from '@/feature/rest-controller'
 import {
   runCommandHandlers,
@@ -19,6 +25,7 @@ import {
 } from '@/feature/async'
 import { runSocketControllers } from '@/feature/socket-controller'
 import { ExpressProvider } from '@/feature/express'
+import { HttpServerProvider } from '@/feature/http'
 import {
   runUiControllers,
   UiRendererRegistry,
@@ -97,6 +104,7 @@ const DEFAULT_ADAPTER_LOADERS: Record<
 
 interface DiscoveredComponents {
   chatControllers: IConstructor<any>[]
+  voiceControllers: IConstructor<any>[]
   restControllers: IConstructor<any>[]
   commandHandlers: IConstructor<ICommandHandler<any>>[]
   cronHandlers: IConstructor<ICronHandler>[]
@@ -204,6 +212,9 @@ export class ProjectRunner {
       chatControllers: container
         .resolve(ControllerMetadataStore)
         .getAllChatControllerConstructors() as IConstructor<any>[],
+      voiceControllers: container
+        .resolve(VoiceControllerMetadataStore)
+        .getAllVoiceControllerConstructors() as IConstructor<any>[],
       restControllers: container
         .resolve(RestControllerMetadataStore)
         .getAllRestControllerConstructors(),
@@ -301,6 +312,35 @@ export class ProjectRunner {
       runChatAdapters(chatAdapters)
     }
 
+    // Audio adapters (voice-note STT/TTS) auto-load like chat adapters; which
+    // models a bot uses is declared in its mindset models() (speechToText /
+    // textToSpeech).
+    if (components.chatControllers.length > 0) {
+      const audioAdapters = await this.resolveDefaultAudioAdapters()
+      if (audioAdapters.length > 0) {
+        runAudioAdapters(audioAdapters)
+      }
+    }
+
+    // Register everything (routes + Socket.IO namespaces) before the port opens,
+    // so a client can never connect to a namespace that is not registered yet.
+    const httpServerProvider = container.resolve(HttpServerProvider)
+    httpServerProvider.deferListen()
+
+    // A @socket chat channel (started by runChatControllers below) creates the
+    // Socket.IO server. engine.io only delegates non-socket.io HTTP requests to
+    // Express when Express is already attached to the shared http server at the
+    // moment the Socket.IO server is created; otherwise both answer the same
+    // request and long-polling crashes with ERR_HTTP_HEADERS_SENT. Attach Express
+    // first whenever express-based controllers (UI/REST) are present.
+    if (
+      components.uiControllers.length > 0 ||
+      components.restControllers.length > 0 ||
+      components.voiceControllers.length > 0
+    ) {
+      container.resolve(ExpressProvider).getExpress()
+    }
+
     if (components.chatControllers.length > 0) {
       logger.info(`Starting ${components.chatControllers.length} chat controller(s)`)
       runChatControllers(components.chatControllers)
@@ -329,6 +369,22 @@ export class ProjectRunner {
       logger.info(`Starting ${components.socketControllers.length} socket controller(s)`)
       runSocketControllers(components.socketControllers)
     }
+
+    if (components.voiceControllers.length > 0) {
+      const voiceEngines = await this.resolveDefaultVoiceEngines()
+      if (voiceEngines.length > 0) {
+        runRealtimeVoiceEngines(voiceEngines)
+      } else {
+        logger.warn(
+          'Voice controllers found but no realtime voice engine loaded (set OPENAI_API_KEY).',
+        )
+      }
+      logger.info(`Starting ${components.voiceControllers.length} voice controller(s)`)
+      runVoiceControllers(components.voiceControllers)
+    }
+
+    // All routes and namespaces are registered — now open the port.
+    httpServerProvider.releaseListen()
   }
 
   private async startUiControllers(
@@ -354,6 +410,29 @@ export class ProjectRunner {
 
     logger.info(`Starting ${uiControllers.length} UI controller(s)`)
     runUiControllers(uiControllers, { pageAssets })
+
+    if (!this.preloaded) {
+      this.printUiDevUrl(uiControllers)
+    }
+  }
+
+  /** In dev, print a clickable link to the UI so it's one click away in the terminal. */
+  private printUiDevUrl(uiControllers: IConstructor<any>[]): void {
+    const store = container.resolve(UiControllerMetadataStore)
+    let path = ''
+    for (const controller of uiControllers) {
+      const views = store.getControllerViewsInfo(controller)
+      if (views.length > 0) {
+        const base = views[0].controller.path.replace(/^\/+|\/+$/g, '')
+        path = base ? `/${base}` : ''
+        break
+      }
+    }
+    const url = `http://localhost:${process.env.PORT || 3000}${path}`
+    // OSC 8 hyperlink when attached to a terminal; the raw URL otherwise (most
+    // terminals also linkify a bare URL).
+    const link = process.stdout.isTTY ? `\u001b]8;;${url}\u0007${url}\u001b]8;;\u0007` : url
+    console.log(`\n  →  Wabot UI running at  ${link}\n`)
   }
 
   private async setupDevUiAssets(
@@ -422,6 +501,34 @@ export class ProjectRunner {
       )
     }
     return results.filter((a): a is IConstructor<IChatAdapter> => a != null)
+  }
+
+  private async resolveDefaultAudioAdapters(): Promise<IConstructor<any>[]> {
+    const apiKey = process.env.OPENAI_API_KEY
+    if (!apiKey || apiKey.trim() === '') return []
+    try {
+      const [transcriberMod, synthMod] = await Promise.all([
+        import('../../addon/chat-bot/openia/OpenaiAudioTranscriber'),
+        import('../../addon/chat-bot/openia/OpenaiAudioSpeechSynthesizer'),
+      ])
+      return [transcriberMod.OpenaiAudioTranscriber, synthMod.OpenaiAudioSpeechSynthesizer]
+    } catch {
+      return []
+    }
+  }
+
+  private async resolveDefaultVoiceEngines(): Promise<IConstructor<IRealtimeVoiceEngine>[]> {
+    const apiKey = process.env.OPENAI_API_KEY
+    if (!apiKey || apiKey.trim() === '') return []
+    try {
+      const { OpenaiRealtimeVoiceEngine } = await import(
+        '../../addon/voice-call/openai/OpenaiRealtimeVoiceEngine'
+      )
+      logger.info(`Using ${OpenaiRealtimeVoiceEngine.name}`)
+      return [OpenaiRealtimeVoiceEngine]
+    } catch {
+      return []
+    }
   }
 }
 

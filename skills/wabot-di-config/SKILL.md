@@ -46,7 +46,7 @@ export class RequestContext {
 }
 ```
 
-Decorators that mark something as a controller/handler also apply `@injectable()` for you (`@chatController`, `@restController`, `@socketController`, `@commandHandler`, `@cronHandler`, `@mindset`, `@mindsetModule`). Do not stack lifecycle decorators on top of those — they will conflict.
+Decorators that mark something as a controller/handler also apply `@injectable()` for you (`@chatController`, `@restController`, `@socketController`, `@commandHandler`, `@cronHandler`, `@mindset`, `@tools`/`@mindsetModule`, `@agent`). Do not stack lifecycle decorators on top of those — they will conflict.
 
 ## Resolving and registering
 

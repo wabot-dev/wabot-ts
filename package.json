@@ -1,6 +1,6 @@
 {
   "name": "@wabot-dev/framework",
-  "version": "2.0.0-beta.0",
+  "version": "1.0.0-beta.1",
   "description": "Framework for IA Chat Bots",
   "type": "module",
   "main": "dist/src/index.js",
@@ -34,6 +34,12 @@
     "./monitor": {
       "types": "./dist/src/addon/monitor/index.d.ts",
       "import": "./dist/src/addon/monitor/index.js"
+    },
+    "./ui/css-loader": {
+      "import": "./dist/src/ui/cssModuleLoader.js"
+    },
+    "./ui/css-runtime": {
+      "import": "./dist/src/ui/cssRegistry.js"
     }
   },
   "license": "MIT",
@@ -76,7 +82,7 @@
     "LICENSE.md"
   ],
   "scripts": {
-    "build": "rollup --config rollup.config.ts --configPlugin typescript && tsup --dts-only --format esm --out-dir dist/src src/index.ts && tsup --dts-only --format esm --out-dir dist/src/testing src/testing/index.ts && tsup --dts-only --format esm --out-dir dist/src/ui src/ui/index.ts && tsup --dts-only --format esm --out-dir dist/src/ui src/ui/jsx-runtime.ts && tsup --dts-only --format esm --out-dir dist/src/ui src/ui/jsx-dev-runtime.ts && tsup --dts-only --format esm --out-dir dist/src/addon/monitor src/addon/monitor/index.ts",
+    "build": "rollup --config rollup.config.ts --configPlugin typescript",
     "test:units": "node --import @yucacodes/ts  --test './src/**/*.unit.test.ts'",
     "test:integration": "node --import @yucacodes/ts --import ./env.mjs  --test './src/**/*.integration.test.ts'",
     "test:multiprocess": "node --import @yucacodes/ts --import ./env.mjs  --test './src/**/*.multiprocess.test.ts'",
@@ -85,12 +91,14 @@
     "types:check": "tsc --noEmit"
   },
   "devDependencies": {
+    "@types/ws": "^8.5.10",
     "@rollup/plugin-alias": "5.1.1",
     "@rollup/plugin-commonjs": "28.0.3",
     "@rollup/plugin-json": "6.1.0",
     "@rollup/plugin-node-resolve": "16.0.1",
     "@rollup/plugin-typescript": "12.1.2",
-    "rollup": "^4.60.0"
+    "rollup": "^4.60.0",
+    "rollup-plugin-dts": "^6.1.1"
   },
   "overrides": {
     "gaxios": {
@@ -130,9 +138,9 @@
     "short-uuid": "^6.0.3",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
+    "ws": "^8.18.0",
     "tslib": "^2.8.1",
     "@hubspot/api-client": "^13.5.0",
-    "tsup": "^8.4.0",
     "tsyringe": "^4.9.1",
     "typescript": "^6.0.3",
     "uuid": "^14.0.0",

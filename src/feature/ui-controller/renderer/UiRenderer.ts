@@ -24,6 +24,11 @@ export interface IRenderResult {
   islands: IRenderedIsland[]
   /** Style hrefs (or inline CSS ids) the page depends on, if any. */
   styles: string[]
+  /**
+   * Inline CSS to render in a <style> — the collected `*.module.css` of the
+   * views/components rendered, so scoped class names are styled server-side.
+   */
+  moduleCss?: string
 }
 
 export interface IIslandEntryArgs {

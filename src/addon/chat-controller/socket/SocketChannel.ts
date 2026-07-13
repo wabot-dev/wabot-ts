@@ -13,7 +13,13 @@ import { Socket } from 'socket.io'
 import { SocketChannelConfig } from './SocketChannelConfig'
 import { isArray, isModel, isNotEmpty, isOptional, isRecord, isString } from '@/core/validation'
 import { Auth } from '@/core/auth'
-import type { IChatMessageDocument, IChatMessageImage } from '@/feature/chat-bot'
+import { isChatMessageEmpty } from '@/feature/chat-bot'
+import type {
+  IChatMessage,
+  IChatMessageAudio,
+  IChatMessageDocument,
+  IChatMessageImage,
+} from '@/feature/chat-bot'
 
 export class SocketChannelMessageFile {
   @isString()
@@ -47,6 +53,7 @@ export interface ISocketChannelReceivedMessage {
   metadata?: Record<string, string>
   images?: SocketChannelMessageFile[]
   documents?: SocketChannelMessageFile[]
+  audios?: SocketChannelMessageFile[]
 }
 
 export class SocketChannelReceivedMessage implements ISocketChannelReceivedMessage {
@@ -76,6 +83,11 @@ export class SocketChannelReceivedMessage implements ISocketChannelReceivedMessa
   @isModel(SocketChannelMessageFile)
   @isOptional()
   documents?: SocketChannelMessageFile[]
+
+  @isArray()
+  @isModel(SocketChannelMessageFile)
+  @isOptional()
+  audios?: SocketChannelMessageFile[]
 }
 
 function toChatFile(
@@ -133,19 +145,27 @@ export class SocketChannel implements IChatChannel {
         const documents = message.documents
           ?.map(toChatFile)
           .filter((x): x is IChatMessageDocument => !!x)
+        const audios = message.audios?.map(toChatFile).filter((x): x is IChatMessageAudio => !!x)
+
+        // The bot (ChatBot) transcribes voice messages with the mindset's
+        // speechToText model; the channel just carries the audio in and out.
+        const chatMessage: IChatMessage = {
+          text: message.text?.trim() || undefined,
+          senderName: message.senderName,
+          metadata: message.metadata,
+          images: images && images.length > 0 ? images : undefined,
+          documents: documents && documents.length > 0 ? documents : undefined,
+          audios: audios && audios.length > 0 ? audios : undefined,
+        }
+
+        if (isChatMessageEmpty(chatMessage)) return
 
         await channel.callBack({
           channel: socketChannelName,
           chatConnection,
-          message: {
-            text: message.text,
-            senderName: message.senderName,
-            metadata: message.metadata,
-            images: images && images.length > 0 ? images : undefined,
-            documents: documents && documents.length > 0 ? documents : undefined,
-          },
-          reply: async (message) => {
-            socket.emit('message', message)
+          message: chatMessage,
+          reply: async (replyMessage: IChatMessage) => {
+            socket.emit('message', replyMessage)
           },
           injectInstances: [
             [Socket, socket],

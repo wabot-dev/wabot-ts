@@ -29,6 +29,7 @@ export class TestJwt {
     config.secretOrPrivateKey = options.secret ?? 'wabot-test-jwt-secret'
     config.accessExpirationSeconds = options.accessExpirationSeconds ?? 10 * 60
     config.refreshExpirationSeconds = 365 * 24 * 3600
+    config.cookieName = 'wabot_jwt'
     this.config = config
   }
 
@@ -79,7 +80,8 @@ export class TestApiKeyRepository<A extends object> extends ApiKeyRepository<A> 
     return item
   }
 
-  override async findByMetadata(metadata: Record<string, string>): Promise<ApiKey<A>[]> {
+  // Declared as a property to match the base's @queryExtension declaration.
+  override findByMetadata = async (metadata: Record<string, string>): Promise<ApiKey<A>[]> => {
     return this.items.filter((item) =>
       Object.entries(metadata).every(([key, value]) => item.metadata[key] === value),
     )

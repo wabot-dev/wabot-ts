@@ -58,7 +58,9 @@ jobs:
         run: |
           VERSION_TO_PUBLISH=${{ needs.check-versions.outputs.pushedVersion }}
 
-          npm install -g npm@latest
+          # npm 11 supports OIDC trusted publishing and runs on the pinned Node
+          # (.nvmrc 22.14.0); npm@latest (12+) now requires Node >=22.22.2.
+          npm install -g npm@11
           npm ci
           npm run build
 

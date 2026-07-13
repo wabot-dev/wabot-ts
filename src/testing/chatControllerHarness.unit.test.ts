@@ -3,26 +3,20 @@ import test from 'node:test'
 
 import { ChatBot, chatBot } from '@/feature/chat-bot'
 import { chatController, IReceivedMessage } from '@/feature/chat-controller'
-import { IMindset, IMindsetIdentity, mindset } from '@/feature/mindset'
+import { IMindset, IMindsetDescription, mindset } from '@/feature/mindset'
 
 import { createChatControllerHarness } from './chatControllerHarness'
 
 @mindset()
 class EchoMindset implements IMindset {
-  async identity(): Promise<IMindsetIdentity> {
-    return { name: 'Echo', language: 'english' }
-  }
-  async context() {
-    return ''
-  }
-  async skills() {
-    return 'echoing'
-  }
-  async limits() {
-    return ''
-  }
-  async workflow() {
-    return ''
+  async describe(): Promise<IMindsetDescription> {
+    return {
+      identity: { name: 'Echo', language: 'english' },
+      context: '',
+      skills: 'echoing',
+      limits: '',
+      workflow: '',
+    }
   }
   async models() {
     return { llm: [{ model: 'mock-model' }] }

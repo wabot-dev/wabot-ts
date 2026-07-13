@@ -62,7 +62,7 @@ The `default` value on the field becomes the value when the input is missing and
 `@description('...')` annotates a field or method. Two roles:
 
 1. On a request-class field: it becomes the LLM-facing parameter description for mindset tool functions.
-2. On a `@mindsetModule()` method: it becomes the tool's description (without it the function is not exposed as a tool).
+2. On a `@tools()` (formerly `@mindsetModule()`) method: it becomes the tool's description (without it the function is not exposed as a tool).
 
 Mindset module functions **must** have a single request-object parameter (or no parameter), and every property of that request class must have both a type validator (e.g. `@isString()`) and a `@description(...)`. The framework throws at boot otherwise.
 

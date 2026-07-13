@@ -47,7 +47,7 @@ src/
   <bot>/
     <Bot>ChatController.ts       # @chatController + channel decorators
     mindset/<Bot>Mindset.ts      # @mindset implementing IMindset
-    modules/<Foo>Module.ts       # @mindsetModule with tool functions
+    modules/<Foo>Module.ts       # @tools (formerly @mindsetModule) with tool functions
     models/<x>/<X>.ts            # Entity subclass
     models/<x>/<X>Repository.ts  # @repository + @memExtension/@pgExtension
 ```
@@ -64,6 +64,7 @@ Load the skill that matches the task:
 | Validate DTOs, transform input, describe tool args | `wabot-validation` |
 | Define entities, repositories, queries | `wabot-persistence` |
 | Define bot behavior, modules, models | `wabot-mindset` |
+| Dev-facing agents, typed/yes-no answers, orders, tool sharing & gating, mindset→agent delegation | `wabot-agents` |
 | Receive chat messages, configure channels (cmd, socket, telegram, whatsapp) | `wabot-chat` |
 | Expose REST endpoints or Socket.IO namespaces | `wabot-rest-socket` |
 | Server-render web pages, forms, and interactive islands | `wabot-ui` |

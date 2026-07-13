@@ -4,7 +4,7 @@ import test from 'node:test'
 import { Auth } from '@/core/auth'
 import { description } from '@/core/description'
 import { isNotEmpty, isString } from '@/core/validation'
-import { IMindset, IMindsetIdentity, mindset, mindsetModule } from '@/feature/mindset'
+import { IMindset, IMindsetDescription, mindset, mindsetModule } from '@/feature/mindset'
 
 import { createChatBotHarness } from './chatBotHarness'
 import { MockChatAdapter } from './MockChatAdapter'
@@ -37,20 +37,14 @@ class GreeterModule {
 
 @mindset({ modules: [GreeterModule] })
 class GreeterMindset implements IMindset {
-  async identity(): Promise<IMindsetIdentity> {
-    return { name: 'Greta', language: 'english' }
-  }
-  async context() {
-    return 'a test bot'
-  }
-  async skills() {
-    return 'greeting people warmly'
-  }
-  async limits() {
-    return 'never be rude'
-  }
-  async workflow() {
-    return 'greet on request'
+  async describe(): Promise<IMindsetDescription> {
+    return {
+      identity: { name: 'Greta', language: 'english' },
+      context: 'a test bot',
+      skills: 'greeting people warmly',
+      limits: 'never be rude',
+      workflow: 'greet on request',
+    }
   }
   async models() {
     return { llm: [{ model: 'mock-model' }] }
