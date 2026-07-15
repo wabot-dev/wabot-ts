@@ -104,7 +104,7 @@
   "peerDependencies": {
     "@anthropic-ai/sdk": "^0.60.0",
     "@slack/bolt": "^3.17.0",
-    "@google/genai": "^1.16.0",
+    "@google/genai": "^1.51.0",
     "@openrouter/sdk": "^0.12.2",
     "@preact/signals": "^2.9.2",
     "@types/big.js": "^6.2.2",
