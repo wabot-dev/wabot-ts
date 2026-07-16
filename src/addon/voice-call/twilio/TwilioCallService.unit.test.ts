@@ -56,7 +56,7 @@ test.describe('TwilioCallService.initiate', () => {
   test('normalizes the number, dials from the default account, and returns the sid', async () => {
     const { service, getIntent, getCreated } = setup()
 
-    const result = await service.initiate({ to: '3001112233', greeting: 'Saluda' })
+    const result = await service.initiate({ to: '+57 300 111 2233', greeting: 'Saluda' })
 
     assert.deepEqual(getIntent(), { bot: 'DefaultBot', greeting: 'Saluda', voice: undefined })
     assert.equal(getCreated()?.to, '+573001112233')

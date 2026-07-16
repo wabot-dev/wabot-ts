@@ -1,12 +1,12 @@
 import { description } from '@/core/description'
 import { isNotEmpty, isString } from '@/core/validation'
 import { tools } from '@/feature/tool'
-import { TwilioCallService } from './TwilioCallService'
+import { TwilioCalls } from './TwilioCalls'
 
 export class InitiateCallRequest {
   @isString()
   @isNotEmpty()
-  @description('Teléfono del destinatario (Colombia), en formato E.164 o local, ej: +573001112233')
+  @description('Teléfono del destinatario en formato E.164, con código de país, ej: +573001112233')
   telefono: string = ''
 
   @isString()
@@ -22,7 +22,7 @@ export class InitiateCallRequest {
  */
 @tools({ language: 'español' })
 export class InitiateCallTools {
-  constructor(private calls: TwilioCallService) {}
+  constructor(private calls: TwilioCalls) {}
 
   @description(
     'Inicia una llamada telefónica saliente al número indicado. Requiere consentimiento previo del destinatario.',

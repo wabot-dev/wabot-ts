@@ -22,6 +22,14 @@ export interface ITwilioVoiceDecoratorConfig {
    * (TwilioAccountRegistry) is also tried.
    */
   authToken?: string | ConfigReference<string>
+  /**
+   * Caller-ID numbers Twilio routes to this channel's webhook — the same numbers
+   * you point at `webhookPath` in the Twilio console. Outbound calls select this
+   * channel by `from`: `TwilioCalls.initiate({ from })` dials through the channel
+   * whose `numbers` include `from`. Only needed to disambiguate when an app
+   * declares several `@twilioVoice` channels.
+   */
+  numbers?: string[] | ConfigReference<string[]>
 }
 
 /**
@@ -44,6 +52,7 @@ export function twilioVoice(config: ITwilioVoiceDecoratorConfig) {
       voice: resolved.voice,
       authToken: resolved.authToken,
       verifySignature: resolved.verifySignature,
+      numbers: resolved.numbers,
     })
     container.resolve(VoiceControllerMetadataStore).saveVoiceChannelMetadata({
       channelConstructor: TwilioVoiceChannel,

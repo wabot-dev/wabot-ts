@@ -1,17 +1,16 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { InitiateCallRequest, InitiateCallTools } from './InitiateCallTools'
-import { TwilioCallService } from './TwilioCallService'
+import { TwilioCalls } from './TwilioCalls'
 
 test('InitiateCallTools.iniciarLlamada delegates to the call service', async () => {
   const calls: { to: string; greeting?: string }[] = []
-  const service = {
+  const tool = new InitiateCallTools({
     initiate: async (req: { to: string; greeting?: string }) => {
       calls.push(req)
       return { callId: 'CA1', to: '+573001112233' }
     },
-  }
-  const tool = new InitiateCallTools(service as unknown as TwilioCallService)
+  } as unknown as TwilioCalls)
 
   const req = new InitiateCallRequest()
   req.telefono = '+573001112233'

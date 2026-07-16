@@ -1,14 +1,18 @@
-import { singleton } from '@/core/injection'
+import { injectable } from '@/core/injection'
 import { IConstructor } from '@/core/generics'
 import { Logger } from '@/core/logger'
 import { IMindset } from '@/feature/mindset'
 import { OutboundCallIntents, VoiceBotRegistry } from '@/feature/voice-call'
 import { TwilioAccountRegistry } from './TwilioAccountRegistry'
 import { TwilioVoiceConfig } from './TwilioVoiceConfig'
-import { normalizeE164, toE164Colombia } from './phoneNumber'
+import { normalizeE164 } from './phoneNumber'
 
 export interface IInitiateCallRequest {
-  /** Recipient number; normalized to +57 E.164 when no country code is given. */
+  /**
+   * Recipient number in E.164, including the country code. Formatting is
+   * stripped; no default country is assumed, so a bare local number is dialed
+   * as-is.
+   */
   to: string
   /**
    * Caller-ID number to dial from. Must belong to a registered account (see
@@ -37,8 +41,13 @@ export interface IInitiateCallResult {
  *
  * Multiple numbers / accounts: pass `from` to dial from a specific number;
  * the owning account's credentials (from TwilioAccountRegistry) are used.
+ *
+ * Resolved per container, not as a singleton: the config is per-channel, so a
+ * shared instance would pin the first channel's `webhookPath` onto every other
+ * channel's outbound calls. Prefer {@link TwilioCalls} over resolving this
+ * directly — it binds each channel to the config its `@twilioVoice` built.
  */
-@singleton()
+@injectable()
 export class TwilioCallService {
   private logger = new Logger('wabot:twilio-call-service')
 
@@ -50,7 +59,7 @@ export class TwilioCallService {
   ) {}
 
   async initiate(req: IInitiateCallRequest): Promise<IInitiateCallResult> {
-    const to = toE164Colombia(req.to)
+    const to = normalizeE164(req.to)
 
     const from = req.from ? normalizeE164(req.from) : this.accounts.defaultNumber()
     if (!from) {

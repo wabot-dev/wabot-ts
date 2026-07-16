@@ -1,4 +1,5 @@
 import { injectable } from '@/core/injection'
+import { normalizeE164 } from './phoneNumber'
 
 export interface ITwilioVoiceConfigOptions {
   publicBaseUrl?: string
@@ -11,6 +12,13 @@ export interface ITwilioVoiceConfigOptions {
   language?: string
   /** Verify Twilio's `X-Twilio-Signature` on inbound webhooks for this channel. */
   verifySignature?: boolean
+  /**
+   * Caller-ID numbers Twilio routes to this channel's webhook. Used to pick this
+   * channel's config for outbound calls: `TwilioCalls.initiate({ from })` dials
+   * through the channel whose `numbers` include `from`, so the call is answered
+   * by the same flow that answers inbound calls to that number.
+   */
+  numbers?: string[]
 }
 
 /**
@@ -35,6 +43,7 @@ export class TwilioVoiceConfig {
   voice: string
   language: string
   verifySignature: boolean
+  numbers: string[]
 
   constructor(options: ITwilioVoiceConfigOptions = {}) {
     this.publicBaseUrl = options.publicBaseUrl ?? process.env.PUBLIC_BASE_URL ?? ''
@@ -46,6 +55,7 @@ export class TwilioVoiceConfig {
     this.voice = options.voice ?? 'alloy'
     this.language = options.language ?? 'es-CO'
     this.verifySignature = options.verifySignature ?? false
+    this.numbers = options.numbers?.map(normalizeE164).filter((n) => n.length > 0) ?? []
   }
 
   /** wss:// URL for the bidirectional Media Stream. */

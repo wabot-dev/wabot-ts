@@ -1,25 +1,27 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { toE164Colombia } from './phoneNumber'
+import { normalizeE164 } from './phoneNumber'
 
-test.describe('toE164Colombia', () => {
-  test('adds +57 to a bare 10-digit Colombian mobile', () => {
-    assert.equal(toE164Colombia('3001112233'), '+573001112233')
+test.describe('normalizeE164', () => {
+  test('strips formatting from an E.164 number', () => {
+    assert.equal(normalizeE164('+57 300 111 2233'), '+573001112233')
   })
 
-  test('adds +57 to a 10-digit fixed line', () => {
-    assert.equal(toE164Colombia('(601) 234 5678'), '+576012345678')
+  test('treats every country the same — no default country is added', () => {
+    assert.equal(normalizeE164('+1 (202) 555-0100'), '+12025550100')
+    assert.equal(normalizeE164('+44 20 7946 0958'), '+442079460958')
   })
 
-  test('keeps an existing +57 number', () => {
-    assert.equal(toE164Colombia('+57 300 111 2233'), '+573001112233')
+  test('keeps an already-clean number unchanged', () => {
+    assert.equal(normalizeE164('+573001112233'), '+573001112233')
   })
 
-  test('treats a 57-prefixed 12-digit number as Colombian', () => {
-    assert.equal(toE164Colombia('57 300 111 2233'), '+573001112233')
+  test('does not expand a bare local number to any country', () => {
+    // No country code in, no country code out — the digits are used as given.
+    assert.equal(normalizeE164('3001112233'), '+3001112233')
   })
 
-  test('preserves an explicit foreign country code', () => {
-    assert.equal(toE164Colombia('+1 202 555 0100'), '+12025550100')
+  test('returns empty string when there are no digits', () => {
+    assert.equal(normalizeE164('  '), '')
   })
 })
