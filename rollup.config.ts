@@ -4,8 +4,9 @@ import json from '@rollup/plugin-json'
 import { nodeResolve } from '@rollup/plugin-node-resolve'
 import tsc from '@rollup/plugin-typescript'
 import dts from 'rollup-plugin-dts'
+import { copyFile, mkdir } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
-import type { RollupOptions } from 'rollup'
+import type { Plugin, RollupOptions } from 'rollup'
 
 // Resolve the `@` / `@/*` tsconfig path alias to real files. The JS builds get
 // this from @rollup/plugin-typescript (tsconfig paths); rollup-plugin-dts needs
@@ -13,6 +14,21 @@ import type { RollupOptions } from 'rollup'
 // unresolved `@/...` imports.
 const srcDir = fileURLToPath(new URL('./src', import.meta.url))
 const dtsAlias = alias({ entries: [{ find: '@', replacement: srcDir }] })
+
+// `css-modules.d.ts` is a pure ambient declaration file (no imports/exports), so
+// rollup-plugin-dts has nothing to bundle from it. Copy it verbatim into dist so
+// the package's `./ui/css` types entry resolves for consumers.
+const copyCssTypes = (): Plugin => ({
+  name: 'copy-css-module-types',
+  async writeBundle() {
+    const outDir = new URL('./dist/src/ui/', import.meta.url)
+    await mkdir(fileURLToPath(outDir), { recursive: true })
+    await copyFile(
+      fileURLToPath(new URL('./src/ui/css-modules.d.ts', import.meta.url)),
+      fileURLToPath(new URL('css-modules.d.ts', outDir)),
+    )
+  },
+})
 
 const sharedExternal = [
   // Node built-ins are always external (they can't be bundled). Declaring them
@@ -172,7 +188,7 @@ const dtsConfig: RollupOptions = {
     chunkFileNames: '_dts/[name]-[hash].d.ts',
   },
   external: sharedExternal,
-  plugins: [dtsAlias, dts({ respectExternal: false })],
+  plugins: [dtsAlias, dts({ respectExternal: false }), copyCssTypes()],
 }
 
 export default [libConfig, buildScriptConfig, buildRuntimesConfig, dtsConfig]

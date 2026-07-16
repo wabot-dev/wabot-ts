@@ -1,9 +1,15 @@
-// Ambient declarations so islands/components can import stylesheets. The island
-// bundler (esbuild) turns `*.module.css` into locally-scoped class maps and
-// bundles plain `*.css` as side-effecting global styles.
+// Ambient declarations so views/components/islands can import stylesheets. The
+// island bundler (esbuild) and the SSR loader agree on these shapes:
 //
-// Consumers: add `"types": ["@wabot-dev/framework/ui/css"]` or a
-// /// <reference> to pick these up.
+//   import styles from './Card.module.css'  -> locally-scoped class map
+//   import href from './app.css'            -> URL the stylesheet is served at
+//
+// Consumers pick these up with a triple-slash reference in any project file:
+//
+//   /// <reference types="@wabot-dev/framework/ui/css" />
+//
+// (`"types": ["@wabot-dev/framework/ui/css"]` in tsconfig also works, but that
+// key replaces the default @types auto-inclusion — list "node" alongside it.)
 
 declare module '*.module.css' {
   const classes: { readonly [key: string]: string }
@@ -11,6 +17,7 @@ declare module '*.module.css' {
 }
 
 declare module '*.css' {
-  const css: string
-  export default css
+  /** URL the stylesheet is served at — pass it to `@uiController({ head: { stylesheets } })`. */
+  const href: string
+  export default href
 }
