@@ -99,7 +99,9 @@ export class TwilioVoiceChannel implements IVoiceChannel {
           direction: intent ? 'outbound' : 'inbound',
           channelName: twilioVoiceChannelName,
         }
-        void callback({ connection, media, greeting: intent?.greeting }).catch((err) =>
+        // Voice precedence: per-call intent → this channel's configured default.
+        const voice = intent?.voice ?? this.config.voice
+        void callback({ connection, media, greeting: intent?.greeting, voice }).catch((err) =>
           this.logger.error(
             'voice call handler failed',
             err instanceof Error ? { message: err.message } : { err },

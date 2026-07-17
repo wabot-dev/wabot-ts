@@ -43,7 +43,7 @@ Inbound needs **no wiring**: `run()` auto-loads the realtime engine (gated by `O
 
 `VoiceBot.answer(call, options?)`:
 - Opens a `RealtimeVoiceSession` bridging `call.media` ⇄ the realtime engine, using the mindset's system prompt and tools.
-- `options: { greeting?: string; voice?: string }` — `greeting` is the instruction for the bot's opening line.
+- `options: { greeting?: string; voice?: string }` — `greeting` is the instruction for the bot's opening line; `voice` is the provider voice name. Each falls back to `call.greeting` / `call.voice` (the channel default or outbound-intent value) when omitted, so a thin `answer(call)` still uses the configured voice.
 - Returns the `RealtimeVoiceSession` (usually you just `await` it).
 
 ## `IVoiceCall`
@@ -53,6 +53,7 @@ interface IVoiceCall {
   connection: IVoiceCallConnection
   media: IVoiceMediaStream
   greeting?: string // opening line from an outbound initiate() intent
+  voice?: string //    voice from initiate({ voice }) or @twilioVoice({ voice })
 }
 
 interface IVoiceCallConnection {

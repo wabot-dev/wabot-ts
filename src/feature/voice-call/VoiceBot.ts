@@ -32,8 +32,10 @@ export class VoiceBot {
       instructions,
       tools,
       callFunction: (name, args) => this.mindset.callFunction(name, args),
-      voice: options.voice,
-      greeting: options.greeting,
+      // Explicit option wins; otherwise use the voice the channel/intent set on
+      // the call (`@twilioVoice({ voice })` or an outbound `initiate({ voice })`).
+      voice: options.voice ?? call.voice,
+      greeting: options.greeting ?? call.greeting,
     })
   }
 }
