@@ -197,16 +197,34 @@ test.describe('OpenaiRealtimeVoiceEngineSession', () => {
 })
 
 test.describe('OpenaiRealtimeVoiceEngine', () => {
-  test('open() resolves once the socket opens and sends session.update', async () => {
+  test('open() sends session.update on connect and resolves on session.updated', async () => {
     const socket = new FakeSocket()
     const engine = new OpenaiRealtimeVoiceEngine()
     ;(engine as unknown as { createSocket: () => IRealtimeSocket }).createSocket = () => socket
 
     const opening = engine.open(config())
-    socket.emitOpen()
-    const session = await opening
+    let resolved = false
+    void opening.then(() => (resolved = true))
 
-    assert.ok(session)
+    socket.emitOpen()
+    await new Promise((r) => setImmediate(r))
+    // Config was sent, but we must not report ready until OpenAI acks it —
+    // otherwise the greeting response renders with the default voice.
     assert.equal(socket.parsed()[0].type, 'session.update')
+    assert.equal(resolved, false)
+
+    socket.emitMessage({ type: 'session.updated' })
+    const session = await opening
+    assert.ok(session)
+    assert.equal(resolved, true)
+  })
+
+  test('response.done fires onResponseDone (ends the greeting window)', () => {
+    const socket = new FakeSocket()
+    const session = new OpenaiRealtimeVoiceEngineSession(socket, config())
+    let done = 0
+    session.onResponseDone(() => done++)
+    socket.emitMessage({ type: 'response.done' })
+    assert.equal(done, 1)
   })
 })

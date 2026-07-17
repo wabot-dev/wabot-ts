@@ -107,6 +107,49 @@ test.describe('TwilioVoiceMediaStream', () => {
     assert.equal(media.pendingPlayback, 0)
   })
 
+  test('waitForDrain resolves immediately when nothing is queued', async () => {
+    const media = new TwilioVoiceMediaStream(new FakeSocket())
+    media.handleMessage(startMessage())
+    await media.waitForDrain() // no pending marks → resolves right away
+  })
+
+  test('waitForDrain resolves once Twilio confirms all queued chunks played', async () => {
+    const socket = new FakeSocket()
+    const media = new TwilioVoiceMediaStream(socket)
+    media.handleMessage(startMessage())
+    media.play('a')
+    media.play('b')
+    const marks = socket.sent.filter((m) => m.event === 'mark')
+
+    let drained = false
+    const draining = media.waitForDrain().then(() => (drained = true))
+
+    media.handleMessage(JSON.stringify({ event: 'mark', mark: { name: marks[0].mark.name } }))
+    await new Promise((r) => setImmediate(r))
+    assert.equal(drained, false) // one chunk still outstanding
+
+    media.handleMessage(JSON.stringify({ event: 'mark', mark: { name: marks[1].mark.name } }))
+    await draining
+    assert.equal(drained, true)
+    assert.equal(media.pendingPlayback, 0)
+  })
+
+  test('waitForDrain resolves after the timeout when a mark never arrives', async () => {
+    const media = new TwilioVoiceMediaStream(new FakeSocket())
+    media.handleMessage(startMessage())
+    media.play('a') // outstanding, never confirmed
+    await media.waitForDrain(10) // times out and resolves
+  })
+
+  test('waitForDrain resolves when the stream closes mid-playback', async () => {
+    const media = new TwilioVoiceMediaStream(new FakeSocket())
+    media.handleMessage(startMessage())
+    media.play('a')
+    const draining = media.waitForDrain()
+    media.handleClose()
+    await draining
+  })
+
   test('stop event closes the stream once and notifies listeners', () => {
     const socket = new FakeSocket()
     const media = new TwilioVoiceMediaStream(socket)

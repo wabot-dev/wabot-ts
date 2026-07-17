@@ -17,6 +17,10 @@ class FakeMediaStream implements IVoiceMediaStream {
   played: string[] = []
   clears = 0
   hangups = 0
+  drainCalls = 0
+  /** When true, waitForDrain stays pending until resolveDrain() is called. */
+  manualDrain = false
+  private drainResolvers: (() => void)[] = []
   private audioListeners: ((a: string) => void)[] = []
   private dtmfListeners: ((d: string) => void)[] = []
   private closeListeners: (() => void)[] = []
@@ -39,7 +43,16 @@ class FakeMediaStream implements IVoiceMediaStream {
   hangup() {
     this.hangups++
   }
+  waitForDrain() {
+    this.drainCalls++
+    if (!this.manualDrain) return Promise.resolve()
+    return new Promise<void>((resolve) => this.drainResolvers.push(resolve))
+  }
 
+  resolveDrain() {
+    this.drainResolvers.forEach((r) => r())
+    this.drainResolvers = []
+  }
   emitAudio(a: string) {
     this.audioListeners.forEach((l) => l(a))
   }
@@ -60,6 +73,7 @@ class FakeEngineSession implements IRealtimeVoiceEngineSession {
   closes = 0
   private audioL?: (a: string) => void
   private speechL?: () => void
+  private responseDoneL?: () => void
   private fnL?: (c: IRealtimeFunctionCall) => void
   private closeL?: () => void
 
@@ -87,6 +101,9 @@ class FakeEngineSession implements IRealtimeVoiceEngineSession {
   onSpeechStarted(l: () => void) {
     this.speechL = l
   }
+  onResponseDone(l: () => void) {
+    this.responseDoneL = l
+  }
   onFunctionCall(l: (c: IRealtimeFunctionCall) => void) {
     this.fnL = l
   }
@@ -100,6 +117,9 @@ class FakeEngineSession implements IRealtimeVoiceEngineSession {
   }
   emitSpeechStarted() {
     this.speechL?.()
+  }
+  emitResponseDone() {
+    this.responseDoneL?.()
   }
   emitFunctionCall(c: IRealtimeFunctionCall) {
     this.fnL?.(c)
@@ -189,9 +209,59 @@ test.describe('RealtimeVoiceSession', () => {
     await RealtimeVoiceSession.start({ media, engine, connection, instructions: 'x' })
 
     engine.session.emitFunctionCall({ callId: 'c1', name: 'end_call', arguments: '{}' })
+    await flush()
     assert.equal(media.hangups, 1)
     assert.equal(engine.session.closes, 1)
     assert.equal(engine.session.toolResults[0]?.callId, 'c1')
+  })
+
+  test('end_call waits for playback to drain before hanging up', async () => {
+    const media = new FakeMediaStream()
+    media.manualDrain = true // hold the drain open so we can observe the ordering
+    const engine = new FakeEngine()
+    await RealtimeVoiceSession.start({ media, engine, connection, instructions: 'x' })
+
+    engine.session.emitFunctionCall({ callId: 'c1', name: 'end_call', arguments: '{}' })
+    await flush()
+
+    // Goodbye acknowledged and drain requested, but the line is still open.
+    assert.equal(engine.session.toolResults[0]?.callId, 'c1')
+    assert.equal(media.drainCalls, 1)
+    assert.equal(media.hangups, 0)
+    assert.equal(engine.session.closes, 0)
+
+    media.resolveDrain() // Twilio finished playing the goodbye
+    await flush()
+    assert.equal(media.hangups, 1)
+    assert.equal(engine.session.closes, 1)
+  })
+
+  test('greeting holds the caller mic and suppresses barge-in until it finishes', async () => {
+    const media = new FakeMediaStream()
+    const engine = new FakeEngine()
+    await RealtimeVoiceSession.start({
+      media,
+      engine,
+      connection,
+      instructions: 'x',
+      greeting: 'Saluda al cliente',
+    })
+
+    // While the greeting plays, caller audio is held and echo/noise can't clip it.
+    media.emitAudio('caller-frame')
+    engine.session.emitSpeechStarted()
+    assert.deepEqual(engine.session.appended, [])
+    assert.equal(engine.session.cancels, 0)
+    assert.equal(media.clears, 0)
+
+    // Greeting finishes generating and playing → full duplex resumes.
+    engine.session.emitResponseDone()
+    await flush()
+    media.emitAudio('caller-frame-2')
+    engine.session.emitSpeechStarted()
+    assert.deepEqual(engine.session.appended, ['caller-frame-2'])
+    assert.equal(engine.session.cancels, 1)
+    assert.equal(media.clears, 1)
   })
 
   test('routes a tool call and returns the result to the model', async () => {

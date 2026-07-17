@@ -89,6 +89,34 @@ export class TwilioVoiceMediaStream implements IVoiceMediaStream {
     this.close()
   }
 
+  /**
+   * Resolve once Twilio has echoed the marks for every queued chunk (playback
+   * finished), or the stream closes, or `timeoutMs` elapses — whichever comes
+   * first. Lets the caller hear the bot's final words before we hang up.
+   */
+  waitForDrain(timeoutMs = 5000): Promise<void> {
+    if (this.closed || this.outstandingMarks === 0) return Promise.resolve()
+    return new Promise<void>((resolve) => {
+      let settled = false
+      const settle = () => {
+        if (settled) return
+        settled = true
+        this.markListeners = this.markListeners.filter((l) => l !== onMark)
+        this.closeListeners = this.closeListeners.filter((l) => l !== settle)
+        clearTimeout(timer)
+        resolve()
+      }
+      // A mark echo decrements outstandingMarks before listeners fire, so
+      // reaching zero here means the last queued chunk finished playing.
+      const onMark = () => {
+        if (this.outstandingMarks === 0) settle()
+      }
+      const timer = setTimeout(settle, timeoutMs)
+      this.markListeners.push(onMark)
+      this.closeListeners.push(settle)
+    })
+  }
+
   /** Feed a raw Twilio WebSocket text message. */
   handleMessage(raw: string) {
     let msg: Record<string, any>

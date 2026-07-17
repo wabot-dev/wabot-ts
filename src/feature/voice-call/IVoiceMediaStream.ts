@@ -22,4 +22,13 @@ export interface IVoiceMediaStream {
   clear(): void
   /** End the call. */
   hangup(): void
+
+  /**
+   * Resolve once the provider confirms all queued outbound audio has finished
+   * playing (or `timeoutMs` elapses / the stream closes). Optional: providers
+   * without playback confirmation can omit it, and callers should treat a
+   * missing implementation as "nothing to wait for". Used to let the bot's
+   * final words finish before hanging up.
+   */
+  waitForDrain?(timeoutMs?: number): Promise<void>
 }

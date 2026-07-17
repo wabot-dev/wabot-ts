@@ -39,6 +39,12 @@ export interface IRealtimeVoiceEngineSession {
   onAudio(listener: (audioBase64: string) => void): void
   /** The model detected the caller started speaking (drive barge-in). */
   onSpeechStarted(listener: () => void): void
+  /**
+   * A model response finished (completed, cancelled or failed). Optional —
+   * used to know when the opening greeting turn is over. Providers that can't
+   * surface it may omit it.
+   */
+  onResponseDone?(listener: () => void): void
   /** The model wants to call a tool. */
   onFunctionCall(listener: (call: IRealtimeFunctionCall) => void): void
   onClose(listener: () => void): void

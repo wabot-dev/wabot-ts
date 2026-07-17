@@ -14,10 +14,21 @@ import { openaiRealtimeWsSocket } from './openaiRealtimeWsSocket'
 
 const DEFAULT_MODEL = 'gpt-realtime'
 const DEFAULT_VOICE = 'alloy'
+/** Fallback so a missing `session.updated` ack can never hang the call. */
+const SESSION_READY_TIMEOUT_MS = 2000
 
 /** Maps our codec to the GA Realtime audio format object. */
 function audioFormat(format: VoiceAudioFormat) {
   return format === 'pcm16' ? { type: 'audio/pcm', rate: 24000 } : { type: 'audio/pcmu' }
+}
+
+/** True when a raw message is OpenAI's ack that our `session.update` applied. */
+function isSessionUpdated(raw: string): boolean {
+  try {
+    return (JSON.parse(raw) as { type?: string }).type === 'session.updated'
+  } catch {
+    return false
+  }
 }
 
 function mapTool(tool: IToolSchema) {
@@ -45,12 +56,32 @@ export class OpenaiRealtimeVoiceEngine implements IRealtimeVoiceEngine {
     const session = new OpenaiRealtimeVoiceEngineSession(socket, config)
 
     await new Promise<void>((resolve, reject) => {
-      socket.onOpen(() => {
-        session.configure()
+      let settled = false
+      let timer: ReturnType<typeof setTimeout> | undefined
+      // Only report the session ready once OpenAI has applied our config
+      // (`session.updated`) — creating the greeting response before then makes
+      // it render with the default voice instead of the configured one. A short
+      // timeout is the safety net so a missing ack can't strand the call.
+      const ready = () => {
+        if (settled) return
+        settled = true
+        if (timer) clearTimeout(timer)
         this.logger.info('realtime voice session opened')
         resolve()
+      }
+      socket.onMessage((raw) => {
+        if (isSessionUpdated(raw)) ready()
       })
-      socket.onError((error) => reject(error instanceof Error ? error : new Error(String(error))))
+      socket.onOpen(() => {
+        session.configure()
+        timer = setTimeout(ready, SESSION_READY_TIMEOUT_MS)
+      })
+      socket.onError((error) => {
+        if (settled) return
+        settled = true
+        if (timer) clearTimeout(timer)
+        reject(error instanceof Error ? error : new Error(String(error)))
+      })
     })
 
     return session
@@ -73,6 +104,7 @@ export class OpenaiRealtimeVoiceEngine implements IRealtimeVoiceEngine {
 export class OpenaiRealtimeVoiceEngineSession implements IRealtimeVoiceEngineSession {
   private audioListener?: (audioBase64: string) => void
   private speechStartedListener?: () => void
+  private responseDoneListener?: () => void
   private functionCallListener?: (call: IRealtimeFunctionCall) => void
   private closeListener?: () => void
   private errorListener?: (error: unknown) => void
@@ -150,6 +182,9 @@ export class OpenaiRealtimeVoiceEngineSession implements IRealtimeVoiceEngineSes
   onSpeechStarted(listener: () => void) {
     this.speechStartedListener = listener
   }
+  onResponseDone(listener: () => void) {
+    this.responseDoneListener = listener
+  }
   onFunctionCall(listener: (call: IRealtimeFunctionCall) => void) {
     this.functionCallListener = listener
   }
@@ -183,6 +218,11 @@ export class OpenaiRealtimeVoiceEngineSession implements IRealtimeVoiceEngineSes
           name: msg.name,
           arguments: typeof msg.arguments === 'string' ? msg.arguments : '',
         })
+        break
+      // Fires for every finished response (completed/cancelled/failed) — used to
+      // close the opening-greeting window so normal barge-in can resume.
+      case 'response.done':
+        this.responseDoneListener?.()
         break
       case 'error':
         this.errorListener?.(msg.error ?? msg)

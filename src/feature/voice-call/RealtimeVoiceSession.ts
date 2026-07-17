@@ -28,6 +28,10 @@ export interface IRealtimeVoiceSessionOptions {
 /** Built-in tool the model can call to hang up gracefully. */
 export const END_CALL_TOOL_NAME = 'end_call'
 
+/** Safety cap so a greeting that never reports `response.done` can't hold the
+ * caller's mic hostage — after this the session resumes full duplex. */
+const GREETING_GUARD_TIMEOUT_MS = 15000
+
 const END_CALL_TOOL: IToolSchema = {
   language: 'english',
   name: END_CALL_TOOL_NAME,
@@ -44,6 +48,10 @@ const END_CALL_TOOL: IToolSchema = {
 export class RealtimeVoiceSession {
   private logger = new Logger('wabot:realtime-voice-session')
   private closed = false
+  /** While true, the bot is delivering its opening greeting: the caller's audio
+   * is held back and barge-in is suppressed so line echo/noise can't clip it. */
+  private greetingActive = false
+  private greetingTimer?: ReturnType<typeof setTimeout>
 
   private constructor(
     private media: IVoiceMediaStream,
@@ -61,6 +69,9 @@ export class RealtimeVoiceSession {
     })
 
     const session = new RealtimeVoiceSession(options.media, engineSession, options)
+    // Open the greeting window before wiring so any caller audio already
+    // buffered at connect is held back rather than flushed into the model.
+    if (options.greeting) session.beginGreeting()
     session.wire()
 
     if (options.greeting) {
@@ -77,7 +88,12 @@ export class RealtimeVoiceSession {
   private wire() {
     const engine = this.engineSession
 
-    this.media.onAudio((audio) => engine.appendAudio(audio))
+    this.media.onAudio((audio) => {
+      // Hold the caller's mic while the greeting plays — feeding it in would let
+      // line echo/noise trip server VAD and clip the greeting.
+      if (this.greetingActive) return
+      engine.appendAudio(audio)
+    })
     this.media.onDtmf((digit) => {
       this.logger.debug('caller dtmf', { digit })
       // Surface keypad input to the model so it can react (IVR-style flows).
@@ -88,9 +104,20 @@ export class RealtimeVoiceSession {
     engine.onAudio((audio) => this.media.play(audio))
     // Barge-in: the caller started talking. Drop bot audio still queued on the
     // wire AND cancel the model's in-progress response so it stops generating.
+    // Suppressed during the greeting so it can't be interrupted by echo/noise.
     engine.onSpeechStarted(() => {
+      if (this.greetingActive) return
       this.media.clear()
       engine.cancelResponse()
+    })
+    // The greeting turn is over once its response finishes generating AND has
+    // finished playing to the caller — resuming before playback drains would let
+    // echo of the tail trip barge-in and clip it. Fall back to the guard timeout.
+    engine.onResponseDone?.(() => {
+      if (!this.greetingActive) return
+      void Promise.resolve(this.media.waitForDrain?.(GREETING_GUARD_TIMEOUT_MS)).then(() =>
+        this.endGreeting(),
+      )
     })
     engine.onFunctionCall((call) => void this.handleFunctionCall(call))
     engine.onError((error) =>
@@ -102,9 +129,28 @@ export class RealtimeVoiceSession {
     engine.onClose(() => this.close('engine-closed'))
   }
 
+  /** Start the opening-greeting window (mic held, barge-in suppressed). */
+  private beginGreeting() {
+    this.greetingActive = true
+    this.greetingTimer = setTimeout(() => this.endGreeting(), GREETING_GUARD_TIMEOUT_MS)
+    // Don't let the safety timer keep the process alive on its own.
+    this.greetingTimer.unref?.()
+  }
+
+  /** End the greeting window and resume full-duplex audio + barge-in. */
+  private endGreeting() {
+    if (!this.greetingActive) return
+    this.greetingActive = false
+    if (this.greetingTimer) clearTimeout(this.greetingTimer)
+    this.greetingTimer = undefined
+  }
+
   private async handleFunctionCall(call: IRealtimeFunctionCall) {
     if (call.name === END_CALL_TOOL_NAME) {
       this.engineSession.submitToolResult(call.callId, 'Call ended.')
+      // Let the bot's goodbye finish playing before tearing the call down —
+      // hanging up immediately drops audio Twilio still has queued.
+      await this.media.waitForDrain?.()
       this.close('bot-ended')
       return
     }
@@ -135,6 +181,7 @@ export class RealtimeVoiceSession {
   close(reason?: string) {
     if (this.closed) return
     this.closed = true
+    this.endGreeting()
     this.logger.info('voice session closed', {
       reason,
       callId: this.options.connection.callId,
