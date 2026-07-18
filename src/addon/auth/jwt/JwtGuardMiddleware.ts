@@ -15,7 +15,8 @@ export class JwtGuardMiddleware implements IMiddleware {
   ) {}
 
   async handle(req: Request, res: Response, container: DependencyContainer) {
-    const token = this.tokenFromHeader(req) ?? container.resolve(Cookies).get(this.config.cookieName)
+    const token =
+      this.tokenFromHeader(req) ?? container.resolve(Cookies).get(this.config.cookieName)
     if (!token) {
       throw new CustomError({ httpCode: 401, message: 'Missing authentication token' })
     }

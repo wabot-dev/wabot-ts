@@ -16,26 +16,35 @@ Wabot validates request shapes through decorator-driven metadata. The same metad
 
 All decorators are exported from `@wabot-dev/framework`. Apply them to public class fields.
 
-| Decorator | Effect |
-| --- | --- |
-| `@isString()` | Value must be `string` |
-| `@isNumber()` | Value must be `number` |
-| `@isBoolean()` | Value must be `boolean` |
-| `@isDate()` | Value must parse as `Date` (ISO 8601 input) |
-| `@isIn([...values])` | Value must be one of the listed literals |
-| `@isNotEmpty()` | String must be non-empty after trim |
-| `@isPresent()` | Field must be present (not `undefined`) |
-| `@isRecord(keyType, valueType)` | Plain object with typed keys/values; `keyType: 'number' \| 'string'`, `valueType: 'number' \| 'string' \| 'boolean'` |
-| `@isOptional()` | Skip remaining validators when the value is null/undefined |
-| `@isModel(OtherClass)` | Nested model validated against `OtherClass` |
-| `@isArray({ minLength?, maxLength? })` | Field must be an array |
-| `@min(n)` | Numeric / length minimum |
-| `@max(n)` | Numeric / length maximum |
+| Decorator                              | Effect                                                                                                               |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `@isString()`                          | Value must be `string`                                                                                               |
+| `@isNumber()`                          | Value must be `number`                                                                                               |
+| `@isBoolean()`                         | Value must be `boolean`                                                                                              |
+| `@isDate()`                            | Value must parse as `Date` (ISO 8601 input)                                                                          |
+| `@isIn([...values])`                   | Value must be one of the listed literals                                                                             |
+| `@isNotEmpty()`                        | String must be non-empty after trim                                                                                  |
+| `@isPresent()`                         | Field must be present (not `undefined`)                                                                              |
+| `@isRecord(keyType, valueType)`        | Plain object with typed keys/values; `keyType: 'number' \| 'string'`, `valueType: 'number' \| 'string' \| 'boolean'` |
+| `@isOptional()`                        | Skip remaining validators when the value is null/undefined                                                           |
+| `@isModel(OtherClass)`                 | Nested model validated against `OtherClass`                                                                          |
+| `@isArray({ minLength?, maxLength? })` | Field must be an array                                                                                               |
+| `@min(n)`                              | Numeric / length minimum                                                                                             |
+| `@max(n)`                              | Numeric / length maximum                                                                                             |
 
 Validators chain top-to-bottom. Put `@isOptional()` **above** the type validator if the field is optional.
 
 ```typescript
-import { description, isIn, isNotEmpty, isNumber, isOptional, isString, max, min } from '@wabot-dev/framework'
+import {
+  description,
+  isIn,
+  isNotEmpty,
+  isNumber,
+  isOptional,
+  isString,
+  max,
+  min,
+} from '@wabot-dev/framework'
 
 export class ListGamesRequest {
   @isString()

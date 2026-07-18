@@ -24,9 +24,7 @@ export class JwtRefreshTokenRepository<D extends object>
   extends CrudRepository<JwtRefreshToken<D>, IJwtRefreshTokenQueries<D>>
   implements IJwtRefreshTokenRepository<D>
 {
-  @query() declare findOneBySecretHash: (
-    secretHash: string,
-  ) => Promise<JwtRefreshToken<D> | null>
+  @query() declare findOneBySecretHash: (secretHash: string) => Promise<JwtRefreshToken<D> | null>
 
   @queryExtension() declare findByMetadata: (
     metadata: Record<string, string>,

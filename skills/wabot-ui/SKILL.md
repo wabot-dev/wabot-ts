@@ -17,8 +17,8 @@ Importing `@wabot-dev/framework/ui` registers the Preact renderer as a side effe
 {
   "compilerOptions": {
     "jsx": "react-jsx",
-    "jsxImportSource": "@wabot-dev/framework/ui"
-  }
+    "jsxImportSource": "@wabot-dev/framework/ui",
+  },
 }
 ```
 
@@ -154,7 +154,10 @@ function AppLayout() {
   return (
     <div class="app">
       <nav>{/* … */}</nav>
-      <main><Outlet /></main>{/* current view renders here */}
+      <main>
+        <Outlet />
+      </main>
+      {/* current view renders here */}
     </div>
   )
 }
@@ -162,15 +165,19 @@ function AppLayout() {
 @uiController({ path: '/panel', app: true, layout: AppLayout })
 export class PanelController {
   @view({ path: '', title: 'Home', swr: { maxAge: 30 } })
-  home() { return <HomeView /> }
+  home() {
+    return <HomeView />
+  }
 
   @view({ path: ':id', title: 'Detail', swr: { version: ({ id }) => revisionOf(id) } })
-  detail(input: DetailParams) { return <DetailView id={input.id} /> }
+  detail(input: DetailParams) {
+    return <DetailView id={input.id} />
+  }
 }
 ```
 
 - **`layout: Component`** — a persistent shell rendered once around every view; it renders `<Outlet/>` where the current view goes. During boosted nav only the outlet swaps, so the shell and its islands keep their state. Full loads render inside the layout; boosted-nav fragments render just the view.
-- **`swr: { maxAge?, version? }`** on `@view` tunes the boosted-nav cache. `maxAge` (seconds) serves a revisit from cache without revalidating. `version(request)` returns a short deterministic string; boosted-nav revalidation answers `304` from it *without running the handler or SSR*. Parameterized `app` views should declare `swr.version` keyed off their route params.
+- **`swr: { maxAge?, version? }`** on `@view` tunes the boosted-nav cache. `maxAge` (seconds) serves a revisit from cache without revalidating. `version(request)` returns a short deterministic string; boosted-nav revalidation answers `304` from it _without running the handler or SSR_. Parameterized `app` views should declare `swr.version` keyed off their route params.
 - **`head: { preconnect?, preload? }`** on `@uiController` emits `<link rel="preconnect|preload">` hints on full loads (the natural home for app-wide fonts — the head persists across boosted nav).
 
 ## Static generation (SSG)
@@ -181,16 +188,18 @@ Mark a **public, stateless** view `static` to render it once and serve the cache
 @uiController({ path: '/' })
 export class LandingController {
   @view({ title: 'Home', static: { revalidate: 300 } })
-  async index() { return <Landing services={await this.catalog.list()} /> }
+  async index() {
+    return <Landing services={await this.catalog.list()} />
+  }
 }
 ```
 
 - **`static: true`** — generated once (non-parameterized routes are pre-rendered at startup) and kept until restart.
-- **`static: { revalidate: N }`** — ISR: serve the cached page; once older than `N` seconds the next request gets it *while a fresh copy regenerates in the background* (stale-while-revalidate).
+- **`static: { revalidate: N }`** — ISR: serve the cached page; once older than `N` seconds the next request gets it _while a fresh copy regenerates in the background_ (stale-while-revalidate).
 - Parameterized routes (`/x/:id`) are generated lazily on first request and cached per URL.
 - Responses carry a strong `ETag` (→ `304` on `If-None-Match`) and a `Cache-Control` matching `revalidate`.
 - **Middleware/guards are skipped** for a static view (the cached document is shared across all visitors) — never mark an authenticated route static.
-- Invalidate on demand by injecting **`StaticPageCache`**: `this.pages.invalidate('/x/42')` (or `invalidateAll()`) after the underlying data changes; the next request re-renders. `await pages.ready()` resolves once the startup pre-render settles (handy when data is seeded *after* boot — then `invalidate(path)`).
+- Invalidate on demand by injecting **`StaticPageCache`**: `this.pages.invalidate('/x/42')` (or `invalidateAll()`) after the underlying data changes; the next request re-renders. `await pages.ready()` resolves once the startup pre-render settles (handy when data is seeded _after_ boot — then `invalidate(path)`).
 
 ## Styling
 

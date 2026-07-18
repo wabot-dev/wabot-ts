@@ -28,6 +28,7 @@ export class Game extends Entity<IGameData> {}
 `IEntityData` adds `id?: string`, `createdAt?: number | null`, `discardedAt?: number | null`. The id/createdAt are filled in by the repository on `create`.
 
 `Entity` exposes:
+
 - `id` (throws if not yet created)
 - `createdAt: Date`
 - `update(partial)` — merges allowed fields and sets `updatedAt`; rejects writes to id/createdAt/discardedAt
@@ -93,7 +94,12 @@ The runner picks one adapter per process:
 For each `@queryExtension()` method you must provide one implementation per adapter you support, in classes decorated with `@memExtension(Repo)` and/or `@pgExtension(Repo)`:
 
 ```typescript
-import { memExtension, MemoryRepositoryExtension, pgExtension, PgRepositoryExtension } from '@wabot-dev/framework'
+import {
+  memExtension,
+  MemoryRepositoryExtension,
+  pgExtension,
+  PgRepositoryExtension,
+} from '@wabot-dev/framework'
 
 @memExtension(GameRepository)
 export class GameMemoryQueries

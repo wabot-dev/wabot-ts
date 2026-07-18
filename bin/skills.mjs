@@ -29,9 +29,7 @@ export function listSupportedAgents() {
 export function agentSkillsSegments(agent) {
   const segments = AGENT_DIRS[agent]
   if (!segments) {
-    throw new Error(
-      `Unsupported agent "${agent}". Supported: ${listSupportedAgents().join(', ')}`,
-    )
+    throw new Error(`Unsupported agent "${agent}". Supported: ${listSupportedAgents().join(', ')}`)
   }
   return segments
 }
@@ -41,8 +39,7 @@ export function listSkillNames() {
     .readdirSync(SKILLS_DIR, { withFileTypes: true })
     .filter(
       (entry) =>
-        entry.isDirectory() &&
-        fss.existsSync(path.join(SKILLS_DIR, entry.name, 'SKILL.md')),
+        entry.isDirectory() && fss.existsSync(path.join(SKILLS_DIR, entry.name, 'SKILL.md')),
     )
     .map((entry) => entry.name)
     .sort()
@@ -70,9 +67,7 @@ function resolveSkills(skillNames) {
   return skillNames.map((name) => {
     const skill = getSkill(name)
     if (!skill) {
-      throw new Error(
-        `Unknown skill "${name}". Available skills: ${listSkillNames().join(', ')}`,
-      )
+      throw new Error(`Unknown skill "${name}". Available skills: ${listSkillNames().join(', ')}`)
     }
     return skill
   })

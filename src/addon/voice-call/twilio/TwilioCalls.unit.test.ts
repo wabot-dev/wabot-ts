@@ -154,12 +154,19 @@ test.describe('outbound resolution outside a voice channel', () => {
 
   test('container.resolve(TwilioCallService) resolves with the declared config', () => {
     const service = container.resolve(TwilioCallService)
-    assert.equal((service as unknown as { config: TwilioVoiceConfig }).config.webhookPath, '/voice/pqrs/incoming')
+    assert.equal(
+      (service as unknown as { config: TwilioVoiceConfig }).config.webhookPath,
+      '/voice/pqrs/incoming',
+    )
   })
 
   test('static TwilioCalls.initiate dials the declared channel without the container', async () => {
     const dial = captureDial()
-    const result = await TwilioCalls.initiate({ to: '+573001112233', from: '+576011110000', greeting: 'x' })
+    const result = await TwilioCalls.initiate({
+      to: '+573001112233',
+      from: '+576011110000',
+      greeting: 'x',
+    })
 
     assert.equal(result.callId, 'CA123')
     assert.equal(dial.posts[0]!.to, '+573001112233')

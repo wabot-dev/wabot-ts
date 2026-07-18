@@ -42,6 +42,7 @@ Inbound needs **no wiring**: `run()` auto-loads the realtime engine (gated by `O
 `@voiceBot(MindsetCtor)` is a **constructor parameter** decorator injecting a `VoiceBot` scoped to that mindset — the voice analogue of `@chatBot`. Put several in one controller and pick by `call.connection.to` instead of building a controller per mindset.
 
 `VoiceBot.answer(call, options?)`:
+
 - Opens a `RealtimeVoiceSession` bridging `call.media` ⇄ the realtime engine, using the mindset's system prompt and tools.
 - `options: { greeting?: string; voice?: string }` — `greeting` is the instruction for the bot's opening line; `voice` is the provider voice name. Each falls back to `call.greeting` / `call.voice` (the channel default or outbound-intent value) when omitted, so a thin `answer(call)` still uses the configured voice.
 - Returns the `RealtimeVoiceSession` (usually you just `await` it).
@@ -80,14 +81,14 @@ interface IVoiceCallConnection {
 })
 ```
 
-| Option | Type | Notes |
-| --- | --- | --- |
-| `publicBaseUrl` | `string \| ConfigReference<string>` | Builds the webhook + `wss://` media URL. |
-| `webhookPath` / `mediaPath` | `string \| ConfigReference<string>` | Default `/voice/twilio/incoming` and `/voice/twilio/media`. Give each channel distinct paths if you register more than one. |
-| `voice` | `string \| ConfigReference<string>` | Provider voice name. |
-| `verifySignature` | `boolean \| ConfigReference<boolean>` | Validate `X-Twilio-Signature`; invalid/missing → 403, no stream. |
-| `authToken` | `string \| ConfigReference<string>` | Token used to verify; multi-account routes also try the token of the account owning `To` (see below). |
-| `numbers` | `string[] \| ConfigReference<string[]>` | Caller-ID numbers Twilio routes to this webhook. Lets **outbound** calls pick this channel by `from` — only needed to disambiguate when you declare several channels. |
+| Option                      | Type                                    | Notes                                                                                                                                                                 |
+| --------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `publicBaseUrl`             | `string \| ConfigReference<string>`     | Builds the webhook + `wss://` media URL.                                                                                                                              |
+| `webhookPath` / `mediaPath` | `string \| ConfigReference<string>`     | Default `/voice/twilio/incoming` and `/voice/twilio/media`. Give each channel distinct paths if you register more than one.                                           |
+| `voice`                     | `string \| ConfigReference<string>`     | Provider voice name.                                                                                                                                                  |
+| `verifySignature`           | `boolean \| ConfigReference<boolean>`   | Validate `X-Twilio-Signature`; invalid/missing → 403, no stream.                                                                                                      |
+| `authToken`                 | `string \| ConfigReference<string>`     | Token used to verify; multi-account routes also try the token of the account owning `To` (see below).                                                                 |
+| `numbers`                   | `string[] \| ConfigReference<string[]>` | Caller-ID numbers Twilio routes to this webhook. Lets **outbound** calls pick this channel by `from` — only needed to disambiguate when you declare several channels. |
 
 Config values may be literals or **core config references** (`str`/`bool`/`strArr` from `@wabot-dev/framework`, resolved from env like the chat decorators — `twilio.verify.signature` → `TWILIO_VERIFY_SIGNATURE`, `:` gives the default). Point each Twilio number's Voice webhook (HTTP POST) at the channel's `webhookPath`. One route serves any number of numbers/accounts — Twilio always sends `To`.
 
@@ -99,14 +100,14 @@ Dial from anywhere that is not a voice channel — a `@commandHandler`, a REST c
 import { TwilioCalls } from '@wabot-dev/framework'
 
 const { callId } = await TwilioCalls.initiate({
-  to: '+573001112233',        // E.164 with country code; formatting is stripped, no country assumed
-  from: '+15551112222',       // caller-ID; selects both the account and the channel
+  to: '+573001112233', // E.164 with country code; formatting is stripped, no country assumed
+  from: '+15551112222', // caller-ID; selects both the account and the channel
   greeting: 'Recuérdale la cita de mañana y despídete.',
   bot: 'PhoneAssistantMindset', // optional: a name or a Mindset class; else the controller decides
 })
 ```
 
-`TwilioCalls.initiate` is a static entry point — no `container.resolve`, and **no controller reference** (so app code never imports a voice controller and risks a dependency cycle). The `from` number decides everything: it picks the **account** (credentials, via `TwilioAccountRegistry`) *and* the **channel** — the call dials through the `@twilioVoice` whose `numbers` include `from`, so it's answered by the same flow that answers inbound calls to that number. Because the config comes from the channel itself, an outbound call always dials that channel's real `webhookPath` — it can't drift and leave the caller hearing silence.
+`TwilioCalls.initiate` is a static entry point — no `container.resolve`, and **no controller reference** (so app code never imports a voice controller and risks a dependency cycle). The `from` number decides everything: it picks the **account** (credentials, via `TwilioAccountRegistry`) _and_ the **channel** — the call dials through the `@twilioVoice` whose `numbers` include `from`, so it's answered by the same flow that answers inbound calls to that number. Because the config comes from the channel itself, an outbound call always dials that channel's real `webhookPath` — it can't drift and leave the caller hearing silence.
 
 **Single channel (the common case):** `from` is optional and only picks credentials; the lone channel answers. You don't need `numbers` at all.
 
@@ -130,8 +131,12 @@ A `from` that no channel declares (or an omitted `from` with several channels) t
 import { container, TwilioAccountRegistry } from '@wabot-dev/framework'
 
 const accounts = container.resolve(TwilioAccountRegistry)
-accounts.register({ accountSid: 'AC_sales',   authToken: '…', numbers: ['+15551112222'] })
-accounts.register({ accountSid: 'AC_support', authToken: '…', numbers: ['+573001112233', '+573004445566'] })
+accounts.register({ accountSid: 'AC_sales', authToken: '…', numbers: ['+15551112222'] })
+accounts.register({
+  accountSid: 'AC_support',
+  authToken: '…',
+  numbers: ['+573001112233', '+573004445566'],
+})
 ```
 
 Each outbound call dials with the credentials of the account that owns its `from` (matched format-insensitively). The single env account (`TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_NUMBER`) is registered automatically, so `initiate({ to })` with no `from` uses the first registered number. `from` selects credentials here and, independently, the channel via `@twilioVoice({ numbers })` above — the two registries answer different questions (which account vs. which webhook), so a number generally appears in both.
@@ -147,7 +152,11 @@ Engines carry `@realtimeVoiceEngine({ provider: 'name' })` and implement `IRealt
 `run()` selects it automatically when `OPENAI_API_KEY` is set. To wire manually (outside the runner):
 
 ```typescript
-import { runRealtimeVoiceEngines, runVoiceControllers, OpenaiRealtimeVoiceEngine } from '@wabot-dev/framework'
+import {
+  runRealtimeVoiceEngines,
+  runVoiceControllers,
+  OpenaiRealtimeVoiceEngine,
+} from '@wabot-dev/framework'
 runRealtimeVoiceEngines([OpenaiRealtimeVoiceEngine])
 runVoiceControllers([VoiceController])
 ```

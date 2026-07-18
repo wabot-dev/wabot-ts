@@ -55,7 +55,11 @@ await async.runCommand(ChargeOrder, { orderId: 'o_1', amountCents: 2500 })
 
 // Schedule for later: absolute Date or relative delay
 await async.scheduleCommand(ChargeOrder, { orderId: 'o_1', amountCents: 2500 }, { minutes: 30 })
-await async.scheduleCommand(ChargeOrder, { orderId: 'o_1', amountCents: 2500 }, new Date('2026-12-31T08:00:00Z'))
+await async.scheduleCommand(
+  ChargeOrder,
+  { orderId: 'o_1', amountCents: 2500 },
+  new Date('2026-12-31T08:00:00Z'),
+)
 ```
 
 `IScheduleAt = Date | { seconds: number } | { minutes: number } | { hours: number } | { days: number }`.
@@ -108,6 +112,7 @@ export class Checkout {
 ```
 
 Behavior:
+
 - Repository writes performed inside the method go to the same client/connection.
 - Throwing rolls back; returning commits.
 - Nested `@transaction`-decorated calls reuse the outer transaction (no nested begin).
@@ -118,7 +123,12 @@ Behavior:
 In production the runner discovers and starts everything. For testing or custom hosts:
 
 ```typescript
-import { runCommandHandlers, runCronHandlers, stopCommandHandlers, stopCronHandlers } from '@wabot-dev/framework'
+import {
+  runCommandHandlers,
+  runCronHandlers,
+  stopCommandHandlers,
+  stopCronHandlers,
+} from '@wabot-dev/framework'
 
 runCommandHandlers([ChargeOrderHandler])
 runCronHandlers([DailyCleanup])
@@ -132,7 +142,7 @@ stopCronHandlers([DailyCleanup])
 
 ## Rules
 
-- Command classes are *data* classes. Don't put behavior on them — that belongs in the handler.
+- Command classes are _data_ classes. Don't put behavior on them — that belongs in the handler.
 - Don't reuse a command name for two handlers. The framework throws on boot.
 - Don't `await async.runCommand(...)` inside a request handler expecting it to finish synchronously — `runCommand` schedules the job and returns immediately. Use `async.scheduleCommand(..., { seconds: 0 })` if you want the same fire-and-forget behavior explicitly.
 - Cron expressions in seconds (6 fields) are supported but be careful: the in-memory adapter polls fast, the PG adapter polls at a lower rate.

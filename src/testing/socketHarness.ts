@@ -79,10 +79,7 @@ export class SocketHarness {
    * `setup` runs before the connection completes, so you can register listeners
    * in time to catch events the server emits on `connection`. Closed on `close()`.
    */
-  async connect(
-    namespace = '',
-    setup?: (socket: ClientSocket) => void,
-  ): Promise<ClientSocket> {
+  async connect(namespace = '', setup?: (socket: ClientSocket) => void): Promise<ClientSocket> {
     const ns = namespace && !namespace.startsWith('/') ? `/${namespace}` : namespace
     const socket = ioClient(`${this.baseUrl}${ns === '/' ? '' : ns}`, { forceNew: true })
     this.clients.push(socket)

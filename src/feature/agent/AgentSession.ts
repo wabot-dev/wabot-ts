@@ -1,10 +1,6 @@
 import { IConstructor } from '@/core/generics'
 import { DescriptionMetadataStore } from '@/core/description'
-import {
-  IModelValidatorsInfo,
-  ValidationMetadataStore,
-  validateModel,
-} from '@/core/validation'
+import { IModelValidatorsInfo, ValidationMetadataStore, validateModel } from '@/core/validation'
 import {
   ChatAdapter,
   ChatMemory,
@@ -15,12 +11,7 @@ import {
 } from '@/feature/chat-bot'
 import { IMindsetModelKind, IMindsetModelRef } from '@/feature/mindset'
 import { buildPropertySchema, IToolParameter, IToolSchema, ToolInvoker } from '@/feature/tool'
-import {
-  AgentBooleanAnswer,
-  AgentPausedError,
-  AgentReply,
-  ANSWER_TOOL_NAME,
-} from './AgentReply'
+import { AgentBooleanAnswer, AgentPausedError, AgentReply, ANSWER_TOOL_NAME } from './AgentReply'
 
 const DEFAULT_MAX_STEPS = 16
 const DEFAULT_CHAT_ITEMS = 30

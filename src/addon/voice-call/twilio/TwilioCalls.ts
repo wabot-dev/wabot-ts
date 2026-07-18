@@ -1,10 +1,6 @@
 import { container, singleton } from '@/core/injection'
 import { VoiceControllerMetadataStore } from '@/feature/voice-call'
-import {
-  IInitiateCallRequest,
-  IInitiateCallResult,
-  TwilioCallService,
-} from './TwilioCallService'
+import { IInitiateCallRequest, IInitiateCallResult, TwilioCallService } from './TwilioCallService'
 import { TwilioVoiceChannel } from './TwilioVoiceChannel'
 import { TwilioVoiceConfig } from './TwilioVoiceConfig'
 import { normalizeE164 } from './phoneNumber'

@@ -47,7 +47,8 @@ async function compile(file: string): Promise<ICompiled> {
     minifyIdentifiers: false,
     logLevel: 'silent',
   })
-  const mapModule = built.outputFiles.find((out) => out.path.endsWith('.js'))?.text ?? 'export default {}'
+  const mapModule =
+    built.outputFiles.find((out) => out.path.endsWith('.js'))?.text ?? 'export default {}'
   const css = built.outputFiles.find((out) => out.path.endsWith('.css'))?.text ?? ''
   return { mapModule, css }
 }

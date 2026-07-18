@@ -67,7 +67,7 @@ test.describe('TwilioCallService.initiate', () => {
     assert.deepEqual(result, { callId: 'CA123', to: '+573001112233' })
   })
 
-  test('dials from an explicit number with that account\'s credentials', async () => {
+  test("dials from an explicit number with that account's credentials", async () => {
     const { service, getCreated } = setup()
     await service.initiate({ to: '+573001112233', from: '+15551112222' })
     assert.equal(getCreated()?.from, '+15551112222')

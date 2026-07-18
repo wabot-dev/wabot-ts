@@ -12,10 +12,7 @@ class RawController {
 
   @onGet('/css')
   css() {
-    this.res
-      .type('text/css')
-      .set('Cache-Control', 'public, max-age=60')
-      .send('body{color:red}')
+    this.res.type('text/css').set('Cache-Control', 'public, max-age=60').send('body{color:red}')
   }
 }
 

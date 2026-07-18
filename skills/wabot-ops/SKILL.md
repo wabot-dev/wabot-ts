@@ -29,13 +29,13 @@ DEBUG=myapp:orders:*
 
 Severity levels and intent (matches the framework's own usage):
 
-| Level | Use for |
-| --- | --- |
-| `trace` | Per-request / per-message firehose |
-| `debug` | Developer-facing flow detail |
-| `info` | Lifecycle events worth keeping |
-| `warn` | Recoverable anomaly, handled gracefully |
-| `error` | Operation failed; include the `Error` object |
+| Level   | Use for                                                            |
+| ------- | ------------------------------------------------------------------ |
+| `trace` | Per-request / per-message firehose                                 |
+| `debug` | Developer-facing flow detail                                       |
+| `info`  | Lifecycle events worth keeping                                     |
+| `warn`  | Recoverable anomaly, handled gracefully                            |
+| `error` | Operation failed; include the `Error` object                       |
 | `fatal` | Process cannot continue (uncaught exception / unhandled rejection) |
 
 Always pass the `Error` instance as one of the args — the logger serializes it cleanly. Extra object args are merged into a `extra` field reported to the monitor (see below).
@@ -48,8 +48,12 @@ Always pass the `Error` instance as one of the args — the logger serializes it
 import { Logger, IErrorMonitor, IErrorMonitorContext } from '@wabot-dev/framework'
 
 const monitor: IErrorMonitor = {
-  captureError(err, ctx) { /* Sentry.captureException(err, { extra: ctx }) */ },
-  captureMessage(msg, ctx) { /* ... */ },
+  captureError(err, ctx) {
+    /* Sentry.captureException(err, { extra: ctx }) */
+  },
+  captureMessage(msg, ctx) {
+    /* ... */
+  },
 }
 
 Logger.setMonitor(monitor)
@@ -133,11 +137,11 @@ const tempPassword = Password.generate(16)
 ```typescript
 import { Random } from '@wabot-dev/framework'
 
-Random.integer({ min: 0, max: 99 })       // uniform
+Random.integer({ min: 0, max: 99 }) // uniform
 Random.slug('Hola Mundo', { randomLength: 6 }) // "hola-mundo-x9k2qr"
 Random.alphaNumeric(32)
 Random.alphaNumericLowerCase(32)
-Random.numberCode(6)                      // 6-digit OTP
+Random.numberCode(6) // 6-digit OTP
 ```
 
 All generators use `crypto.randomBytes` and reject biased ranges — safe to use for tokens, OTPs, and slugs.
@@ -148,4 +152,4 @@ All generators use `crypto.randomBytes` and reject biased ranges — safe to use
 - Use `CustomError` for any error that crosses a controller boundary so HTTP/socket clients get a sensible status.
 - Don't roll your own password hashing — use `Password.hash` / `Password.isValid`.
 - Don't use `Math.random()` for IDs, tokens, OTPs, or anything user-facing. Use `Random`.
-- Lock keys should encode the *resource* being protected. Prefer entities (via `ILockerKey`) over loose strings to prevent typos.
+- Lock keys should encode the _resource_ being protected. Prefer entities (via `ILockerKey`) over loose strings to prevent typos.

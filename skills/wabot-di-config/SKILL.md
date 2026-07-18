@@ -13,10 +13,10 @@ import { container, injectable, singleton, scoped, Lifecycle, inject } from '@wa
 
 ## Lifecycles
 
-| Decorator | When to use | Example |
-| --- | --- | --- |
-| `@singleton()` | App-wide infra: clients, repositories, config holders, caches. One instance for the process. | DB clients, adapters |
-| `@injectable()` | Stateless / per-resolution services. Each `resolve` returns a new instance. | Calculators, mappers |
+| Decorator                            | When to use                                                                                    | Example                 |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------- | ----------------------- |
+| `@singleton()`                       | App-wide infra: clients, repositories, config holders, caches. One instance for the process.   | DB clients, adapters    |
+| `@injectable()`                      | Stateless / per-resolution services. Each `resolve` returns a new instance.                    | Calculators, mappers    |
 | `@scoped(Lifecycle.ContainerScoped)` | Per-request / per-chat / per-socket state. Lives in the child container created by the runner. | `Auth`, request context |
 
 The framework already creates child containers for every chat message, REST request, and socket connection. `ContainerScoped` services do not leak across them.
@@ -27,18 +27,24 @@ import { injectable, singleton, scoped, Lifecycle } from '@wabot-dev/framework'
 @singleton()
 export class ProductCache {
   private byId = new Map<string, string>()
-  put(id: string, name: string) { this.byId.set(id, name) }
+  put(id: string, name: string) {
+    this.byId.set(id, name)
+  }
 }
 
 @injectable()
 export class QuoteCalculator {
-  total(base: number, discount: number) { return base - base * discount }
+  total(base: number, discount: number) {
+    return base - base * discount
+  }
 }
 
 @scoped(Lifecycle.ContainerScoped)
 export class RequestContext {
   private userId?: string
-  setUserId(id: string) { this.userId = id }
+  setUserId(id: string) {
+    this.userId = id
+  }
   requireUserId() {
     if (!this.userId) throw new Error('Unauthorized')
     return this.userId
@@ -100,7 +106,9 @@ import { str, num, bool, obj, strArr, numArr, boolArr } from '@wabot-dev/framewo
   namespace: str`socket.namespace:chat`,
   maxConnections: num`socket.max:100`,
 })
-class MyController { /* ... */ }
+class MyController {
+  /* ... */
+}
 ```
 
 Syntax: `<fn>\`path.with.dots:default\``. The default after the colon is optional. Only literal strings are allowed; interpolation throws.

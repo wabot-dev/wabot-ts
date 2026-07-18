@@ -76,7 +76,9 @@ test.before(async () => {
 })
 
 test.after(async () => {
-  await new Promise<void>((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())))
+  await new Promise<void>((resolve, reject) =>
+    server.close((err) => (err ? reject(err) : resolve())),
+  )
 })
 
 test.describe('static generation (SSG)', () => {

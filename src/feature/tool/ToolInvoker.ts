@@ -98,7 +98,9 @@ export class ToolInvoker {
     }
     const conflicts = [...ownersByName.entries()].filter(([, owners]) => owners.length > 1)
     if (conflicts.length > 0) {
-      const details = conflicts.map(([name, owners]) => `'${name}' (${owners.join(', ')})`).join('; ')
+      const details = conflicts
+        .map(([name, owners]) => `'${name}' (${owners.join(', ')})`)
+        .join('; ')
       throw new CustomError({
         httpCode: 500,
         code: 'DUPLICATE_TOOL_NAME',

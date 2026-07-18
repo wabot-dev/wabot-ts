@@ -51,7 +51,10 @@ class MathAgent extends Agent {
   }
 }
 
-function makeSession(mock: MockChatAdapter, options: { budget?: IAgentBudget; context?: string } = {}) {
+function makeSession(
+  mock: MockChatAdapter,
+  options: { budget?: IAgentBudget; context?: string } = {},
+) {
   let builder = createAgentHarness({ agent: MathAgent, adapter: mock }).for()
   if (options.budget) builder = builder.withBudget(options.budget)
   return builder.session(options.context)

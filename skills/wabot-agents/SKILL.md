@@ -7,7 +7,7 @@ description: Use when building dev-facing agents, asking an LLM for a typed/dete
 
 Two ways to drive an LLM in Wabot:
 
-- **Mindset** (`wabot-mindset`) — an end-user-facing chatbot persona with chat memory. The *user* talks to it.
+- **Mindset** (`wabot-mindset`) — an end-user-facing chatbot persona with chat memory. The _user_ talks to it.
 - **Agent** — a **dev-facing** primitive you drive from code: give it context, ask typed questions, give orders. No persisted chat memory; the transcript lives only in the session.
 
 Both consume the same **tools**.
@@ -103,11 +103,11 @@ The session is a **stateful, in-memory conversation**: each `ask` / `confirm` / 
 
 `order<T>(command, schema?)` returns the full `AgentReply<T>` union:
 
-| `reply.type` | Meaning |
-| --- | --- |
-| `answer` | `reply.value` is the result (`T` when a schema was given, else the final text). |
-| `question` | The agent replied with prose instead of the structured answer — e.g. it needs clarification. `reply.text` holds it. |
-| `stopped` | Hit a limit before finishing. `reply.reason` is `'budget'` or `'maxSteps'`. |
+| `reply.type` | Meaning                                                                                                             |
+| ------------ | ------------------------------------------------------------------------------------------------------------------- |
+| `answer`     | `reply.value` is the result (`T` when a schema was given, else the final text).                                     |
+| `question`   | The agent replied with prose instead of the structured answer — e.g. it needs clarification. `reply.text` holds it. |
+| `stopped`    | Hit a limit before finishing. `reply.reason` is `'budget'` or `'maxSteps'`.                                         |
 
 `ask` and `confirm` are happy-path sugar: they return the value directly and **throw `AgentPausedError`** if the reply was `question` or `stopped`. Use `order` when you want to branch on those cases.
 
@@ -116,11 +116,15 @@ The session is a **stateful, in-memory conversation**: each `ask` / `confirm` / 
 Attach conversations/data as **read-only material** the agent reasons about (never merged into its own turns):
 
 ```typescript
-const shouldRespond = await this.agents.for(GateAgent).session()
-  .attachChat(memory, { lastItems: 20 })   // a ChatMemory (fetched lazily) or an IChatItem[]
-  .attachMessage(incoming)                 // the current message under evaluation
-  .confirm('Should the bot respond to the latest message? ' +
-           'Answer false if it is spam, already handled, or not addressed to the bot.')
+const shouldRespond = await this.agents
+  .for(GateAgent)
+  .session()
+  .attachChat(memory, { lastItems: 20 }) // a ChatMemory (fetched lazily) or an IChatItem[]
+  .attachMessage(incoming) // the current message under evaluation
+  .confirm(
+    'Should the bot respond to the latest message? ' +
+      'Answer false if it is spam, already handled, or not addressed to the bot.',
+  )
 ```
 
 `attach(text)` / `attachChat(source, { lastItems? })` / `attachMessage(msg)` all return the session for chaining.
@@ -129,24 +133,29 @@ const shouldRespond = await this.agents.for(GateAgent).session()
 
 There are two ways a mindset reaches an agent:
 
-1. **Autonomously** — declare the agent on `@mindset({ agents })` and the mindset's model calls it itself (see below). Best when *the model* should decide when to consult the agent.
-2. **From a tool** — call `AgentFactory` inside one of the mindset's `@tools` methods (shown after). Best when *your code* decides, or you need a typed `ask<T>` result.
+1. **Autonomously** — declare the agent on `@mindset({ agents })` and the mindset's model calls it itself (see below). Best when _the model_ should decide when to consult the agent.
+2. **From a tool** — call `AgentFactory` inside one of the mindset's `@tools` methods (shown after). Best when _your code_ decides, or you need a typed `ask<T>` result.
 
 ### Autonomous — `@mindset({ agents })`
 
 Each agent binding becomes a callable tool (`ask_<agent_slug>`) with a single free-text `input`. Calling it runs a fresh, isolated, budget-capped session (`.order(input)`) and returns the agent's reply text to the chat loop. Give the agent a `description` so the mindset's model knows when to use it:
 
 ```typescript
-@agent({ tools: [KbSearchTools, AdminTools], description: 'Answers hard product questions from the KB.' })
-export class SpecialistAgent implements IAgent { /* instructions() / models() */ }
+@agent({
+  tools: [KbSearchTools, AdminTools],
+  description: 'Answers hard product questions from the KB.',
+})
+export class SpecialistAgent implements IAgent {
+  /* instructions() / models() */
+}
 
 @mindset({
   modules: [FaqTools],
-  agents: [
-    { agent: SpecialistAgent, allow: [KbSearchTools], budget: { maxTokens: 8000 } },
-  ],
+  agents: [{ agent: SpecialistAgent, allow: [KbSearchTools], budget: { maxTokens: 8000 } }],
 })
-export class SupportMindset implements IMindset { /* … */ }
+export class SupportMindset implements IMindset {
+  /* … */
+}
 ```
 
 `allow`/`deny` on the binding are exactly the tool gating below; `forMindset` is always applied. The agent gets only the model's task text (no chat history), capped by `budget` (default `maxTokens: 4000, maxSteps: 8`). A `stopped` turn comes back as text (never throws into the loop). This is the declarative equivalent of the manual delegation below — use it when the model, not your code, should decide to delegate.
@@ -162,13 +171,14 @@ export class EscalationTools {
 
   @description('Escalate a hard question to the specialist agent')
   async escalate(req: EscalateRequest) {
-    const session = this.agents.for(SpecialistAgent)
-      .forMindset()                    // enforce exposeToMindsets:false hiding
-      .allowTools([KbSearchTools])     // whitelist — everything else is unreachable
+    const session = this.agents
+      .for(SpecialistAgent)
+      .forMindset() // enforce exposeToMindsets:false hiding
+      .allowTools([KbSearchTools]) // whitelist — everything else is unreachable
       .withBudget({ maxTokens: 8000 }) // token / step cap
-      .session(req.curatedContext)     // input isolation: only what you pass in
+      .session(req.curatedContext) // input isolation: only what you pass in
     const answer = await session.ask(req.question, AnswerSchema)
-    return answer                      // memory hygiene: only this returns to the chat
+    return answer // memory hygiene: only this returns to the chat
   }
 }
 ```
@@ -203,14 +213,22 @@ const harness = createAgentHarness({
 
 // harness.for() is the real builder: forMindset/allowTools/denyTools/withBudget/withContext
 harness.adapter.callTool(ANSWER_TOOL_NAME, { urgent: true })
-const result = await harness.for().forMindset().allowTools([KbTools]).session().ask('…', TriageResult)
+const result = await harness
+  .for()
+  .forMindset()
+  .allowTools([KbTools])
+  .session()
+  .ask('…', TriageResult)
 
 // or the shortcut for a default session:
 harness.adapter.reply('done')
 const reply = await harness.session('optional context').order('do the thing')
 
 // assert on what the model was sent:
-assert.deepEqual(harness.adapter.lastRequest!.tools.map((t) => t.name), ['kbSearch'])
+assert.deepEqual(
+  harness.adapter.lastRequest!.tools.map((t) => t.name),
+  ['kbSearch'],
+)
 ```
 
 - `createAgentHarness({ agent, adapter?, register?, authInfo? })` mirrors `createChatBotHarness`. `register` wires the agent's tool dependencies; `authInfo` assigns the scoped `Auth`.

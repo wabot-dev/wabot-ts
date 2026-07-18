@@ -34,12 +34,17 @@ test('tool loop saves for real', async () => {
   // Script the LLM turns: first it asks for a tool, then it answers with text.
   // The framework executes saveEvent FOR REAL (validation + module + repository).
   harness.adapter
-    .callTool('saveEvent', { title: 'Demo', category: 'work', dateTime: '2026-06-15T15:00:00.000Z', durationInMinutes: 45 })
+    .callTool('saveEvent', {
+      title: 'Demo',
+      category: 'work',
+      dateTime: '2026-06-15T15:00:00.000Z',
+      durationInMinutes: 45,
+    })
     .reply('Done! Scheduled for June 15th.')
 
   const turn = await harness.send('schedule a demo june 15th 3pm')
 
-  assert.equal(turn.toolCalls[0].name, 'saveEvent')        // executed tools + results
+  assert.equal(turn.toolCalls[0].name, 'saveEvent') // executed tools + results
   assert.equal(turn.replies[0].text, 'Done! Scheduled for June 15th.')
   // turn.items = every chat item of the turn; harness.history() = all turns
 })
@@ -82,8 +87,16 @@ import { ANSWER_TOOL_NAME } from '@wabot-dev/framework'
 
 const harness = createAgentHarness({ agent: TriageAgent, register: [[Db, fakeDb]] })
 harness.adapter.callTool(ANSWER_TOOL_NAME, { urgent: true })
-const result = await harness.for().forMindset().allowTools([KbTools]).session().ask('…', TriageResult)
-assert.deepEqual(harness.adapter.lastRequest!.tools.map((t) => t.name), ['kbSearch'])
+const result = await harness
+  .for()
+  .forMindset()
+  .allowTools([KbTools])
+  .session()
+  .ask('…', TriageResult)
+assert.deepEqual(
+  harness.adapter.lastRequest!.tools.map((t) => t.name),
+  ['kbSearch'],
+)
 ```
 
 `createAgentHarness({ agent, adapter?, register?, authInfo? })` mirrors `createChatBotHarness`. See `wabot-agents` for the full agent API. (An agent exposed to a mindset via `@mindset({ agents })` can also be exercised end-to-end through `createChatBotHarness().callTool('ask_<slug>', …)`.)
@@ -93,15 +106,21 @@ assert.deepEqual(harness.adapter.lastRequest!.tools.map((t) => t.name), ['kbSear
 Run the bot with its production adapters and grade the conversation with a judge LLM. The verdict comes through a forced tool call, so it's provider-agnostic.
 
 ```typescript
-import { AnthropicChatAdapter, container, OpenaiChatAdapter, runChatAdapters, UnionChatAdapter } from '@wabot-dev/framework'
+import {
+  AnthropicChatAdapter,
+  container,
+  OpenaiChatAdapter,
+  runChatAdapters,
+  UnionChatAdapter,
+} from '@wabot-dev/framework'
 import { createChatBotHarness, LlmJudge, useMemoryRepositories } from '@wabot-dev/framework/testing'
 
 useMemoryRepositories()
 runChatAdapters([AnthropicChatAdapter, OpenaiChatAdapter]) // same adapters as production
-const realLlm = container.resolve(UnionChatAdapter)        // routes by provider per the mindset's models()
+const realLlm = container.resolve(UnionChatAdapter) // routes by provider per the mindset's models()
 
 const judge = new LlmJudge({
-  adapter: container.resolve(AnthropicChatAdapter),        // cheap judge, independent of the model under test
+  adapter: container.resolve(AnthropicChatAdapter), // cheap judge, independent of the model under test
   models: [{ model: 'claude-haiku-4-5' }],
 })
 
@@ -136,11 +155,11 @@ let harness: RestHarness
 test.before(async () => {
   harness = await createRestHarness({
     controllers: [ItemsController],
-    jwt: true,                                  // registers a test JwtConfig so @jwtGuard works (no JWT_SECRET env needed)
-    register: [[ApiKeyRepository, apiKeys]],    // in-RAM keys so @apiKeyGuard works
+    jwt: true, // registers a test JwtConfig so @jwtGuard works (no JWT_SECRET env needed)
+    register: [[ApiKeyRepository, apiKeys]], // in-RAM keys so @apiKeyGuard works
   })
 })
-after(async () => await harness.close())        // always close the server
+after(async () => await harness.close()) // always close the server
 
 test('auth paths', async () => {
   const anon = await harness.request('GET', '/api/items/secret')
@@ -150,7 +169,9 @@ test('auth paths', async () => {
   assert.deepEqual(ok.body, { userId: 'u1' })
 
   const secret = await apiKeys.addKey({ userId: 'u2' })
-  const viaKey = await harness.request('GET', '/api/items/api-secret', { headers: { Authorization: `Api-Key ${secret}` } })
+  const viaKey = await harness.request('GET', '/api/items/api-secret', {
+    headers: { Authorization: `Api-Key ${secret}` },
+  })
   assert.equal(viaKey.status, 200)
 })
 ```
@@ -195,14 +216,20 @@ await harness.close()
 ## Repositories and validation
 
 ```typescript
-import { assertInvalid, assertValid, entityFixture, useMemoryRepositories, validateFixture } from '@wabot-dev/framework/testing'
+import {
+  assertInvalid,
+  assertValid,
+  entityFixture,
+  useMemoryRepositories,
+  validateFixture,
+} from '@wabot-dev/framework/testing'
 
 useMemoryRepositories() // once per file, BEFORE resolving any repository (runtimes cache on first use)
 
 const note = entityFixture(Note, { title: 'seeded' }, { id: 'note-1' }) // "already created" entity: id + createdAt set, validated
 
-const value = assertValid(CreateItemRequest, { name: 'x' })       // throws with flattened issues when invalid
-assertInvalid(CreateItemRequest, {}, { path: 'name' })            // throws if valid, or if no issue at that path
+const value = assertValid(CreateItemRequest, { name: 'x' }) // throws with flattened issues when invalid
+assertInvalid(CreateItemRequest, {}, { path: 'name' }) // throws if valid, or if no issue at that path
 const { value: v, issues } = validateFixture(CreateItemRequest, data) // issues: [{ path: 'items[0].name', message }]
 ```
 

@@ -59,7 +59,9 @@ import { jwtHandshakeGuard, socketController } from '@wabot-dev/framework'
 
 @socketController('private')
 @jwtHandshakeGuard()
-export class PrivateSocketController { /* ... */ }
+export class PrivateSocketController {
+  /* ... */
+}
 ```
 
 The token is read from `socket.handshake.auth.token` first, falling back to the `Authorization` header.
@@ -67,11 +69,21 @@ The token is read from `socket.handshake.auth.token` first, falling back to the 
 ## Issuing tokens
 
 ```typescript
-import { Auth, Jwt, JwtAccessAndRefreshTokenDto, injectable, onPost, restController } from '@wabot-dev/framework'
+import {
+  Auth,
+  Jwt,
+  JwtAccessAndRefreshTokenDto,
+  injectable,
+  onPost,
+  restController,
+} from '@wabot-dev/framework'
 
 @restController('/auth')
 export class AuthController {
-  constructor(private jwt: Jwt, private auth: Auth<SessionInfo>) {}
+  constructor(
+    private jwt: Jwt,
+    private auth: Auth<SessionInfo>,
+  ) {}
 
   @onPost('/login')
   async login(body: LoginRequest): Promise<JwtAccessAndRefreshTokenDto> {
@@ -90,6 +102,7 @@ export class AuthController {
 ```
 
 `Jwt.createToken(metadata?)`:
+
 - Reads the current `auth.require()` info.
 - Persists a `JwtRefreshToken` via `JwtRefreshTokenRepository`. The base class throws `Method not implemented` — the project must register an implementation: `container.registerType(JwtRefreshTokenRepository, PgJwtRefreshTokenRepository)` (table `wabot.jwt_refresh_token`), or its own.
 - Returns `{ access: { token, expiration }, refresh: { token, expiration } }`.
@@ -98,12 +111,12 @@ export class AuthController {
 
 ### Env vars
 
-| Variable | Default | Description |
-| --- | --- | --- |
-| `JWT_SECRET` | (required) | Symmetric secret or asymmetric key used for sign/verify |
-| `JWT_ALGORITHM` | `HS256` | Any `jsonwebtoken.Algorithm` |
-| `JWT_ACCESS_EXPIRATION_SECONDS` | `600` (10 min) | Access token lifetime |
-| `JWT_REFRESH_EXPIRATION_SECONDS` | `31536000` (1 yr) | Refresh token lifetime |
+| Variable                         | Default           | Description                                             |
+| -------------------------------- | ----------------- | ------------------------------------------------------- |
+| `JWT_SECRET`                     | (required)        | Symmetric secret or asymmetric key used for sign/verify |
+| `JWT_ALGORITHM`                  | `HS256`           | Any `jsonwebtoken.Algorithm`                            |
+| `JWT_ACCESS_EXPIRATION_SECONDS`  | `600` (10 min)    | Access token lifetime                                   |
+| `JWT_REFRESH_EXPIRATION_SECONDS` | `31536000` (1 yr) | Refresh token lifetime                                  |
 
 `JwtConfig` is `@singleton()` and reads these at boot.
 
@@ -114,18 +127,28 @@ export class AuthController {
 ## API key
 
 ```typescript
-import { apiKeyGuard, apiKeyHandshakeGuard, onGet, restController, socketController } from '@wabot-dev/framework'
+import {
+  apiKeyGuard,
+  apiKeyHandshakeGuard,
+  onGet,
+  restController,
+  socketController,
+} from '@wabot-dev/framework'
 
 @restController('/internal')
 export class InternalController {
   @onGet('/health')
   @apiKeyGuard()
-  async health() { return { ok: true } }
+  async health() {
+    return { ok: true }
+  }
 }
 
 @socketController('admin')
 @apiKeyHandshakeGuard()
-export class AdminSocketController { /* ... */ }
+export class AdminSocketController {
+  /* ... */
+}
 ```
 
 The guard reads `Authorization: Api-Key <secret>` (REST) or `socket.handshake.auth.token` / the `Authorization` handshake header (socket), validates via `ApiKeyRepository`, and assigns the lookup result to `Auth`.

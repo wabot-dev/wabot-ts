@@ -68,12 +68,17 @@ Invalidate on demand with the injectable **`MindsetCache`**: `mindsets.invalidat
 
 ```typescript
 type IMindsetModelKind =
-  | 'llm' | 'visionLlm' | 'audioLlm'
-  | 'speechToText' | 'textToSpeech'
-  | 'imageGen' | 'embedding'
+  | 'llm'
+  | 'visionLlm'
+  | 'audioLlm'
+  | 'speechToText'
+  | 'textToSpeech'
+  | 'imageGen'
+  | 'embedding'
 ```
 
 Fallback rules:
+
 - `visionLlm` falls back to `llm` if the chat has no images / no vision model is configured.
 - `audioLlm` falls back to `llm`.
 - Everything else fails fast if you request a kind you didn't configure.
@@ -90,7 +95,14 @@ A tool class is decorated with `@tools()`. Every method decorated with `@descrip
 
 ```typescript
 import {
-  description, isIn, isNotEmpty, isNumber, isString, max, min, tools,
+  description,
+  isIn,
+  isNotEmpty,
+  isNumber,
+  isString,
+  max,
+  min,
+  tools,
 } from '@wabot-dev/framework'
 
 export class AddGameRequest {
@@ -120,6 +132,7 @@ export class BacklogTools {
 ```
 
 Return types:
+
 - Strings/numbers/booleans → sent verbatim to the LLM.
 - Objects/arrays → JSON-stringified.
 - `Response` objects → status + parsed body included.
@@ -182,7 +195,7 @@ You don't write the system prompt by hand — `MindsetOperator.systemPrompt()` a
 
 - Implement the two methods `describe()` and `models()` — the old per-section methods (`context`/`identity`/`skills`/`limits`/`workflow`) and `llms()` were removed.
 - Every tool function: at most one parameter, every field of that parameter has a type validator AND `@description`.
-- Don't put business logic in the `describe()` fields — they're *strings*. Push logic into tools or services. If `describe()` reads per-chat state, do **not** set `cache`.
+- Don't put business logic in the `describe()` fields — they're _strings_. Push logic into tools or services. If `describe()` reads per-chat state, do **not** set `cache`.
 - Don't decorate the mindset class with `@singleton()` — mindsets are chat-scoped and the runner builds one per chat.
 - Refer to validators and `@description` rules in `wabot-validation`.
 

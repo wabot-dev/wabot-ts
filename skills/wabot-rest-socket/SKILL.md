@@ -53,6 +53,7 @@ export class OrdersController {
 Path resolution: `restController('/orders')` + `onPost()` → `POST /orders`. `onGet('/:id')` → `GET /orders/:id`. Either decorator accepts a `string` path or `{ path, disableJsonParser?, disableUrlEncodedParser? }`.
 
 Argument binding:
+
 - 0 parameters → no binding.
 - 1 parameter typed as a validator class → framework merges `req.body`, `req.query`, `req.params` and runs `validateAndTransform` against the class. Validation errors produce HTTP 400.
 - 1 parameter typed as `IncomingMessage` (Node's `http` type) → raw request injected.
@@ -76,7 +77,9 @@ export class RateLimit implements IMiddleware {
 class ApiController {
   @onGet('/me')
   @middleware(RateLimit)
-  async me() { /* ... */ }
+  async me() {
+    /* ... */
+  }
 }
 ```
 

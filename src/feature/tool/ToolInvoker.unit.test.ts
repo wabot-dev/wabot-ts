@@ -54,7 +54,10 @@ test('schema() exposes every tool function with typed params by default', () => 
   assert.ok(add, 'add tool present')
   assert.equal(add!.parameters.length, 2)
   assert.equal(add!.parameters.find((p) => p.name === 'a')?.schema.type, 'number')
-  assert.ok(schema.find((t) => t.name === 'reset'), 'reset present without gating')
+  assert.ok(
+    schema.find((t) => t.name === 'reset'),
+    'reset present without gating',
+  )
 })
 
 test('call() validates arguments and dispatches to the tool instance', async () => {

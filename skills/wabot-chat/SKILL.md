@@ -47,6 +47,7 @@ Channel decorators stack: each one registers the same method on a different tran
 `@chatBot(MindsetCtor)` injects a `ChatBot` instance scoped to that mindset. You can have several in one controller (e.g. a "support" bot and a "sales" bot) — each gets a unique injection token under the hood.
 
 `ChatBot.sendMessage(message, callback)`:
+
 - Persists the incoming message as a `humanMessage` chat item.
 - Calls the mindset → adapter loop, executing any tool calls.
 - Invokes `callback(replyMessage)` once per `botMessage` item produced.
@@ -76,21 +77,22 @@ The `reply` callback comes from the channel — for `@cmd` it writes to stdout o
 
 ## Channels — what each decorator needs
 
-| Decorator | Config | Notes |
-| --- | --- | --- |
-| `@cmd()` | none | Local Unix socket terminal client. Run `npm run cmd` to chat. State stored under `.wabot/cmd-channel/<route>/`. |
-| `@socket({ namespace })` | `namespace: string \| ConfigReference<string>` | Mounts a Socket.IO namespace. Tag-fn refs (`str\`socket.namespace\``) supported. |
-| `@telegram({ botToken })` | `botToken: string \| ConfigReference<string>` | Long-poll Telegram bot. Raw token or `str\`telegram.bot_token\``. |
-| `@whatsApp(numberOrConfig)` | string OR `{ number, accessToken?, businessNumberId? }` (each may be a `ConfigReference`) | WhatsApp Cloud API. |
-| `@wasender(config?)` | `{ apiKey?, webhookSecret?, phoneNumber?, webhookPath? }` (each may be a `ConfigReference`) | WaSender integration. |
+| Decorator                   | Config                                                                                      | Notes                                                                                                           |
+| --------------------------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `@cmd()`                    | none                                                                                        | Local Unix socket terminal client. Run `npm run cmd` to chat. State stored under `.wabot/cmd-channel/<route>/`. |
+| `@socket({ namespace })`    | `namespace: string \| ConfigReference<string>`                                              | Mounts a Socket.IO namespace. Tag-fn refs (`str\`socket.namespace\``) supported.                                |
+| `@telegram({ botToken })`   | `botToken: string \| ConfigReference<string>`                                               | Long-poll Telegram bot. Raw token or `str\`telegram.bot_token\``.                                               |
+| `@whatsApp(numberOrConfig)` | string OR `{ number, accessToken?, businessNumberId? }` (each may be a `ConfigReference`)   | WhatsApp Cloud API.                                                                                             |
+| `@wasender(config?)`        | `{ apiKey?, webhookSecret?, phoneNumber?, webhookPath? }` (each may be a `ConfigReference`) | WaSender integration.                                                                                           |
 
-Channel configs that accept `ConfigReference` resolve env vars automatically — use `str\`wasender.apiKey\`` from `@wabot-dev/framework` to point to `WASENDER_APIKEY`.
+Channel configs that accept `ConfigReference` resolve env vars automatically — use `str\`wasender.apiKey\``from`@wabot-dev/framework`to point to`WASENDER_APIKEY`.
 
 ## Chat resolution
 
 When a message arrives, `ChatResolver` looks up the `Chat` by `IChatConnection` (`{ chatType: 'PRIVATE' | 'GROUP', channelName, id }`). If none exists, a new `Chat` is created under a lock. You never write this resolution code — it's already wired.
 
 Inside a chat handler, these tokens are available in the child container:
+
 - `Chat` — the resolved chat entity
 - `ChatMemory` — append/read chat items for this chat
 - `ChatOperator` — convenience wrapper (see `wabot-mindset`)
@@ -114,14 +116,23 @@ runChatAdapters([OpenaiChatAdapter])
 To build your own adapter, implement `IChatAdapter`:
 
 ```typescript
-import { chatAdapter, IChatAdapter, IChatAdapterNextItemsReq, IChatAdapterNextItemsRes, singleton } from '@wabot-dev/framework'
+import {
+  chatAdapter,
+  IChatAdapter,
+  IChatAdapterNextItemsReq,
+  IChatAdapterNextItemsRes,
+  singleton,
+} from '@wabot-dev/framework'
 
 @chatAdapter({ provider: 'my-llm' })
 @singleton()
 export class MyLlmAdapter implements IChatAdapter {
   async nextItems(req: IChatAdapterNextItemsReq): Promise<IChatAdapterNextItemsRes> {
     // map req.systemPrompt + req.prevItems + req.tools to your API, return { nextItems, usage }
-    return { nextItems: [], usage: { inputTokens: 0, outputTokens: 0, provider: 'my-llm', model: req.models[0].model } }
+    return {
+      nextItems: [],
+      usage: { inputTokens: 0, outputTokens: 0, provider: 'my-llm', model: req.models[0].model },
+    }
   }
 }
 ```
