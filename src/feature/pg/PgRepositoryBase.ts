@@ -1,11 +1,12 @@
 import type { Pool, PoolClient } from 'pg'
 import type { IPgRepositoryConfig } from './IPgRepositoryConfig'
 import { Entity, IEntityData } from '@/core/entity'
+import { DbRepositoryExtension } from '@/feature/repository/DbRepositoryExtension'
 import { withPgClient } from './withPgClient'
 import { Logger } from '@/core/logger'
 import { PgLocker } from './PgLocker'
 
-export class PgRepositoryBase<P extends Entity<IEntityData>> {
+export class PgRepositoryBase<P extends Entity<IEntityData>> extends DbRepositoryExtension {
   private tableIsReady = false
   protected schema: string
   protected table: string
@@ -27,6 +28,7 @@ export class PgRepositoryBase<P extends Entity<IEntityData>> {
     protected pool: Pool,
     protected config: IPgRepositoryConfig<any>,
   ) {
+    super()
     this.schema = `"${config.schema ?? 'public'}"`
 
     this.table = [config.schema, config.table]

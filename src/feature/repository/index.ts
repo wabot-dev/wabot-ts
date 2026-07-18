@@ -1,5 +1,7 @@
+export * from './@dbExtension'
 export * from './@memExtension'
 export * from './@query'
+export * from './DbRepositoryExtension'
 export * from './@queryExtension'
 export * from './@repository'
 export * from './evaluateQueryAst'
