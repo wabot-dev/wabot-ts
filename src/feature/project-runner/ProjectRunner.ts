@@ -2,10 +2,14 @@ import { pathToFileURL } from 'node:url'
 import type { Pool } from 'pg'
 import { container } from '@/core/injection'
 import { Logger } from '@/core/logger'
+import { Env } from '@/core/env'
 import { IConstructor } from '@/core/generics'
 import { Locker } from '@/core/lock'
+import { setupCrashHandlers, ShutdownManager } from '@/core/lifecycle'
 import { ChatRepository, IChatAdapter, runAudioAdapters, runChatAdapters } from '@/feature/chat-bot'
-import { runChatControllers } from '@/feature/chat-controller'
+import { IChatChannel, runChatControllers, stopChatControllers } from '@/feature/chat-controller'
+import { SocketServerProvider } from '@/feature/socket'
+import { JobExecutor } from '@/feature/async/JobExecutor'
 import {
   IRealtimeVoiceEngine,
   runRealtimeVoiceEngines,
@@ -16,6 +20,8 @@ import { runRestControllers } from '@/feature/rest-controller'
 import {
   runCommandHandlers,
   runCronHandlers,
+  stopCommandHandlers,
+  stopCronHandlers,
   AsyncMetadataStore,
   TransactionMetadataStore,
   ICommandHandler,
@@ -133,6 +139,11 @@ export class ProjectRunner {
   }
 
   async run(): Promise<void> {
+    // Install crash handlers first so a failure during boot is logged, reported
+    // to the error monitor, and exits cleanly. Graceful (SIGTERM/SIGINT) drain
+    // is wired later, once components are running (setupGracefulShutdown).
+    setupCrashHandlers()
+
     let scannedFiles: string[] = []
     if (this.preloaded) {
       if (this.isPg) await this.initPool()
@@ -341,9 +352,10 @@ export class ProjectRunner {
       container.resolve(ExpressProvider).getExpress()
     }
 
+    let chatChannels: IChatChannel[] = []
     if (components.chatControllers.length > 0) {
       logger.info(`Starting ${components.chatControllers.length} chat controller(s)`)
-      runChatControllers(components.chatControllers)
+      chatChannels = runChatControllers(components.chatControllers)
     }
 
     if (components.restControllers.length > 0) {
@@ -385,6 +397,88 @@ export class ProjectRunner {
 
     // All routes and namespaces are registered — now open the port.
     httpServerProvider.releaseListen()
+
+    this.setupGracefulShutdown(components, chatChannels, httpServerProvider)
+  }
+
+  /**
+   * Register shutdown tasks for everything that was started and install the
+   * SIGTERM/SIGINT handlers. Ordered by phase: stop intake (channels, job/cron
+   * pollers) → drain in-flight work (jobs, HTTP requests) → release resources
+   * (socket server, DB pool). Only subsystems that are actually running are
+   * registered, so an in-memory or channel-only app shuts down just as cleanly.
+   */
+  private setupGracefulShutdown(
+    components: DiscoveredComponents,
+    chatChannels: IChatChannel[],
+    httpServerProvider: HttpServerProvider,
+  ): void {
+    const shutdown = container.resolve(ShutdownManager)
+
+    // intake — stop accepting new work
+    if (chatChannels.length > 0) {
+      shutdown.register({
+        name: 'chat-channels',
+        phase: 'intake',
+        run: () => stopChatControllers(chatChannels),
+      })
+    }
+    if (components.commandHandlers.length > 0) {
+      shutdown.register({
+        name: 'command-handlers',
+        phase: 'intake',
+        run: () => stopCommandHandlers(components.commandHandlers),
+      })
+    }
+    if (components.cronHandlers.length > 0) {
+      shutdown.register({
+        name: 'cron-handlers',
+        phase: 'intake',
+        run: () => stopCronHandlers(components.cronHandlers),
+      })
+    }
+
+    // drain — let in-flight work finish
+    if (components.commandHandlers.length > 0) {
+      const drainMs =
+        container.resolve(Env).requireNumber('WABOT_SHUTDOWN_TIMEOUT_SECONDS', { default: 30 }) *
+        1000
+      shutdown.register({
+        name: 'drain-jobs',
+        phase: 'drain',
+        run: () => container.resolve(JobExecutor).drain(drainMs),
+      })
+    }
+
+    // HTTP and Socket.IO share one server. When a socket server is active,
+    // io.close() drains and closes the shared HTTP server too, so it owns the
+    // HTTP shutdown; otherwise close the HTTP server directly.
+    const socketProvider = container.resolve(SocketServerProvider)
+    if (socketProvider.isActive()) {
+      shutdown.register({
+        name: 'socket-server',
+        phase: 'drain',
+        run: () => socketProvider.close(),
+      })
+    } else if (
+      components.uiControllers.length > 0 ||
+      components.restControllers.length > 0 ||
+      components.voiceControllers.length > 0
+    ) {
+      shutdown.register({
+        name: 'http-server',
+        phase: 'drain',
+        run: () => httpServerProvider.close(),
+      })
+    }
+
+    // close — release resources
+    if (this.pool) {
+      const pool = this.pool
+      shutdown.register({ name: 'pg-pool', phase: 'close', run: () => pool.end() })
+    }
+
+    shutdown.installSignalHandlers()
   }
 
   private async startUiControllers(

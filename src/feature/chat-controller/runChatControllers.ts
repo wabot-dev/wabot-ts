@@ -6,6 +6,7 @@ import { Chat, ChatBot, ChatBotMetadataStore, ChatMemory, ChatRepository } from 
 import { IMindset, Mindset } from '@/feature/mindset'
 import { ChatResolver } from './ChatResolver'
 import { IChannelMessage } from './IChannelMessage'
+import { IChatChannel } from './IChatChannel'
 import { IMessageContext } from './IMessageContext'
 import { IReceivedMessage } from './IReceivedMessage'
 import { ControllerMetadataStore } from './metadata'
@@ -50,9 +51,10 @@ export async function prepareChatContainer(
 
 const logger = new Logger('wabot:chat-controller')
 
-export function runChatControllers(controllers: IConstructor<any>[]) {
+export function runChatControllers(controllers: IConstructor<any>[]): IChatChannel[] {
   const metadataStore = container.resolve(ControllerMetadataStore)
   const chatResolver = container.resolve(ChatResolver)
+  const channels: IChatChannel[] = []
 
   for (const controllerCtor of controllers) {
     const chatControllerMetadata = metadataStore.getChatControllerMetadata(controllerCtor)
@@ -100,6 +102,24 @@ export function runChatControllers(controllers: IConstructor<any>[]) {
       })
 
       channel.connect()
+      channels.push(channel)
+    }
+  }
+
+  return channels
+}
+
+/**
+ * Disconnect chat channels so no new inbound messages are delivered. Used
+ * during graceful shutdown; errors are logged but never thrown, so one channel
+ * failing to disconnect does not block the others.
+ */
+export function stopChatControllers(channels: IChatChannel[]): void {
+  for (const channel of channels) {
+    try {
+      channel.disconnect()
+    } catch (error) {
+      logger.error('Error disconnecting chat channel:', error)
     }
   }
 }
