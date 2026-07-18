@@ -8,6 +8,31 @@ permissions:
   contents: read
 
 jobs:
+  quality:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        name: Checkout
+
+      - uses: actions/setup-node@v5
+        name: Setup Node.js
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check formatting
+        run: npm run fmt:check
+
+      - name: Type check
+        run: npm run types:check
+
+      - name: Unit tests
+        run: npm run test:units
+
   check-versions:
     name: Check Versions
     environment: production
@@ -42,7 +67,7 @@ jobs:
   publish-lib:
     name: Publish Lib
     environment: production
-    needs: check-versions
+    needs: [check-versions, quality]
     runs-on: ubuntu-latest
     if: ${{ needs.check-versions.outputs.publishedVersion != needs.check-versions.outputs.pushedVersion }}
     steps:
