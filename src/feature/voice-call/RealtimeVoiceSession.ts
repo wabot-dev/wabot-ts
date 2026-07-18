@@ -35,6 +35,10 @@ export const END_CALL_TOOL_NAME = 'end_call'
  * caller's mic hostage — after this the session resumes full duplex. */
 const GREETING_GUARD_TIMEOUT_MS = 15000
 
+/** Safety cap on waiting for the goodbye to finish generating before hangup, so
+ * a missing `response.done` can't leave the call open indefinitely. */
+const HANGUP_RESPONSE_TIMEOUT_MS = 5000
+
 const END_CALL_TOOL: IToolSchema = {
   language: 'english',
   name: END_CALL_TOOL_NAME,
@@ -55,6 +59,9 @@ export class RealtimeVoiceSession {
    * is held back and barge-in is suppressed so line echo/noise can't clip it. */
   private greetingActive = false
   private greetingTimer?: ReturnType<typeof setTimeout>
+  /** One-shot callbacks released on the next `response.done` — lets the hangup
+   * flow wait for the goodbye to finish generating before draining playback. */
+  private responseDoneWaiters: (() => void)[] = []
 
   private constructor(
     private media: IVoiceMediaStream,
@@ -118,6 +125,12 @@ export class RealtimeVoiceSession {
     // finished playing to the caller — resuming before playback drains would let
     // echo of the tail trip barge-in and clip it. Fall back to the guard timeout.
     engine.onResponseDone?.(() => {
+      // Release anyone waiting for the model to finish generating (e.g. the
+      // hangup flow, which drains playback only once the goodbye is complete).
+      const waiters = this.responseDoneWaiters
+      this.responseDoneWaiters = []
+      for (const waiter of waiters) waiter()
+
       if (!this.greetingActive) return
       void Promise.resolve(this.media.waitForDrain?.(GREETING_GUARD_TIMEOUT_MS)).then(() =>
         this.endGreeting(),
@@ -156,11 +169,34 @@ export class RealtimeVoiceSession {
     this.greetingTimer = undefined
   }
 
+  /** Resolve once the model reports the current response finished generating,
+   * or after a guard timeout so a missing `response.done` can't strand hangup.
+   * Resolves immediately when the engine can't report response completion. */
+  private waitForResponseDone(): Promise<void> {
+    if (!this.engineSession.onResponseDone) return Promise.resolve()
+    return new Promise<void>((resolve) => {
+      let settled = false
+      const done = () => {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        resolve()
+      }
+      const timer = setTimeout(done, HANGUP_RESPONSE_TIMEOUT_MS)
+      timer.unref?.()
+      this.responseDoneWaiters.push(done)
+    })
+  }
+
   private async handleFunctionCall(call: IRealtimeFunctionCall) {
     if (call.name === END_CALL_TOOL_NAME) {
       this.engineSession.submitToolResult(call.callId, 'Call ended.')
-      // Let the bot's goodbye finish playing before tearing the call down —
-      // hanging up immediately drops audio Twilio still has queued.
+      // Wait for the goodbye to finish *generating* before we drain and hang up.
+      // end_call can fire while the model is still streaming the goodbye audio;
+      // draining then would only flush the part queued so far and clip the last
+      // words. `response.done` means the goodbye is fully queued to Twilio, so
+      // the drain that follows can wait for it to actually play out.
+      await this.waitForResponseDone()
       await this.media.waitForDrain?.()
       this.close('bot-ended')
       return
@@ -193,6 +229,11 @@ export class RealtimeVoiceSession {
     if (this.closed) return
     this.closed = true
     this.endGreeting()
+    // Release anyone still awaiting response completion so their wait unwinds
+    // instead of dangling until the guard timeout (e.g. caller hangs up first).
+    const waiters = this.responseDoneWaiters
+    this.responseDoneWaiters = []
+    for (const waiter of waiters) waiter()
     this.logger.info('voice session closed', {
       reason,
       callId: this.options.connection.callId,

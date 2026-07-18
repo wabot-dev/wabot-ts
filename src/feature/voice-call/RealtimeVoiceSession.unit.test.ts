@@ -209,13 +209,14 @@ test.describe('RealtimeVoiceSession', () => {
     await RealtimeVoiceSession.start({ media, engine, connection, instructions: 'x' })
 
     engine.session.emitFunctionCall({ callId: 'c1', name: 'end_call', arguments: '{}' })
+    engine.session.emitResponseDone() // goodbye finished generating
     await flush()
     assert.equal(media.hangups, 1)
     assert.equal(engine.session.closes, 1)
     assert.equal(engine.session.toolResults[0]?.callId, 'c1')
   })
 
-  test('end_call waits for playback to drain before hanging up', async () => {
+  test('end_call waits for the goodbye to finish generating, then drains, before hanging up', async () => {
     const media = new FakeMediaStream()
     media.manualDrain = true // hold the drain open so we can observe the ordering
     const engine = new FakeEngine()
@@ -224,8 +225,14 @@ test.describe('RealtimeVoiceSession', () => {
     engine.session.emitFunctionCall({ callId: 'c1', name: 'end_call', arguments: '{}' })
     await flush()
 
-    // Goodbye acknowledged and drain requested, but the line is still open.
+    // Goodbye acknowledged, but we must not drain yet: the model may still be
+    // streaming the goodbye audio, so draining now would clip the last words.
     assert.equal(engine.session.toolResults[0]?.callId, 'c1')
+    assert.equal(media.drainCalls, 0)
+    assert.equal(media.hangups, 0)
+
+    engine.session.emitResponseDone() // goodbye fully generated → now drain
+    await flush()
     assert.equal(media.drainCalls, 1)
     assert.equal(media.hangups, 0)
     assert.equal(engine.session.closes, 0)
