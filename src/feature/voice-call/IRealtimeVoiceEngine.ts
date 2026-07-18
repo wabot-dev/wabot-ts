@@ -7,6 +7,23 @@ export interface IRealtimeFunctionCall {
   arguments: string
 }
 
+/**
+ * Server-VAD turn-detection tuning. Controls when the provider decides the
+ * caller has finished speaking and lets the bot take its turn.
+ */
+export interface ITurnDetectionConfig {
+  /**
+   * Silence (ms) after the caller stops before their turn is considered over.
+   * Raise it so the bot waits longer — and interrupts less — when the caller
+   * pauses mid-thought. Lower it for snappier, more eager replies.
+   */
+  silenceMs?: number
+  /** VAD activation threshold 0..1; higher ignores quieter speech and noise. */
+  threshold?: number
+  /** Audio (ms) kept before detected speech so word onsets aren't clipped. */
+  prefixPaddingMs?: number
+}
+
 export interface IRealtimeVoiceSessionConfig {
   /** System instructions (the Mindset system prompt). */
   instructions: string
@@ -18,6 +35,8 @@ export interface IRealtimeVoiceSessionConfig {
   voice?: string
   /** Selects the registered engine; defaults to the first registered. */
   provider?: string
+  /** How long to wait for the caller to finish before the bot replies. */
+  turnDetection?: ITurnDetectionConfig
 }
 
 /** A live connection to the realtime speech model for one call. */

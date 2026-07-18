@@ -84,6 +84,7 @@ test.describe('OpenaiRealtimeVoiceEngineSession', () => {
     assert.equal(msg.session.audio.output.format.type, 'audio/pcmu')
     assert.equal(msg.session.audio.output.voice, 'verse')
     assert.equal(msg.session.audio.input.turn_detection.type, 'server_vad')
+    assert.equal(msg.session.audio.input.turn_detection.silence_duration_ms, 700)
     assert.equal(msg.session.tool_choice, 'auto')
     assert.equal(msg.session.tools.length, 1)
     assert.equal(msg.session.tools[0].name, 'get_time')
@@ -94,6 +95,20 @@ test.describe('OpenaiRealtimeVoiceEngineSession', () => {
     const socket = new FakeSocket()
     new OpenaiRealtimeVoiceEngineSession(socket, config({ tools: [] })).configure()
     assert.equal(socket.last().session.tool_choice, 'none')
+  })
+
+  test('turnDetection config overrides the VAD silence/threshold/padding', () => {
+    const socket = new FakeSocket()
+    new OpenaiRealtimeVoiceEngineSession(
+      socket,
+      config({ turnDetection: { silenceMs: 1200, threshold: 0.6, prefixPaddingMs: 200 } }),
+    ).configure()
+
+    const td = socket.last().session.audio.input.turn_detection
+    assert.equal(td.type, 'server_vad')
+    assert.equal(td.silence_duration_ms, 1200)
+    assert.equal(td.threshold, 0.6)
+    assert.equal(td.prefix_padding_ms, 200)
   })
 
   test('forwards model audio deltas (both event names) to onAudio', () => {
@@ -154,11 +169,26 @@ test.describe('OpenaiRealtimeVoiceEngineSession', () => {
     assert.deepEqual(responses[1].response, {})
   })
 
-  test('cancelResponse sends response.cancel (barge-in)', () => {
+  test('cancelResponse sends response.cancel while a response is active (barge-in)', () => {
     const socket = new FakeSocket()
     const session = new OpenaiRealtimeVoiceEngineSession(socket, config())
+    socket.emitMessage({ type: 'response.created' })
     session.cancelResponse()
     assert.equal(socket.last().type, 'response.cancel')
+  })
+
+  test('cancelResponse is a no-op when no response is active (avoids response_cancel_not_active)', () => {
+    const socket = new FakeSocket()
+    const session = new OpenaiRealtimeVoiceEngineSession(socket, config())
+    // No response.created yet — nothing to cancel.
+    session.cancelResponse()
+    assert.equal(socket.sent.length, 0)
+
+    // And once a response completes, a further cancel is again a no-op.
+    socket.emitMessage({ type: 'response.created' })
+    socket.emitMessage({ type: 'response.done' })
+    session.cancelResponse()
+    assert.equal(socket.sent.length, 0)
   })
 
   test('sendUserText injects a user turn and requests a response', () => {

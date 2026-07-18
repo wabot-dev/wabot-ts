@@ -1,6 +1,7 @@
 import { injectable } from '@/core/injection'
 import { MindsetOperator } from '@/feature/mindset'
 import { IVoiceCall } from './IIncomingVoiceCall'
+import { ITurnDetectionConfig } from './IRealtimeVoiceEngine'
 import { RealtimeVoiceEngine } from './RealtimeVoiceEngine'
 import { RealtimeVoiceSession } from './RealtimeVoiceSession'
 
@@ -8,6 +9,8 @@ export interface IVoiceAnswerOptions {
   /** Instruction for the bot's opening line when the call connects. */
   greeting?: string
   voice?: string
+  /** Tune how long the bot waits for the caller to finish before it replies. */
+  turnDetection?: ITurnDetectionConfig
 }
 
 /**
@@ -36,6 +39,7 @@ export class VoiceBot {
       // the call (`@twilioVoice({ voice })` or an outbound `initiate({ voice })`).
       voice: options.voice ?? call.voice,
       greeting: options.greeting ?? call.greeting,
+      turnDetection: options.turnDetection,
     })
   }
 }

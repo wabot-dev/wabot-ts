@@ -6,6 +6,7 @@ import {
   IRealtimeVoiceEngine,
   IRealtimeVoiceEngineSession,
   IRealtimeVoiceSessionConfig,
+  ITurnDetectionConfig,
   realtimeVoiceEngine,
   VoiceAudioFormat,
 } from '@/feature/voice-call'
@@ -16,10 +17,28 @@ const DEFAULT_MODEL = 'gpt-realtime'
 const DEFAULT_VOICE = 'alloy'
 /** Fallback so a missing `session.updated` ack can never hang the call. */
 const SESSION_READY_TIMEOUT_MS = 2000
+/**
+ * End-of-turn silence default. OpenAI's own default is 500 ms, which is snappy
+ * but makes the bot cut in the moment the caller pauses mid-sentence on a phone
+ * line. 700 ms leaves room to breathe without feeling sluggish; per-call config
+ * can raise or lower it.
+ */
+const DEFAULT_SILENCE_DURATION_MS = 700
 
 /** Maps our codec to the GA Realtime audio format object. */
 function audioFormat(format: VoiceAudioFormat) {
   return format === 'pcm16' ? { type: 'audio/pcm', rate: 24000 } : { type: 'audio/pcmu' }
+}
+
+/** Builds the server-VAD `turn_detection` object from our tuning config. */
+function turnDetection(config?: ITurnDetectionConfig) {
+  const detection: Record<string, unknown> = {
+    type: 'server_vad',
+    silence_duration_ms: config?.silenceMs ?? DEFAULT_SILENCE_DURATION_MS,
+  }
+  if (config?.threshold !== undefined) detection.threshold = config.threshold
+  if (config?.prefixPaddingMs !== undefined) detection.prefix_padding_ms = config.prefixPaddingMs
+  return detection
 }
 
 /** True when a raw message is OpenAI's ack that our `session.update` applied. */
@@ -108,6 +127,10 @@ export class OpenaiRealtimeVoiceEngineSession implements IRealtimeVoiceEngineSes
   private functionCallListener?: (call: IRealtimeFunctionCall) => void
   private closeListener?: () => void
   private errorListener?: (error: unknown) => void
+  /** True while the model is generating a response. Used to avoid sending a
+   * `response.cancel` (barge-in) when there is nothing to cancel, which the API
+   * rejects with `response_cancel_not_active`. */
+  private responseActive = false
 
   constructor(
     private socket: IRealtimeSocket,
@@ -129,7 +152,7 @@ export class OpenaiRealtimeVoiceEngineSession implements IRealtimeVoiceEngineSes
           instructions: this.config.instructions,
           output_modalities: ['audio'],
           audio: {
-            input: { format, turn_detection: { type: 'server_vad' } },
+            input: { format, turn_detection: turnDetection(this.config.turnDetection) },
             output: { format, voice: this.config.voice ?? DEFAULT_VOICE },
           },
           tools: this.config.tools.map(mapTool),
@@ -159,6 +182,10 @@ export class OpenaiRealtimeVoiceEngineSession implements IRealtimeVoiceEngineSes
   }
 
   cancelResponse() {
+    // No response in flight — nothing to cancel. Skip the send so the API
+    // doesn't reject it with `response_cancel_not_active`.
+    if (!this.responseActive) return
+    this.responseActive = false
     this.socket.send(JSON.stringify({ type: 'response.cancel' }))
   }
 
@@ -207,6 +234,10 @@ export class OpenaiRealtimeVoiceEngineSession implements IRealtimeVoiceEngineSes
       case 'input_audio_buffer.speech_started':
         this.speechStartedListener?.()
         break
+      // A response is now generating — barge-in may cancel it from here on.
+      case 'response.created':
+        this.responseActive = true
+        break
       // Audio chunk event name varies across API versions; handle both.
       case 'response.audio.delta':
       case 'response.output_audio.delta':
@@ -222,6 +253,7 @@ export class OpenaiRealtimeVoiceEngineSession implements IRealtimeVoiceEngineSes
       // Fires for every finished response (completed/cancelled/failed) — used to
       // close the opening-greeting window so normal barge-in can resume.
       case 'response.done':
+        this.responseActive = false
         this.responseDoneListener?.()
         break
       case 'error':

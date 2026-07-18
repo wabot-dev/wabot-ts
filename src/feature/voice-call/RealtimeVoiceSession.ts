@@ -4,6 +4,7 @@ import {
   IRealtimeFunctionCall,
   IRealtimeVoiceEngine,
   IRealtimeVoiceEngineSession,
+  ITurnDetectionConfig,
 } from './IRealtimeVoiceEngine'
 import { IVoiceCallConnection } from './IVoiceCallConnection'
 import { IVoiceMediaStream } from './IVoiceMediaStream'
@@ -21,6 +22,8 @@ export interface IRealtimeVoiceSessionOptions {
   /** If set, the bot speaks first with this instruction when the call connects. */
   greeting?: string
   provider?: string
+  /** Tune how long the bot waits for the caller to finish before it replies. */
+  turnDetection?: ITurnDetectionConfig
   /** Expose a built-in `end_call` tool so the bot can hang up (default true). */
   endCall?: boolean
 }
@@ -66,6 +69,7 @@ export class RealtimeVoiceSession {
       audioFormat: options.media.format,
       voice: options.voice,
       provider: options.provider,
+      turnDetection: options.turnDetection,
     })
 
     const session = new RealtimeVoiceSession(options.media, engineSession, options)
@@ -120,12 +124,19 @@ export class RealtimeVoiceSession {
       )
     })
     engine.onFunctionCall((call) => void this.handleFunctionCall(call))
-    engine.onError((error) =>
+    engine.onError((error) => {
+      // A cancel that races a response finishing (barge-in fired just as the
+      // response completed) is benign — the response is already gone. Log it at
+      // debug so it doesn't read as a real failure.
+      if (isBenignCancelRace(error)) {
+        this.logger.debug('realtime cancel raced response completion')
+        return
+      }
       this.logger.error(
         'realtime engine error',
         error instanceof Error ? { message: error.message } : { error },
-      ),
-    )
+      )
+    })
     engine.onClose(() => this.close('engine-closed'))
   }
 
@@ -201,6 +212,16 @@ export class RealtimeVoiceSession {
       })
     }
   }
+}
+
+/** True for the API's "no active response to cancel" error, which barge-in can
+ * provoke by racing a response that finished a beat earlier. */
+function isBenignCancelRace(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as { code?: unknown }).code === 'response_cancel_not_active'
+  )
 }
 
 function withEndCallTool(tools: IToolSchema[], enabled: boolean): IToolSchema[] {
