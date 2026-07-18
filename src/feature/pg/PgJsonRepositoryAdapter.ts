@@ -19,13 +19,13 @@ class PgJsonRepositoryRuntime<P extends Entity<IEntityData>>
   implements IRepositoryRuntime<P>
 {
   async runQuery(ast: IQueryAst, args: unknown[]): Promise<P[]> {
-    const built = buildQuerySql(ast, this.table, this.columns)
+    const built = buildQuerySql(ast, this.table, this.columns, Object.keys(this.addColumns))
     const params = built.buildParams(args)
     return this.query(built.sql, params)
   }
 
   async runCount(ast: IQueryAst, args: unknown[]): Promise<number> {
-    const built = buildQuerySql(ast, this.table, this.columns)
+    const built = buildQuerySql(ast, this.table, this.columns, Object.keys(this.addColumns))
     const params = built.buildParams(args)
     return withPgClient(this.pool, async (client) => {
       await this.ensureTable(client)
@@ -35,7 +35,7 @@ class PgJsonRepositoryRuntime<P extends Entity<IEntityData>>
   }
 
   async runExists(ast: IQueryAst, args: unknown[]): Promise<boolean> {
-    const built = buildQuerySql(ast, this.table, this.columns)
+    const built = buildQuerySql(ast, this.table, this.columns, Object.keys(this.addColumns))
     const params = built.buildParams(args)
     return withPgClient(this.pool, async (client) => {
       await this.ensureTable(client)
@@ -45,7 +45,7 @@ class PgJsonRepositoryRuntime<P extends Entity<IEntityData>>
   }
 
   async runDelete(ast: IQueryAst, args: unknown[]): Promise<void> {
-    const built = buildQuerySql(ast, this.table, this.columns)
+    const built = buildQuerySql(ast, this.table, this.columns, Object.keys(this.addColumns))
     const params = built.buildParams(args)
     await this.exec(built.sql, params)
   }

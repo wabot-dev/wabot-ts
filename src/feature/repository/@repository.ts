@@ -2,6 +2,7 @@ import { Entity, IEntityData } from '@/core/entity'
 import { container, singleton } from '@/core/injection'
 import { IConstructor } from '@/core/generics'
 import { IQueryAst } from './types'
+import { deriveIndexes, mergeIndexes } from './indexes'
 import { IRepositoryConfig } from './IRepositoryConfig'
 import { IRepositoryRuntime } from './IRepositoryRuntime'
 import { parseQueryMethodName } from './parseQueryMethodName'
@@ -165,6 +166,15 @@ export function repository<P extends Entity<IEntityData>>(config: IRepositoryCon
     installExtensionAccessor(target)
 
     const queryMethods = store.getQueryMethods(target)
+
+    // Auto-derive indexes from the declared query methods and merge them with
+    // any explicit `indexes`. Backends that manage schema (Postgres JSONB) read
+    // config.indexes to create them; the memory backend ignores them.
+    const derivedIndexes = deriveIndexes(
+      queryMethods.map((m) => parseQueryMethodName(m.functionName)),
+    )
+    config.indexes = mergeIndexes(config.indexes ?? [], derivedIndexes)
+
     for (const meta of queryMethods) {
       if (Object.prototype.hasOwnProperty.call(target.prototype, meta.functionName)) {
         const existing = target.prototype[meta.functionName]
