@@ -1,6 +1,6 @@
 ---
 name: wabot-ops
-description: Use when reaching for cross-cutting utilities in a Wabot app — structured logging, process lifecycle (graceful shutdown, crash handlers, readiness probes), distributed/in-process locking, custom errors with HTTP codes, password hashing, or secure random generators. Covers Logger (6 levels via debug + optional IErrorMonitor), graceful shutdown + ShutdownManager.isShuttingDown, setupCrashHandlers (setupErrorHandlers deprecated), Locker / ILockKey / ILockerKey (in-memory + PG implementations selected by DATABASE_URL), CustomError, Password (scrypt-based), and Random.
+description: Use when reaching for cross-cutting utilities in a Wabot app — structured logging, process lifecycle (graceful shutdown, crash handlers, readiness probes), distributed/in-process locking, idempotency / webhook deduplication, rate limiting, custom errors with HTTP codes, password hashing, or secure random generators. Covers Logger (6 levels via debug + optional IErrorMonitor), graceful shutdown + ShutdownManager.isShuttingDown, setupCrashHandlers (setupErrorHandlers deprecated), Locker / ILockKey / ILockerKey, Idempotency (alreadyProcessed / runOnce), RateLimiter (fixed-window) and the @rateLimit REST decorator — all with in-memory + PG implementations selected by DATABASE_URL — plus CustomError, Password (scrypt-based), and Random.
 ---
 
 # Operations utilities
@@ -144,6 +144,43 @@ await locker.withKey(orderEntity).run(async () => { ... })
 ```
 
 `ILockerKey { lockerKey(): string | number }` — implement on a domain type if you want to pass it directly.
+
+## `Idempotency`
+
+Deduplicate repeated events — chiefly webhook deliveries a provider retries. Like `Locker`, the runner selects an in-memory implementation or a Postgres one (atomic, safe across instances) from `DATABASE_URL`.
+
+```typescript
+import { container, Idempotency } from '@wabot-dev/framework'
+
+const idempotency = container.resolve(Idempotency)
+
+// true if `key` was already seen within the TTL (a duplicate to skip); records it on first sight
+if (await idempotency.alreadyProcessed(`order-webhook:${eventId}`, 3600)) return
+
+// or run something only once per key; the key is released if fn throws so a retry reprocesses
+await idempotency.runOnce(`order-webhook:${eventId}`, 3600, async () => {
+  await processOrder(eventId)
+})
+```
+
+**Inbound chat dedup is automatic.** When a chat channel tags a delivery with `idempotencyKey` (a provider message id), `runChatControllers` skips duplicates within `WABOT_IDEMPOTENCY_TTL_SECONDS` (default 3600) — so webhook retries don't re-run the whole turn (or double-bill LLM calls). The WhatsApp Cloud API channel sets it from the message id; a custom channel sets `idempotencyKey` on the `IChannelMessage` it emits.
+
+## `RateLimiter`
+
+Fixed-window rate limiting — in-memory or Postgres (atomic per-window bucket, shared across instances), selected by `DATABASE_URL`.
+
+```typescript
+import { container, CustomError, RateLimiter } from '@wabot-dev/framework'
+
+const limiter = container.resolve(RateLimiter)
+const { allowed, remaining, resetAt } = await limiter.hit(`llm:${userId}`, {
+  limit: 30,
+  windowSeconds: 60,
+})
+if (!allowed) throw new CustomError({ httpCode: 429, message: 'Slow down' })
+```
+
+Use this to protect chat/LLM paths per user. For REST endpoints prefer the `@rateLimit` decorator (sets `X-RateLimit-*` / `Retry-After` and throws 429) — see the `wabot-rest-socket` skill.
 
 ## `Password`
 

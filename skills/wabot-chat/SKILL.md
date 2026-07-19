@@ -91,6 +91,8 @@ Channel configs that accept `ConfigReference` resolve env vars automatically —
 
 When a message arrives, `ChatResolver` looks up the `Chat` by `IChatConnection` (`{ chatType: 'PRIVATE' | 'GROUP', channelName, id }`). If none exists, a new `Chat` is created under a lock. You never write this resolution code — it's already wired.
 
+Deliveries tagged with an `idempotencyKey` (a provider message id — the WhatsApp Cloud API channel sets it) are deduplicated: a repeat within `WABOT_IDEMPOTENCY_TTL_SECONDS` (default 3600) is skipped, so webhook retries don't re-run the turn or double-bill the LLM. Set `idempotencyKey` on the `IChannelMessage` your custom channel emits to opt in (see `Idempotency` in `wabot-ops`).
+
 Inside a chat handler, these tokens are available in the child container:
 
 - `Chat` — the resolved chat entity
