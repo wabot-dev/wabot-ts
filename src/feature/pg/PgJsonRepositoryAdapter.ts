@@ -11,8 +11,18 @@ import {
 } from '@/feature/repository'
 import { IPgRepositoryConfig } from './IPgRepositoryConfig'
 import { PgCrudRepository } from './PgCrudRepository'
+import { PgSqlRepositoryBase } from './PgSqlRepositoryBase'
 import { buildQuerySql } from './buildQuerySql'
 import { withPgClient } from './withPgClient'
+
+function inheritsFrom(ctor: Function, base: Function): boolean {
+  let proto: any = ctor.prototype
+  while (proto) {
+    if (proto === base.prototype) return true
+    proto = Object.getPrototypeOf(proto)
+  }
+  return false
+}
 
 class PgJsonRepositoryRuntime<P extends Entity<IEntityData>>
   extends PgCrudRepository<P>
@@ -51,16 +61,31 @@ class PgJsonRepositoryRuntime<P extends Entity<IEntityData>>
   }
 }
 
-export class PgJsonRepositoryAdapter implements IRepositoryAdapter {
+/**
+ * The Postgres backend. Supports two storage strategies, chosen per repository
+ * by the base class its `@dbExtension` extends: `PgSqlRepositoryExtension` →
+ * relational (real columns), anything else (including no extension) → JSONB.
+ */
+export class PgRepositoryAdapter implements IRepositoryAdapter {
   readonly id = DB_EXTENSION_ID
 
   constructor(private readonly pool: Pool) {}
 
-  build<P extends Entity<IEntityData>>(config: IRepositoryConfig<P>): IRepositoryRuntime<P> {
-    return new PgJsonRepositoryRuntime<P>(this.pool, config as unknown as IPgRepositoryConfig<P>)
+  build<P extends Entity<IEntityData>>(
+    config: IRepositoryConfig<P>,
+    extensionCtor?: IConstructor<any>,
+  ): IRepositoryRuntime<P> {
+    const pgConfig = config as unknown as IPgRepositoryConfig<P>
+    if (extensionCtor && inheritsFrom(extensionCtor, PgSqlRepositoryBase)) {
+      return new PgSqlRepositoryBase<P>(this.pool, pgConfig)
+    }
+    return new PgJsonRepositoryRuntime<P>(this.pool, pgConfig)
   }
 
   buildExtension<E>(config: IRepositoryConfig<any>, ExtensionCtor: IConstructor<E>): E {
     return new ExtensionCtor(this.pool, config as unknown as IPgRepositoryConfig<any>)
   }
 }
+
+/** @deprecated Use `PgRepositoryAdapter` (the pg backend now serves both strategies). */
+export { PgRepositoryAdapter as PgJsonRepositoryAdapter }

@@ -28,7 +28,11 @@ function getRuntime<P extends Entity<IEntityData>>(self: any): IRepositoryRuntim
 
   const config = getConfig(self)
   const adapter = container.resolve(RepositoryAdapterRegistry).getDefault()
-  runtime = adapter.build(config) as IRepositoryRuntime<P>
+  // The repo's db extension (if any) selects the backend's storage strategy via
+  // the base class it extends; undefined falls back to the backend default.
+  const ctor = self.constructor as IConstructor<any>
+  const extensionCtor = container.resolve(RepositoryMetadataStore).getExtension(ctor, adapter.id)
+  runtime = adapter.build(config, extensionCtor) as IRepositoryRuntime<P>
   Object.defineProperty(self, RUNTIME_KEY, { value: runtime, enumerable: false })
   return runtime
 }
