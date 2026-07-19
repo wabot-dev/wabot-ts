@@ -6,6 +6,7 @@ import { Env } from '@/core/env'
 import { IConstructor } from '@/core/generics'
 import { Locker } from '@/core/lock'
 import { Idempotency } from '@/core/idempotency'
+import { RateLimiter } from '@/core/rate-limit'
 import { setupCrashHandlers, ShutdownManager } from '@/core/lifecycle'
 import { ChatRepository, IChatAdapter, runAudioAdapters, runChatAdapters } from '@/feature/chat-bot'
 import { IChatChannel, runChatControllers, stopChatControllers } from '@/feature/chat-controller'
@@ -248,21 +249,24 @@ export class ProjectRunner {
   private async registerMemoryAdapters(components: DiscoveredComponents): Promise<void> {
     const needsJobs = components.commandHandlers.length > 0 || components.cronHandlers.length > 0
 
-    const [chatBotMod, lockMod, idempotencyMod, jobMod, cronJobMod] = await Promise.all([
-      import('../../addon/chat-bot/in-memory/InMemoryChatRepository'),
-      import('../../addon/lock/InMemoryLocker'),
-      import('../../addon/idempotency/InMemoryIdempotency'),
-      needsJobs
-        ? import('../../addon/async/in-memory/InMemoryJobRepository')
-        : Promise.resolve(null),
-      components.cronHandlers.length > 0
-        ? import('../../addon/async/in-memory/InMemoryCronJobRepository')
-        : Promise.resolve(null),
-    ])
+    const [chatBotMod, lockMod, idempotencyMod, rateLimitMod, jobMod, cronJobMod] =
+      await Promise.all([
+        import('../../addon/chat-bot/in-memory/InMemoryChatRepository'),
+        import('../../addon/lock/InMemoryLocker'),
+        import('../../addon/idempotency/InMemoryIdempotency'),
+        import('../../addon/rate-limit/InMemoryRateLimiter'),
+        needsJobs
+          ? import('../../addon/async/in-memory/InMemoryJobRepository')
+          : Promise.resolve(null),
+        components.cronHandlers.length > 0
+          ? import('../../addon/async/in-memory/InMemoryCronJobRepository')
+          : Promise.resolve(null),
+      ])
 
     container.register(ChatRepository, { useToken: chatBotMod.InMemoryChatRepository as any })
     container.register(Locker, { useToken: lockMod.InMemoryLocker as any })
     container.register(Idempotency, { useToken: idempotencyMod.InMemoryIdempotency as any })
+    container.register(RateLimiter, { useToken: rateLimitMod.InMemoryRateLimiter as any })
     const memoryAdapter = new MemoryRepositoryAdapter()
     container.resolve(RepositoryAdapterRegistry).setDefault(memoryAdapter)
     container.resolve(RepositoryMetadataStore).validateExtensionsRegistered(memoryAdapter.id)
@@ -287,24 +291,32 @@ export class ProjectRunner {
     const hasCommandHandlers = components.commandHandlers.length > 0
     const hasCronHandlers = components.cronHandlers.length > 0
 
-    const [chatBotMod, lockerMod, idempotencyMod, repoAdapterMod, txMod, jobMod, cronJobMod] =
-      await Promise.all([
-        import('../../addon/chat-bot/pg/PgChatRepository'),
-        import('../../feature/pg/PgLocker'),
-        import('../../feature/pg/PgIdempotency'),
-        import('../../feature/pg/PgJsonRepositoryAdapter'),
-        import('../../addon/async/pg/PgTransactionAdapter'),
-        hasCommandHandlers || hasCronHandlers
-          ? import('../../addon/async/pg/PgJobRepository')
-          : Promise.resolve(null),
-        hasCronHandlers
-          ? import('../../addon/async/pg/PgCronJobRepository')
-          : Promise.resolve(null),
-      ])
+    const [
+      chatBotMod,
+      lockerMod,
+      idempotencyMod,
+      rateLimitMod,
+      repoAdapterMod,
+      txMod,
+      jobMod,
+      cronJobMod,
+    ] = await Promise.all([
+      import('../../addon/chat-bot/pg/PgChatRepository'),
+      import('../../feature/pg/PgLocker'),
+      import('../../feature/pg/PgIdempotency'),
+      import('../../feature/pg/PgRateLimiter'),
+      import('../../feature/pg/PgJsonRepositoryAdapter'),
+      import('../../addon/async/pg/PgTransactionAdapter'),
+      hasCommandHandlers || hasCronHandlers
+        ? import('../../addon/async/pg/PgJobRepository')
+        : Promise.resolve(null),
+      hasCronHandlers ? import('../../addon/async/pg/PgCronJobRepository') : Promise.resolve(null),
+    ])
 
     container.register(ChatRepository, { useToken: chatBotMod.PgChatRepository as any })
     container.register(Locker, { useToken: lockerMod.PgLocker as any })
     container.register(Idempotency, { useToken: idempotencyMod.PgIdempotency as any })
+    container.register(RateLimiter, { useToken: rateLimitMod.PgRateLimiter as any })
     const pgAdapter = new repoAdapterMod.PgJsonRepositoryAdapter(this.pool)
     container.resolve(RepositoryAdapterRegistry).setDefault(pgAdapter)
     container.resolve(RepositoryMetadataStore).validateExtensionsRegistered(pgAdapter.id)

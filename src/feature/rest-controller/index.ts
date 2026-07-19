@@ -1,4 +1,5 @@
 export * from './metadata'
+export * from './@rateLimit'
 export * from './IMiddleware'
 export * from './runRestControllers'
 export * from './injection-tokens'
