@@ -49,7 +49,7 @@ src/
     mindset/<Bot>Mindset.ts      # @mindset implementing IMindset
     modules/<Foo>Module.ts       # @tools (formerly @mindsetModule) with tool functions
     models/<x>/<X>.ts            # Entity subclass
-    models/<x>/<X>Repository.ts  # @repository + @memExtension/@pgExtension
+    models/<x>/<X>Repository.ts  # @repository + @memExtension/@dbExtension
 ```
 
 The runner discovers `@chatController`, `@restController`, `@socketController`, `@uiController`, `@commandHandler`, `@cronHandler`, and `@chatAdapter` by scanning `directories`. No central registration list.
