@@ -20,12 +20,16 @@ log.error('charge failed', err, { orderId })
 log.fatal('out of memory', err)
 ```
 
-The logger is a thin wrapper over the `debug` package. Each level publishes to namespace `<name>:<level>` so you can enable subsets via `DEBUG`:
+Each level publishes to a `<name>:<level>` namespace. **Format is chosen automatically**: human-readable in a TTY (via the `debug` package), structured **JSON to stdout** when stdout is not a TTY (containers / prod). Override with `WABOT_LOG_FORMAT=pretty|json` or `Logger.configure({ format })`.
+
+**Filtering (dev)** is the usual `debug` namespaces:
 
 ```
 DEBUG=wabot:*:error,wabot:*:warn,wabot:*:info
 DEBUG=myapp:orders:*
 ```
+
+**Filtering (prod / JSON)** additionally honors a global floor — `WABOT_LOG_LEVEL=info` emits everything at that level or above without listing namespaces (combine with `DEBUG` to also include specific namespaces).
 
 Severity levels and intent (matches the framework's own usage):
 
@@ -38,7 +42,22 @@ Severity levels and intent (matches the framework's own usage):
 | `error` | Operation failed; include the `Error` object                       |
 | `fatal` | Process cannot continue (uncaught exception / unhandled rejection) |
 
-Always pass the `Error` instance as one of the args — the logger serializes it cleanly. Extra object args are merged into a `extra` field reported to the monitor (see below).
+Always pass the `Error` instance as one of the args — the logger serializes it (into `err` in JSON). String args form the `message`; object args become structured fields; the monitor (see below) receives the same.
+
+### Correlation context
+
+Every log line carries the fields of the active **log context** (an `AsyncLocalStorage` scope), so logs across a request/turn share a `requestId` — in JSON as fields, in pretty as a `[requestId=… chatId=…]` suffix. The framework opens a context automatically at each entry point (REST request, inbound chat message, job execution). Add your own scope or enrich the current one:
+
+```typescript
+import { runWithLogContext, addLogContext } from '@wabot-dev/framework'
+
+await runWithLogContext({ userId }, async () => {
+  addLogContext({ orderId }) // merge into the current scope after you learn it
+  log.info('processing order') // JSON line includes requestId, userId, orderId
+})
+```
+
+A `requestId` is generated when not provided. This is also what OpenTelemetry traces will hook into later.
 
 ### Optional error monitor
 
