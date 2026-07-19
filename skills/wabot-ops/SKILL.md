@@ -182,6 +182,8 @@ if (!allowed) throw new CustomError({ httpCode: 429, message: 'Slow down' })
 
 Use this to protect chat/LLM paths per user. For REST endpoints prefer the `@rateLimit` decorator (sets `X-RateLimit-*` / `Retry-After` and throws 429) — see the `wabot-rest-socket` skill.
 
+This is app-level fairness / cost control, **not a DoS shield** — reject volumetric floods at the edge (nginx / gateway / CDN). The Postgres backend short-circuits in-process once a key is over its limit (no DB round-trip per rejected request) and stores counters in an UNLOGGED table, since rate-limit state is disposable.
+
 ## `Password`
 
 ```typescript

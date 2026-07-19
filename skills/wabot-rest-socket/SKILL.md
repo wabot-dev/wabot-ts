@@ -105,6 +105,8 @@ class ApiController {
 
 Pass `key: (req) => ...` to bucket per user / API key instead of per IP. For non-HTTP paths (e.g. per-user LLM limits) resolve the `RateLimiter` utility directly — see `wabot-ops`.
 
+This is app-level fairness / cost control, not a DoS shield — reject volumetric floods at the edge (nginx / gateway / CDN).
+
 ### Inheritance
 
 Endpoint and middleware metadata is inherited. A subclass automatically picks up parent endpoints; the subclass's `@restController(path)` becomes the base path. Child endpoints override parents on a per-method-name basis.
