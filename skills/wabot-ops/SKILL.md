@@ -1,6 +1,6 @@
 ---
 name: wabot-ops
-description: Use when reaching for cross-cutting utilities in a Wabot app — structured logging, distributed/in-process locking, custom errors with HTTP codes, password hashing, secure random generators, or process-level error handlers. Covers Logger (6 levels via debug + optional IErrorMonitor), Locker / ILockKey / ILockerKey (in-memory + PG implementations selected by DATABASE_URL), CustomError, setupErrorHandlers, Password (scrypt-based), and Random.
+description: Use when reaching for cross-cutting utilities in a Wabot app — structured logging, process lifecycle (graceful shutdown, crash handlers, readiness probes), distributed/in-process locking, custom errors with HTTP codes, password hashing, or secure random generators. Covers Logger (6 levels via debug + optional IErrorMonitor), graceful shutdown + ShutdownManager.isShuttingDown, setupCrashHandlers (setupErrorHandlers deprecated), Locker / ILockKey / ILockerKey (in-memory + PG implementations selected by DATABASE_URL), CustomError, Password (scrypt-based), and Random.
 ---
 
 # Operations utilities
@@ -59,20 +59,47 @@ const monitor: IErrorMonitor = {
 Logger.setMonitor(monitor)
 ```
 
-### `setupErrorHandlers`
+## Process lifecycle & readiness
 
-Call once at boot to convert `uncaughtException` / `unhandledRejection` into structured logs (and process exits, by default):
+The project runner installs process lifecycle handling automatically — you don't wire any of it:
+
+- **Graceful shutdown** — `SIGTERM` / `SIGINT` disconnect chat channels, stop the job/cron pollers, drain in-flight jobs and HTTP requests, then close the DB pool. Bounded by `WABOT_SHUTDOWN_TIMEOUT_SECONDS` (default 30); a second signal forces an immediate exit.
+- **Crash handlers** — `uncaughtException` / `unhandledRejection` are logged (and reported to the monitor, with a short flush window), then the process exits non-zero. The state is assumed corrupt, so it does **not** drain.
+
+`setupCrashHandlers({ exitOnUncaughtException, exitOnUnhandledRejection })` installs the crash handlers manually if you run without the project runner. (`setupErrorHandlers` is a deprecated alias.)
+
+### Readiness probe
+
+The framework ships **no** `/health` endpoint on purpose — not every app has a web server, and the probe's transport (HTTP path, port, auth) is a deployment concern. It exposes `ShutdownManager.isShuttingDown` so you can build one where it fits your app.
+
+For a zero-downtime rolling deploy, readiness must fail **before** the drain, so the load balancer stops routing new traffic while in-flight work finishes:
 
 ```typescript
-import { setupErrorHandlers } from '@wabot-dev/framework'
+import { CustomError, ShutdownManager } from '@wabot-dev/framework'
+import { Pool } from 'pg'
+// @restController / @onGet come from the framework — see the wabot-rest-socket skill
 
-setupErrorHandlers({
-  exitOnUncaughtException: true,
-  exitOnUnhandledRejection: true,
-})
+@restController('/health')
+export class HealthController {
+  constructor(
+    private shutdown: ShutdownManager,
+    private pool: Pool, // injected when DATABASE_URL is set
+  ) {}
+
+  @onGet('/ready')
+  async ready() {
+    if (this.shutdown.isShuttingDown) {
+      // Draining: stop receiving new traffic. A returned value would be 200;
+      // a thrown CustomError maps to its httpCode.
+      throw new CustomError({ httpCode: 503, code: 'SHUTTING_DOWN', message: 'draining' })
+    }
+    await this.pool.query('SELECT 1') // real DB liveness; a failure throws → 500
+    return { status: 'ok' }
+  }
+}
 ```
 
-When using the project runner, the framework wires its own logger; you usually don't need to call this in app code.
+Point your orchestrator's **readiness** probe at `/ready`; a **liveness** probe can be simpler (process up = 200). What "ready" means beyond shutdown + DB is app-specific — add your own checks (LLM provider reachable, channels connected) as needed.
 
 ## `CustomError`
 
