@@ -1,6 +1,6 @@
 ---
 name: wabot-persistence
-description: Use when defining entities, repositories, queries, or per-adapter query extensions in Wabot. Covers Entity / IEntityData, @repository, the @query method-name DSL (find/findOne/count/exists/delete + And/Or + operators), @queryExtension, @memExtension / MemoryRepositoryExtension, @pgExtension / PgRepositoryExtension, and how the active adapter is chosen automatically by the project runner.
+description: Use when defining entities, repositories, queries, indexes, per-adapter query extensions, or database migrations in Wabot. Covers Entity / IEntityData, @repository, the @query method-name DSL (find/findOne/count/exists/delete + And/Or + operators), @queryExtension, @memExtension / MemoryRepositoryExtension, @dbExtension with PgJsonbRepositoryExtension (JSONB, default) or PgSqlRepositoryExtension (relational columns), automatic + explicit indexes, add.columns promotion, plain-SQL migrations via the wabot-migrate CLI, the JSONB→relational swap, and how the active backend is chosen automatically by the project runner.
 ---
 
 # Persistence
@@ -86,19 +86,24 @@ If your query cannot be expressed by the DSL (joins, aggregates, JSON paths) use
 
 ## Adapter extensions
 
-The runner picks one adapter per process:
+The runner picks the backend per process from `DATABASE_URL`:
 
-- `MemoryRepositoryAdapter` when `DATABASE_URL` is missing or not a `postgres://` URL.
-- `PgJsonRepositoryAdapter` when `DATABASE_URL` is a Postgres URL (data is stored as a JSON blob per row).
+- **memory** — `MemoryRepositoryAdapter` when `DATABASE_URL` is missing or not a `postgres://` URL. Always the fallback when there is no database.
+- **Postgres** — when `DATABASE_URL` is a Postgres URL.
 
-For each `@queryExtension()` method you must provide one implementation per adapter you support, in classes decorated with `@memExtension(Repo)` and/or `@pgExtension(Repo)`:
+A repository has at most two extension slots, and **the base class you extend selects the storage strategy**:
+
+- `@memExtension(Repo)` on a class extending `MemoryRepositoryExtension<T>` — the in-RAM implementation (tests / no DB).
+- `@dbExtension(Repo)` on a class extending `PgJsonbRepositoryExtension<T>` (JSONB, the default) **or** `PgSqlRepositoryExtension<T>` (relational columns — see _Scaling_ below).
+
+You only need an extension when a query can't be expressed by the `@query` DSL, or to opt a repository into the relational strategy. For each `@queryExtension()` method, ship one implementation per backend you support:
 
 ```typescript
 import {
+  dbExtension,
   memExtension,
   MemoryRepositoryExtension,
-  pgExtension,
-  PgRepositoryExtension,
+  PgJsonbRepositoryExtension,
 } from '@wabot-dev/framework'
 
 @memExtension(GameRepository)
@@ -115,9 +120,9 @@ export class GameMemoryQueries
   }
 }
 
-@pgExtension(GameRepository)
+@dbExtension(GameRepository)
 export class GamePgQueries
-  extends PgRepositoryExtension<Game>
+  extends PgJsonbRepositoryExtension<Game>
   implements IGameRepositoryExtensions
 {
   async findLongestInBacklog(userId: string, limit: number) {
@@ -132,9 +137,83 @@ export class GamePgQueries
 }
 ```
 
-- The extension class must extend `MemoryRepositoryExtension<T>` / `PgRepositoryExtension<T>`. The decorator throws otherwise.
-- Inside a Pg extension, use `this['columns']` / `this['table']` / `this['query'](sql, params)` from `PgRepositoryBase`. The Pg JSON adapter stores fields under a `data` JSONB column.
-- A repository may opt in to only one adapter — if you only ship `@memExtension`, the repository will throw when invoked under Postgres.
+- The extension class must extend the matching base (`MemoryRepositoryExtension<T>` for `@memExtension`; a `Pg…RepositoryExtension<T>` for `@dbExtension`). The decorator throws otherwise.
+- Inside a Postgres JSONB extension, fields live under a `data` JSONB column — use `this['columns']` / `this['table']` / `this['query'](sql, params)` from the base.
+- A repository may support only one backend — if you only ship `@memExtension`, it throws when invoked under Postgres, and vice-versa.
+
+> `@pgExtension` / `PgRepositoryExtension` are deprecated aliases of `@dbExtension` / `PgJsonbRepositoryExtension`. Existing code keeps working; use the new names going forward.
+
+## Indexes (Postgres)
+
+Indexes are created **automatically**. `@repository` derives them from your `@query` methods — equality filters → a btree on the `data->>'field'` expression, comparisons / `OrderBy` → btree — so JSONB queries actually hit an index. They are created idempotently on first use (`CREATE INDEX IF NOT EXISTS`; a failure is logged, not fatal).
+
+Add to or override the auto set with `indexes`:
+
+```typescript
+@repository({
+  table: 'game',
+  constructor: Game,
+  indexes: [
+    { fields: ['tags'], kind: 'contains' },           // GIN, for JSON/array containment (@>)
+    { fields: ['userId', 'status'], kind: 'exact' },  // composite btree
+    { fields: ['status'], disabled: true },           // opt out of the auto index
+  ],
+})
+```
+
+`kind`: `exact` (default) · `range` · `contains` (GIN) · `text`. An explicit entry for the same field set overrides the auto one; `disabled: true` opts out.
+
+**Promote a hot field to a real typed column** — native comparison/ordering plus a real btree — with `add.columns`. Queries on a promoted field then use the column (no `::numeric` cast) and its index:
+
+```typescript
+@repository({
+  table: 'game',
+  constructor: Game,
+  add: { columns: { hoursPlayed: { type: 'numeric', value: (g) => g['data'].hoursPlayed } } },
+})
+```
+
+## Scaling: relational storage + migrations
+
+JSONB is the easy default but doesn't scale as well. When a repository needs real columns, switch it to the relational strategy **without touching business code** — services, controllers, `@query` methods and tests all stay the same.
+
+**1. Point the repo's `@dbExtension` at the relational base and declare the columns:**
+
+```typescript
+import {
+  CrudRepository,
+  dbExtension,
+  PgSqlRepositoryExtension,
+  repository,
+} from '@wabot-dev/framework'
+
+@repository({
+  table: 'game',
+  constructor: Game,
+  columns: ['userId', 'title', 'status', 'hoursPlayed', 'addedAt'],
+})
+export class GameRepository extends CrudRepository<Game> {
+  /* the same @query methods as before */
+}
+
+@dbExtension(GameRepository)
+export class GameSql extends PgSqlRepositoryExtension<Game> {
+  // selects the relational strategy; add hand-written SQL methods here if needed
+}
+```
+
+Column name = field name (`id`/`createdAt` map to the `id`/`created_at` columns). Every queried field must be a declared column — there is no `data` blob to fall back to. **No auto-DDL**: you own the schema via migrations.
+
+**2. Write the migration(s) in plain SQL and apply them:**
+
+```bash
+wabot-migrate create "create game table"   # → migrations/0001_create_game_table.sql
+# edit the .sql: CREATE TABLE game (...) + indexes; optional INSERT ... SELECT data->>... backfill
+wabot-migrate up        # apply pending — advisory-locked, one tx each; never runs at boot
+wabot-migrate status    # applied / pending / drifted
+```
+
+Migrations are forward-only plain `.sql` files under `./migrations`, tracked in a `_wabot_migrations` table with a SHA-256 checksum. Editing an already-applied migration is refused (drift) — add a new migration instead. `wabot-migrate up`/`status` read `DATABASE_URL`; `create` needs no database.
 
 ## Transactions
 

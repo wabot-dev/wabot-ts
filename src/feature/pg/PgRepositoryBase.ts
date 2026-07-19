@@ -1,11 +1,13 @@
 import type { Pool, PoolClient } from 'pg'
 import type { IPgRepositoryConfig } from './IPgRepositoryConfig'
 import { Entity, IEntityData } from '@/core/entity'
+import { DbRepositoryExtension } from '@/feature/repository/DbRepositoryExtension'
 import { withPgClient } from './withPgClient'
 import { Logger } from '@/core/logger'
 import { PgLocker } from './PgLocker'
+import { buildIndexDdl } from './pgIndexes'
 
-export class PgRepositoryBase<P extends Entity<IEntityData>> {
+export class PgRepositoryBase<P extends Entity<IEntityData>> extends DbRepositoryExtension {
   private tableIsReady = false
   protected schema: string
   protected table: string
@@ -27,6 +29,7 @@ export class PgRepositoryBase<P extends Entity<IEntityData>> {
     protected pool: Pool,
     protected config: IPgRepositoryConfig<any>,
   ) {
+    super()
     this.schema = `"${config.schema ?? 'public'}"`
 
     this.table = [config.schema, config.table]
@@ -96,8 +99,35 @@ export class PgRepositoryBase<P extends Entity<IEntityData>> {
       await client.query(schemaQuery)
       await client.query(tableQuery)
       await this.ensureColumns(client)
+      await this.ensureIndexes(client)
       this.tableIsReady = true
     })
+  }
+
+  /**
+   * Create the repository's indexes (explicit + auto-derived, populated by
+   * `@repository`) idempotently via `CREATE INDEX IF NOT EXISTS`. A failure to
+   * create one index is logged and skipped rather than crashing the app —
+   * queries still work, just without that index.
+   *
+   * Note: non-concurrent creation briefly locks the table against writes. That
+   * is fine for the small, auto-managed JSONB tables this path targets; large
+   * tables should move to the relational + migrations strategy.
+   */
+  protected async ensureIndexes(client: PoolClient): Promise<void> {
+    const decls = this.config.indexes ?? []
+    if (decls.length === 0) return
+
+    const promoted = new Set(Object.keys(this.addColumns))
+    for (const decl of decls) {
+      const ddl = buildIndexDdl(this.table, this.config.table, decl, promoted)
+      if (!ddl) continue
+      try {
+        await client.query(ddl)
+      } catch (err) {
+        this.logger.warn(`Failed to create index on ${this.table} (${ddl})`, err)
+      }
+    }
   }
 
   protected async ensureColumns(client: PoolClient): Promise<void> {

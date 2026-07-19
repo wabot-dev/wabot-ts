@@ -2,6 +2,7 @@ import { Entity, IEntityData } from '@/core/entity'
 import { container, singleton } from '@/core/injection'
 import { IConstructor } from '@/core/generics'
 import { IQueryAst } from './types'
+import { deriveIndexes, mergeIndexes } from './indexes'
 import { IRepositoryConfig } from './IRepositoryConfig'
 import { IRepositoryRuntime } from './IRepositoryRuntime'
 import { parseQueryMethodName } from './parseQueryMethodName'
@@ -27,7 +28,11 @@ function getRuntime<P extends Entity<IEntityData>>(self: any): IRepositoryRuntim
 
   const config = getConfig(self)
   const adapter = container.resolve(RepositoryAdapterRegistry).getDefault()
-  runtime = adapter.build(config) as IRepositoryRuntime<P>
+  // The repo's db extension (if any) selects the backend's storage strategy via
+  // the base class it extends; undefined falls back to the backend default.
+  const ctor = self.constructor as IConstructor<any>
+  const extensionCtor = container.resolve(RepositoryMetadataStore).getExtension(ctor, adapter.id)
+  runtime = adapter.build(config, extensionCtor) as IRepositoryRuntime<P>
   Object.defineProperty(self, RUNTIME_KEY, { value: runtime, enumerable: false })
   return runtime
 }
@@ -165,6 +170,15 @@ export function repository<P extends Entity<IEntityData>>(config: IRepositoryCon
     installExtensionAccessor(target)
 
     const queryMethods = store.getQueryMethods(target)
+
+    // Auto-derive indexes from the declared query methods and merge them with
+    // any explicit `indexes`. Backends that manage schema (Postgres JSONB) read
+    // config.indexes to create them; the memory backend ignores them.
+    const derivedIndexes = deriveIndexes(
+      queryMethods.map((m) => parseQueryMethodName(m.functionName)),
+    )
+    config.indexes = mergeIndexes(config.indexes ?? [], derivedIndexes)
+
     for (const meta of queryMethods) {
       if (Object.prototype.hasOwnProperty.call(target.prototype, meta.functionName)) {
         const existing = target.prototype[meta.functionName]

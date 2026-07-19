@@ -23,6 +23,27 @@ export class JobExecutor {
     return max - this.activeJobs
   }
 
+  /**
+   * Wait for in-flight jobs to finish, up to `timeoutMs`. Used during graceful
+   * shutdown after the scheduler has stopped picking up new work, so no new
+   * jobs start while draining. Returns once nothing is running or the timeout
+   * elapses (the stuck jobs are left for the watchdog to reclaim on restart).
+   */
+  async drain(timeoutMs: number): Promise<void> {
+    if (this.activeJobs === 0) return
+    this.logger.info(`Waiting for ${this.activeJobs} in-flight job(s) to finish`)
+
+    const start = Date.now()
+    while (this.activeJobs > 0) {
+      if (Date.now() - start >= timeoutMs) {
+        this.logger.warn(`Job drain timed out with ${this.activeJobs} job(s) still running`)
+        return
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+    this.logger.info('All in-flight jobs finished')
+  }
+
   async execute(job: Job) {
     if (!this.tryAcquire()) return
 

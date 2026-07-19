@@ -1,4 +1,5 @@
-import { PgRepositoryExtension, pgExtension } from '@/feature/pg'
+import { dbExtension } from '@/feature/repository'
+import { PgJsonbRepositoryExtension } from '@/feature/pg'
 import { IJwtRefreshTokenQueries } from './IJwtRefreshTokenQueries'
 import { JwtRefreshToken } from './JwtRefreshToken'
 import { JwtRefreshTokenRepository } from './JwtRefreshTokenRepository'
@@ -8,9 +9,9 @@ import { JwtRefreshTokenRepository } from './JwtRefreshTokenRepository'
  * queries. Ships with the framework and registers itself on import. Uses JSONB
  * containment (`@>`) so a GIN index on `data` can serve the lookup.
  */
-@pgExtension(JwtRefreshTokenRepository)
+@dbExtension(JwtRefreshTokenRepository)
 export class JwtRefreshTokenPgQueries
-  extends PgRepositoryExtension<JwtRefreshToken<any>>
+  extends PgJsonbRepositoryExtension<JwtRefreshToken<any>>
   implements IJwtRefreshTokenQueries<any>
 {
   async findByMetadata(metadata: Record<string, string>): Promise<JwtRefreshToken<any>[]> {

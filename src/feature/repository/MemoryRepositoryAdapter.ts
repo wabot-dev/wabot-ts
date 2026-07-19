@@ -218,6 +218,7 @@ export class MemoryRepositoryAdapter implements IRepositoryAdapter {
     return store as MemoryStore<P>
   }
 
+  // Memory has a single strategy, so the extension ctor is not needed here.
   build<P extends Entity<IEntityData>>(config: IRepositoryConfig<P>): IRepositoryRuntime<P> {
     return new MemoryRepositoryRuntime(this.getStore(config), config)
   }

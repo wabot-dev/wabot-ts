@@ -5,6 +5,15 @@ import { IRepositoryRuntime } from './IRepositoryRuntime'
 
 export interface IRepositoryAdapter {
   readonly id: symbol
-  build<P extends Entity<IEntityData>>(config: IRepositoryConfig<P>): IRepositoryRuntime<P>
+  /**
+   * Build the CRUD/query runtime for a repository. `extensionCtor` is the
+   * repository's registered db extension (if any); a backend that supports more
+   * than one storage strategy uses the class it extends to pick the runtime.
+   * Backends with a single strategy may ignore it.
+   */
+  build<P extends Entity<IEntityData>>(
+    config: IRepositoryConfig<P>,
+    extensionCtor?: IConstructor<any>,
+  ): IRepositoryRuntime<P>
   buildExtension?<E>(config: IRepositoryConfig<any>, ExtensionCtor: IConstructor<E>): E
 }

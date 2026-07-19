@@ -14,6 +14,7 @@ export * from './core/storable'
 export * from './core/validation'
 export * from './core/description'
 export * from './core/lock'
+export * from './core/lifecycle'
 
 export * from './feature/agent'
 export * from './feature/async'

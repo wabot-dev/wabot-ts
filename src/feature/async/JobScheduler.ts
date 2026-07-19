@@ -80,7 +80,10 @@ export class JobScheduler {
     } catch (e) {
       this.logger.error('Job scheduler tick failed', e)
     } finally {
-      this.timeout = setTimeout(() => this.tick(), interval * 1000)
+      // Only reschedule while running, so a stop() during an in-flight tick
+      // does not leave a dangling timer that keeps the loop (and event loop)
+      // alive after shutdown.
+      if (this.running) this.timeout = setTimeout(() => this.tick(), interval * 1000)
     }
   }
 }

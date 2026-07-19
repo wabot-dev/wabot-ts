@@ -6,14 +6,44 @@ export interface IBuiltQuery {
   buildParams: (args: any[]) => any[]
 }
 
-// Fields stored as top-level columns; routed to the column instead of
-// extracting from the JSON blob (uses the index, preserves native type
-// for ordering/comparison). All other fields fall back to data->>'field',
-// which yields TEXT — so ORDER BY on numeric JSON fields is lexicographic
-// and In/NotIn compares as text. Use add.columns for sortable hot paths.
+// Fields backed by a real top-level column are routed to that column instead of
+// extracting from the JSON blob: this uses the column's index and preserves its
+// native type for ordering/comparison. `id`/`created_at` are always columns;
+// promoted `add.columns` fields (passed in) join them. Every other field falls
+// back to `data->>'field'`, which yields TEXT — so ORDER BY on numeric JSON
+// fields is lexicographic and In/NotIn compare as text. Promote sortable hot
+// paths with add.columns.
 const RESERVED_COLUMN_BY_FIELD: Record<string, string> = {
   id: 'id',
   createdAt: 'created_at',
+}
+
+interface IFieldResolver {
+  /** Whether the field is backed by a native typed column (reserved or promoted). */
+  isNative(field: string): boolean
+  /** SQL reference to the field: a column name, or a `data->>'field'` extraction. */
+  ref(field: string): string
+}
+
+function escapeJsonKey(field: string): string {
+  return field.replace(/'/g, "''")
+}
+
+function makeFieldResolver(promotedColumns: Set<string>): IFieldResolver {
+  return {
+    isNative(field: string): boolean {
+      return (
+        Object.prototype.hasOwnProperty.call(RESERVED_COLUMN_BY_FIELD, field) ||
+        promotedColumns.has(field)
+      )
+    },
+    ref(field: string): string {
+      const reserved = RESERVED_COLUMN_BY_FIELD[field]
+      if (reserved) return reserved
+      if (promotedColumns.has(field)) return `"${field}"`
+      return `data->>'${escapeJsonKey(field)}'`
+    },
+  }
 }
 
 function operatorArity(op: QueryOperator): number {
@@ -21,37 +51,23 @@ function operatorArity(op: QueryOperator): number {
   return 1
 }
 
-function escapeJsonKey(field: string): string {
-  return field.replace(/'/g, "''")
-}
-
-function isReservedColumn(field: string): boolean {
-  return Object.prototype.hasOwnProperty.call(RESERVED_COLUMN_BY_FIELD, field)
-}
-
-function fieldRef(field: string): string {
-  const reserved = RESERVED_COLUMN_BY_FIELD[field]
-  if (reserved) return reserved
-  return `data->>'${escapeJsonKey(field)}'`
-}
-
-function fieldExpr(field: string, op: QueryOperator): string {
-  const ref = fieldRef(field)
+function fieldExpr(field: string, op: QueryOperator, res: IFieldResolver): string {
+  const ref = res.ref(field)
   if (op === 'Gt' || op === 'Gte' || op === 'Lt' || op === 'Lte') {
-    if (isReservedColumn(field)) return ref
+    if (res.isNative(field)) return ref
     return `(${ref})::numeric`
   }
   return ref
 }
 
-function renderCondition(cond: IQueryCondition, paramIndex: number): string {
-  const lhs = fieldExpr(cond.field, cond.operator)
-  const reserved = isReservedColumn(cond.field)
-  const numCast = reserved ? '' : '::numeric'
-  // Note: In/NotIn cast the param to text[]; passing non-text JSON values
-  // (numbers, booleans) relies on pg's TEXT serialization. For sortable
-  // numeric fields, prefer a typed add.columns column.
-  const arrCast = reserved ? '' : '::text[]'
+function renderCondition(cond: IQueryCondition, paramIndex: number, res: IFieldResolver): string {
+  const lhs = fieldExpr(cond.field, cond.operator, res)
+  const native = res.isNative(cond.field)
+  const numCast = native ? '' : '::numeric'
+  // Note: for JSON fields In/NotIn cast the param to text[]; passing non-text
+  // JSON values (numbers, booleans) relies on pg's TEXT serialization. Native
+  // columns compare against the param directly with no cast.
+  const arrCast = native ? '' : '::text[]'
   switch (cond.operator) {
     case 'Equals':
       return `${lhs} = $${paramIndex}`
@@ -82,12 +98,15 @@ function renderCondition(cond: IQueryCondition, paramIndex: number): string {
   }
 }
 
-function renderWhere(conditions: IQueryCondition[]): { sql: string; argCount: number } {
+function renderWhere(
+  conditions: IQueryCondition[],
+  res: IFieldResolver,
+): { sql: string; argCount: number } {
   if (conditions.length === 0) return { sql: '', argCount: 0 }
   const parts: string[] = []
   let paramIndex = 1
   conditions.forEach((cond, i) => {
-    const piece = renderCondition(cond, paramIndex)
+    const piece = renderCondition(cond, paramIndex, res)
     paramIndex += operatorArity(cond.operator)
     if (i === 0) {
       parts.push(piece)
@@ -98,9 +117,9 @@ function renderWhere(conditions: IQueryCondition[]): { sql: string; argCount: nu
   return { sql: ` WHERE ${parts.join(' ')}`, argCount: paramIndex - 1 }
 }
 
-function renderOrderBy(ast: IQueryAst): string {
+function renderOrderBy(ast: IQueryAst, res: IFieldResolver): string {
   if (ast.orderBy.length === 0) return ''
-  const parts = ast.orderBy.map((o) => `${fieldRef(o.field)} ${o.direction}`)
+  const parts = ast.orderBy.map((o) => `${res.ref(o.field)} ${o.direction}`)
   return ` ORDER BY ${parts.join(', ')}`
 }
 
@@ -114,58 +133,77 @@ function buildSelectSql(
   ast: IQueryAst,
   table: string,
   columns: string,
+  res: IFieldResolver,
 ): { sql: string; argCount: number } {
-  const where = renderWhere(ast.conditions)
-  const order = renderOrderBy(ast)
+  const where = renderWhere(ast.conditions, res)
+  const order = renderOrderBy(ast, res)
   const limit = renderLimit(ast)
   const sql = `SELECT ${columns} FROM ${table}${where.sql}${order}${limit}`
   return { sql, argCount: where.argCount }
 }
 
-function buildCountSql(ast: IQueryAst, table: string): { sql: string; argCount: number } {
-  const where = renderWhere(ast.conditions)
+function buildCountSql(
+  ast: IQueryAst,
+  table: string,
+  res: IFieldResolver,
+): { sql: string; argCount: number } {
+  const where = renderWhere(ast.conditions, res)
   const sql = `SELECT COUNT(*)::int AS count FROM ${table}${where.sql}`
   return { sql, argCount: where.argCount }
 }
 
-function buildExistsSql(ast: IQueryAst, table: string): { sql: string; argCount: number } {
-  const where = renderWhere(ast.conditions)
+function buildExistsSql(
+  ast: IQueryAst,
+  table: string,
+  res: IFieldResolver,
+): { sql: string; argCount: number } {
+  const where = renderWhere(ast.conditions, res)
   const sql = `SELECT EXISTS(SELECT 1 FROM ${table}${where.sql} LIMIT 1) AS "exists"`
   return { sql, argCount: where.argCount }
 }
 
-function buildDeleteSql(ast: IQueryAst, table: string): { sql: string; argCount: number } {
-  const where = renderWhere(ast.conditions)
+function buildDeleteSql(
+  ast: IQueryAst,
+  table: string,
+  res: IFieldResolver,
+): { sql: string; argCount: number } {
+  const where = renderWhere(ast.conditions, res)
   const sql = `DELETE FROM ${table}${where.sql}`
   return { sql, argCount: where.argCount }
 }
 
-export function buildQuerySql(ast: IQueryAst, table: string, columns: string): IBuiltQuery {
+export function buildQuerySql(
+  ast: IQueryAst,
+  table: string,
+  columns: string,
+  promotedColumns: string[] = [],
+): IBuiltQuery {
+  const res = makeFieldResolver(new Set(promotedColumns))
   let sql: string
   let argCount: number
 
   switch (ast.prefix) {
     case 'find':
     case 'findOne': {
-      const r = buildSelectSql(ast, table, columns)
+      const r = buildSelectSql(ast, table, columns, res)
       sql = r.sql
       argCount = r.argCount
       break
     }
     case 'count': {
-      const r = buildCountSql(ast, table)
+      const r = buildCountSql(ast, table, res)
       sql = r.sql
       argCount = r.argCount
       break
     }
     case 'exists': {
-      const r = buildExistsSql(ast, table)
+      const r = buildExistsSql(ast, table, res)
       sql = r.sql
       argCount = r.argCount
       break
     }
     case 'delete': {
-      const r = buildDeleteSql(ast, table)
+      const r = buildDeleteSql(ast, table, res)
       sql = r.sql
       argCount = r.argCount
       break

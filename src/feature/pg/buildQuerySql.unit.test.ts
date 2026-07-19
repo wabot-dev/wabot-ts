@@ -145,6 +145,36 @@ test.describe('buildQuerySql', () => {
     })
   })
 
+  test.describe('promoted columns (index-aware routing)', () => {
+    const buildPromoted = (methodName: string, promoted: string[]) =>
+      buildQuerySql(parseQueryMethodName(methodName), TABLE, COLUMNS, promoted)
+
+    test('equality on a promoted field uses the native column, not data->>', () => {
+      const r = buildPromoted('findByStatus', ['status'])
+      assert.match(squash(r.sql), /WHERE "status" = \$1$/)
+    })
+
+    test('range on a promoted field drops the ::numeric casts', () => {
+      const r = buildPromoted('findByAgeGreaterThan', ['age'])
+      assert.match(r.sql, /WHERE "age" > \$1$/)
+    })
+
+    test('In on a promoted field drops the ::text[] cast', () => {
+      const r = buildPromoted('findByStatusIn', ['status'])
+      assert.match(r.sql, /WHERE "status" = ANY\(\$1\)$/)
+    })
+
+    test('ORDER BY on a promoted field uses the native column', () => {
+      const r = buildPromoted('findAllOrderByStatusDesc', ['status'])
+      assert.match(r.sql, /ORDER BY "status" DESC$/)
+    })
+
+    test('non-promoted fields still fall back to data->>', () => {
+      const r = buildPromoted('findByStatusAndType', ['status'])
+      assert.match(squash(r.sql), /WHERE "status" = \$1 AND data->>'type' = \$2$/)
+    })
+  })
+
   test.describe('buildParams arg validation', () => {
     test('passes through correct argument count', () => {
       const r = build('findByStatusAndType')

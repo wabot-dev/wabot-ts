@@ -1,4 +1,5 @@
 import { Logger } from '@/core/logger'
+import { setupCrashHandlers } from '@/core/lifecycle/setupCrashHandlers'
 
 export interface IErrorHandlersConfig {
   exitOnUncaughtException?: boolean
@@ -6,35 +7,11 @@ export interface IErrorHandlersConfig {
   logger?: Logger
 }
 
-const defaultConfig: Required<IErrorHandlersConfig> = {
-  exitOnUncaughtException: true,
-  exitOnUnhandledRejection: true,
-  logger: new Logger('wabot:error'),
-}
-
+/**
+ * @deprecated Use `setupCrashHandlers` from `@/core/lifecycle`. Kept as a thin
+ * back-compat wrapper. The framework now installs crash handlers automatically
+ * at startup (see ProjectRunner), so calling this manually is no longer needed.
+ */
 export function setupErrorHandlers(config?: IErrorHandlersConfig): void {
-  const { exitOnUncaughtException, exitOnUnhandledRejection, logger } = {
-    ...defaultConfig,
-    ...config,
-  }
-
-  process.on('uncaughtException', (error: Error, origin: string) => {
-    logger.fatal(`Uncaught Exception [${origin}]:`, error)
-    if (exitOnUncaughtException) {
-      process.exit(1)
-    }
-  })
-
-  process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
-    if (reason instanceof Error) {
-      logger.error('Unhandled Rejection:', reason)
-    } else {
-      logger.error('Unhandled Rejection at:', promise, 'reason:', reason)
-    }
-    if (exitOnUnhandledRejection) {
-      process.exit(1)
-    }
-  })
-
-  logger.info('Global error handlers configured')
+  setupCrashHandlers(config)
 }

@@ -58,4 +58,31 @@ export class HttpServerProvider {
       this.logger.info(`Server listening on port ${PORT}`)
     })
   }
+
+  /**
+   * Stop accepting new connections and wait for in-flight requests to finish.
+   * Idle keep-alive sockets are closed immediately so they do not hold the
+   * drain open; active requests keep their sockets and complete normally.
+   * Resolves once the server has fully closed (or immediately if it never
+   * opened). Bounded by the caller's overall shutdown deadline.
+   */
+  async close(): Promise<void> {
+    const server = this.server
+    if (!server || !this.listening) {
+      return
+    }
+    this.listening = false
+
+    await new Promise<void>((resolve) => {
+      server.close(() => {
+        this.logger.info('HTTP server closed')
+        resolve()
+      })
+      // Node 18.2+ / Bun-guarded: free idle keep-alive sockets so `close()` is
+      // not held open waiting on connections with no in-flight request.
+      server.closeIdleConnections?.()
+    })
+
+    this.server = null
+  }
 }
