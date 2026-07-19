@@ -37,6 +37,7 @@ export class WhatsAppChannel implements IChatChannel {
           await callback({
             channel: whatsAppChannelName,
             chatConnection: message.chatConnection,
+            idempotencyKey: message.idempotencyKey,
             message: message.message,
             reply: async (replyMessage: IChatMessage) => {
               await this.sender.sendMessage({
