@@ -3,6 +3,7 @@ import type { Pool } from 'pg'
 import { container } from '@/core/injection'
 import { Logger } from '@/core/logger'
 import { Env } from '@/core/env'
+import { ConfigError, findConfigError, formatConfigErrorReport } from '@/core/config'
 import { IConstructor } from '@/core/generics'
 import { Locker } from '@/core/lock'
 import { Idempotency } from '@/core/idempotency'
@@ -194,21 +195,25 @@ export class ProjectRunner {
     const results = await Promise.allSettled(files.map((file) => import(pathToFileURL(file).href)))
 
     let imported = 0
-    let failed = 0
+    const configErrors: ConfigError[] = []
     const errorGroups = new Map<string, string[]>()
     for (let i = 0; i < results.length; i++) {
       const result = results[i]
       if (result.status === 'fulfilled') {
         imported++
+        continue
+      }
+      const configError = findConfigError(result.reason)
+      if (configError) {
+        configErrors.push(configError)
+        continue
+      }
+      const message = (result.reason as Error).message
+      const group = errorGroups.get(message)
+      if (group) {
+        group.push(files[i])
       } else {
-        failed++
-        const message = (result.reason as Error).message
-        const group = errorGroups.get(message)
-        if (group) {
-          group.push(files[i])
-        } else {
-          errorGroups.set(message, [files[i]])
-        }
+        errorGroups.set(message, [files[i]])
       }
     }
     for (const [message, affected] of errorGroups) {
@@ -217,6 +222,14 @@ export class ProjectRunner {
       logger.error(`Failed to import ${first}: ${message}${suffix}`)
     }
 
+    // Fail fast: a declared config reference with no value is a real
+    // misconfiguration (not an optional-dependency situation), so surface all of
+    // them at boot instead of letting the misconfigured component vanish silently.
+    if (configErrors.length > 0) {
+      throw new Error(formatConfigErrorReport(configErrors))
+    }
+
+    const failed = results.length - imported
     if (failed > 0) {
       logger.warn(`Imported ${imported}/${files.length} files (${failed} failed)`)
     } else {

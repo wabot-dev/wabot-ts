@@ -1,3 +1,4 @@
+import { ConfigError } from './ConfigError'
 import { ConfigReference } from './types'
 
 type ResolveConfigValue<V> = V extends ConfigReference<infer R> ? R : V
@@ -33,18 +34,23 @@ function isConfigReference(value: unknown): value is ConfigReference {
 
 export class ConfigResolver {
   static resolve(reference: ConfigReference): unknown {
-    const envValue = this.loadFromEnv(reference.path)
+    const envVar = this.pathToEnvVar(reference.path)
+    const raw = this.loadFromEnv(reference.path) ?? reference.default
 
-    if (envValue === undefined) {
-      if (reference.default !== undefined) {
-        return this.coerce(reference.default, reference.type)
-      }
-      throw new Error(
-        `Config not found: ${reference.path} (env: ${this.pathToEnvVar(reference.path)})`,
+    if (raw === undefined) {
+      throw new ConfigError(
+        `Config not found: ${reference.path} (env: ${envVar})`,
+        reference.path,
+        envVar,
       )
     }
 
-    return this.coerce(envValue, reference.type)
+    try {
+      return this.coerce(raw, reference.type)
+    } catch (err) {
+      if (err instanceof ConfigError) throw err
+      throw new ConfigError((err as Error).message, reference.path, envVar)
+    }
   }
 
   private static loadFromEnv(path: string): string | undefined {
