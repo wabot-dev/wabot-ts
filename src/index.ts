@@ -17,6 +17,7 @@ export * from './core/lock'
 export * from './core/lifecycle'
 export * from './core/idempotency'
 export * from './core/rate-limit'
+export * from './core/observability'
 
 export * from './feature/agent'
 export * from './feature/async'

@@ -10,6 +10,7 @@ import { IChatMessage } from './IChatMessage'
 import { IChatMessageAudio } from './IChatMessageAudio'
 import { stripAnsweredMedia } from './stripAnsweredMedia'
 import { container, injectable } from '@/core/injection'
+import { addCount, recordValue, setSpanAttributes, withSpan } from '@/core/observability'
 import { Logger } from '@/core/logger'
 
 const DEFAULT_TTS_VOICE = 'alloy'
@@ -99,12 +100,33 @@ export class ChatBot implements IChatBot {
       )
     }
 
-    const { nextItems: newItemsData } = await this.adapter.nextItems({
-      models: candidates,
-      systemPrompt,
-      tools,
-      prevItems: sentItems,
-    })
+    const startedAt = Date.now()
+    const { nextItems: newItemsData, usage } = await withSpan(
+      'llm.completion',
+      { 'wabot.mindset': this.mindset.constructor.name },
+      async () => {
+        const res = await this.adapter.nextItems({
+          models: candidates,
+          systemPrompt,
+          tools,
+          prevItems: sentItems,
+        })
+        setSpanAttributes({
+          'llm.provider': res.usage.provider,
+          'llm.model': res.usage.model,
+          'llm.input_tokens': res.usage.inputTokens,
+          'llm.output_tokens': res.usage.outputTokens,
+        })
+        return res
+      },
+    )
+
+    const metricAttrs = { provider: usage.provider, model: usage.model }
+    addCount('wabot.llm.calls', 1, metricAttrs)
+    addCount('wabot.llm.input_tokens', usage.inputTokens, metricAttrs)
+    addCount('wabot.llm.output_tokens', usage.outputTokens, metricAttrs)
+    if (usage.costUsd !== undefined) addCount('wabot.llm.cost_usd', usage.costUsd, metricAttrs)
+    recordValue('wabot.llm.latency_ms', Date.now() - startedAt, metricAttrs)
 
     for (const newItemData of newItemsData) {
       if (newItemData.type === 'functionCall') {

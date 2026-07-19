@@ -1,6 +1,6 @@
 ---
 name: wabot-ops
-description: Use when reaching for cross-cutting utilities in a Wabot app — structured logging, process lifecycle (graceful shutdown, crash handlers, readiness probes), distributed/in-process locking, idempotency / webhook deduplication, rate limiting, custom errors with HTTP codes, password hashing, or secure random generators. Covers Logger (6 levels via debug + optional IErrorMonitor), graceful shutdown + ShutdownManager.isShuttingDown, setupCrashHandlers (setupErrorHandlers deprecated), Locker / ILockKey / ILockerKey, Idempotency (alreadyProcessed / runOnce), RateLimiter (fixed-window) and the @rateLimit REST decorator — all with in-memory + PG implementations selected by DATABASE_URL — plus CustomError, Password (scrypt-based), and Random.
+description: Use when reaching for cross-cutting utilities in a Wabot app — structured logging (pretty/JSON + correlation ids), OpenTelemetry tracing & metrics, process lifecycle (graceful shutdown, crash handlers, readiness probes), distributed/in-process locking, idempotency / webhook deduplication, rate limiting, custom errors with HTTP codes, password hashing, or secure random generators. Covers Logger (6 levels via debug + optional IErrorMonitor), graceful shutdown + ShutdownManager.isShuttingDown, setupCrashHandlers (setupErrorHandlers deprecated), Locker / ILockKey / ILockerKey, Idempotency (alreadyProcessed / runOnce), RateLimiter (fixed-window) and the @rateLimit REST decorator — all with in-memory + PG implementations selected by DATABASE_URL — plus CustomError, Password (scrypt-based), and Random.
 ---
 
 # Operations utilities
@@ -57,7 +57,35 @@ await runWithLogContext({ userId }, async () => {
 })
 ```
 
-A `requestId` is generated when not provided. This is also what OpenTelemetry traces will hook into later.
+A `requestId` is generated when not provided. When OpenTelemetry is active (below), logs also carry the active `traceId` / `spanId`, so logs and traces line up.
+
+### Tracing & metrics (OpenTelemetry)
+
+OpenTelemetry is **optional**. Install `@opentelemetry/api` (a peer dependency) plus an SDK and the framework emits traces and metrics; without it every telemetry call is a zero-overhead no-op. Enable it in your app entry (`_run_.ts`) **before** `run()`:
+
+```typescript
+import { NodeSDK } from '@opentelemetry/sdk-node'
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
+
+new NodeSDK({ traceExporter: new OTLPTraceExporter() }).start() // then run(config)
+```
+
+The framework instruments the boundaries out of the box:
+
+- **Spans**: `http.request`, `chat.turn` (parent of the LLM/tool spans in a turn), `llm.completion` (with provider/model/token attributes), `tool.call`, `job`.
+- **Metrics**: `wabot.llm.calls` / `input_tokens` / `output_tokens` / `cost_usd` / `latency_ms`, `wabot.chat.messages`, `wabot.tool.calls`, `wabot.jobs.executed` / `failed`.
+
+Add your own from anywhere:
+
+```typescript
+import { withSpan, addCount, recordValue, setSpanAttributes } from '@wabot-dev/framework'
+
+await withSpan('sync-orders', { source }, async () => {
+  setSpanAttributes({ count })
+  addCount('orders.synced', count, { source })
+  recordValue('orders.sync_ms', elapsed)
+})
+```
 
 ### Optional error monitor
 

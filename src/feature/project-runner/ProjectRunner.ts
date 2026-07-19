@@ -7,6 +7,7 @@ import { IConstructor } from '@/core/generics'
 import { Locker } from '@/core/lock'
 import { Idempotency } from '@/core/idempotency'
 import { RateLimiter } from '@/core/rate-limit'
+import { initTelemetry } from '@/core/observability'
 import { setupCrashHandlers, ShutdownManager } from '@/core/lifecycle'
 import { ChatRepository, IChatAdapter, runAudioAdapters, runChatAdapters } from '@/feature/chat-bot'
 import { IChatChannel, runChatControllers, stopChatControllers } from '@/feature/chat-controller'
@@ -145,6 +146,10 @@ export class ProjectRunner {
     // to the error monitor, and exits cleanly. Graceful (SIGTERM/SIGINT) drain
     // is wired later, once components are running (setupGracefulShutdown).
     setupCrashHandlers()
+
+    // Load @opentelemetry/api if the app installed it, so spans/metrics and
+    // trace-correlated logs light up. A no-op otherwise.
+    await initTelemetry()
 
     let scannedFiles: string[] = []
     if (this.preloaded) {

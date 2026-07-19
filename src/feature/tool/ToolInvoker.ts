@@ -2,6 +2,7 @@ import { Container } from '@/core/injection'
 import { IConstructor } from '@/core/generics'
 import { CustomError, errorToPlainObject } from '@/core/error'
 import { Logger } from '@/core/logger'
+import { addCount, withSpan } from '@/core/observability'
 import { DescriptionMetadataStore } from '@/core/description'
 import { validateModel } from '@/core/validation'
 import { IToolSchema } from './IToolSchema'
@@ -112,6 +113,13 @@ export class ToolInvoker {
   }
 
   async call(name: string, params: string): Promise<string> {
+    return withSpan('tool.call', { 'wabot.tool': name }, async () => {
+      addCount('wabot.tool.calls', 1, { tool: name })
+      return this.invokeTool(name, params)
+    })
+  }
+
+  private async invokeTool(name: string, params: string): Promise<string> {
     const entry = this.toolClasses
       .map((ctor) => this.metadataStore.getToolClassInfo(ctor))
       .flatMap((info) => info.functions.map((fn) => ({ info, fn })))

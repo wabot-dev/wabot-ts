@@ -2,6 +2,7 @@ import { CustomError, errorToPlainObject } from '@/core/error'
 import { IConstructor } from '@/core/generics'
 import { container, Container, DependencyContainer } from '@/core/injection'
 import { Logger, runWithLogContext } from '@/core/logger'
+import { withSpan } from '@/core/observability'
 import { validateModel, ValidationMetadataStore } from '@/core/validation'
 import { ExpressProvider } from '@/feature/express'
 import { Request, json, urlencoded } from 'express'
@@ -50,71 +51,77 @@ export function registerRestControllers(
         rawMiddlewares.push(urlencoded({ extended: true }))
       }
       expressApp[method](route, ...rawMiddlewares, (req, res) =>
-        runWithLogContext({ method: req.method, path: req.path }, async () => {
-          const requestContainer = baseContainer.createChildContainer()
-          requestContainer.register(Container, { useValue: requestContainer })
-          requestContainer.register(EXPRESS_REQ, { useValue: req })
-          requestContainer.register(EXPRESS_RES, { useValue: res })
-          try {
-            const middlewares = endPoint.middlewares.map((x) =>
-              requestContainer.resolve(x.middlewareConstructor),
-            )
-            for (const middleware of middlewares) {
-              await middleware.handle(req, res, requestContainer)
-            }
-
-            const controllerInstance = requestContainer.resolve(endPoint.controllerConstructor)
-            const endPointArgs: any[] = []
-
-            if (endPoint.paramsTypes.length > 1) {
-              throw new Error(`rest controller endpoints should have zero or one parameter only`)
-            }
-
-            if (endPoint.paramsTypes.length === 1) {
-              const paramType = endPoint.paramsTypes[0]
-
-              if (paramType === IncomingMessage) {
-                endPointArgs.push(req)
-              } else {
-                if (typeof paramType !== 'function') {
-                  throw new Error(`invalid rest controller endpoint parameter type`)
-                }
-                const paramInfo = validationMetadataStore.getModelValidatorsInfo(paramType)
-
-                const validableReq = paramInfo.modelHierarchy.includes(RestRequest)
-                  ? req
-                  : buildRequest(req)
-                const { value, error } = validateModel(validableReq, paramInfo)
-                if (error) {
-                  throw new CustomError({ httpCode: 400, message: error.description, info: error })
-                }
-                endPointArgs.push(value)
+        runWithLogContext({ method: req.method, path: req.path }, () =>
+          withSpan('http.request', { 'http.method': req.method, 'http.route': route }, async () => {
+            const requestContainer = baseContainer.createChildContainer()
+            requestContainer.register(Container, { useValue: requestContainer })
+            requestContainer.register(EXPRESS_REQ, { useValue: req })
+            requestContainer.register(EXPRESS_RES, { useValue: res })
+            try {
+              const middlewares = endPoint.middlewares.map((x) =>
+                requestContainer.resolve(x.middlewareConstructor),
+              )
+              for (const middleware of middlewares) {
+                await middleware.handle(req, res, requestContainer)
               }
-            }
 
-            const response = await (controllerInstance[endPoint.functionName] as Function).apply(
-              controllerInstance,
-              endPointArgs,
-            )
-            // A handler that wrote the response itself (via @inject(EXPRESS_RES),
-            // e.g. to stream or send a non-JSON body) has already answered.
-            if (!res.headersSent) {
-              res.status(200).json(response ?? null)
+              const controllerInstance = requestContainer.resolve(endPoint.controllerConstructor)
+              const endPointArgs: any[] = []
+
+              if (endPoint.paramsTypes.length > 1) {
+                throw new Error(`rest controller endpoints should have zero or one parameter only`)
+              }
+
+              if (endPoint.paramsTypes.length === 1) {
+                const paramType = endPoint.paramsTypes[0]
+
+                if (paramType === IncomingMessage) {
+                  endPointArgs.push(req)
+                } else {
+                  if (typeof paramType !== 'function') {
+                    throw new Error(`invalid rest controller endpoint parameter type`)
+                  }
+                  const paramInfo = validationMetadataStore.getModelValidatorsInfo(paramType)
+
+                  const validableReq = paramInfo.modelHierarchy.includes(RestRequest)
+                    ? req
+                    : buildRequest(req)
+                  const { value, error } = validateModel(validableReq, paramInfo)
+                  if (error) {
+                    throw new CustomError({
+                      httpCode: 400,
+                      message: error.description,
+                      info: error,
+                    })
+                  }
+                  endPointArgs.push(value)
+                }
+              }
+
+              const response = await (controllerInstance[endPoint.functionName] as Function).apply(
+                controllerInstance,
+                endPointArgs,
+              )
+              // A handler that wrote the response itself (via @inject(EXPRESS_RES),
+              // e.g. to stream or send a non-JSON body) has already answered.
+              if (!res.headersSent) {
+                res.status(200).json(response ?? null)
+              }
+            } catch (err) {
+              logger.error(`${method.toUpperCase()} ${route} failed`, err)
+              if (err instanceof Error) {
+                const { name: _name, stack, httpCode, ...info } = errorToPlainObject(err)
+                res
+                  .status(httpCode ?? 500)
+                  .json(removeCircular({ error: { message: err.message, stack, ...info } }))
+              } else {
+                res.status(500).json({ error: { message: 'Unknown error' } })
+              }
+            } finally {
+              requestContainer.dispose()
             }
-          } catch (err) {
-            logger.error(`${method.toUpperCase()} ${route} failed`, err)
-            if (err instanceof Error) {
-              const { name: _name, stack, httpCode, ...info } = errorToPlainObject(err)
-              res
-                .status(httpCode ?? 500)
-                .json(removeCircular({ error: { message: err.message, stack, ...info } }))
-            } else {
-              res.status(500).json({ error: { message: 'Unknown error' } })
-            }
-          } finally {
-            requestContainer.dispose()
-          }
-        }),
+          }),
+        ),
       )
     })
   })

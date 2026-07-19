@@ -3,6 +3,7 @@ import { JobRunner } from './JobRunner'
 import { JobRepository } from './JobRepository'
 import { Env } from '@/core/env'
 import { Logger, runWithLogContext } from '@/core/logger'
+import { addCount, withSpan } from '@/core/observability'
 import { Job } from './Job'
 import { Locker } from '@/core/lock'
 
@@ -47,29 +48,33 @@ export class JobExecutor {
   async execute(job: Job) {
     if (!this.tryAcquire()) return
 
-    await runWithLogContext({ jobId: job.id, command: job.commandName }, async () => {
-      try {
-        await this.locker.withKey(`wabot-job-${job.id}`).tryRun(async () => {
-          const fresh = await this.repo.findOrThrow(job.id)
-          if (!fresh.isScheduleReady()) return
-
-          await this.runner.run(fresh)
-        })
-      } catch (e) {
-        this.logger.error(`Job ${job.id} execution error:`, e)
+    await runWithLogContext({ jobId: job.id, command: job.commandName }, () =>
+      withSpan('job', { 'wabot.command': job.commandName }, async () => {
+        addCount('wabot.jobs.executed', 1, { command: job.commandName })
         try {
-          const fresh = await this.repo.findOrThrow(job.id)
-          if (!fresh.hasFinished()) {
-            fresh.setAsFailed(e instanceof Error ? e : new Error('Job execution error'))
-            await this.repo.update(fresh)
+          await this.locker.withKey(`wabot-job-${job.id}`).tryRun(async () => {
+            const fresh = await this.repo.findOrThrow(job.id)
+            if (!fresh.isScheduleReady()) return
+
+            await this.runner.run(fresh)
+          })
+        } catch (e) {
+          addCount('wabot.jobs.failed', 1, { command: job.commandName })
+          this.logger.error(`Job ${job.id} execution error:`, e)
+          try {
+            const fresh = await this.repo.findOrThrow(job.id)
+            if (!fresh.hasFinished()) {
+              fresh.setAsFailed(e instanceof Error ? e : new Error('Job execution error'))
+              await this.repo.update(fresh)
+            }
+          } catch (updateError) {
+            this.logger.error(`Failed to update job ${job.id} status:`, updateError)
           }
-        } catch (updateError) {
-          this.logger.error(`Failed to update job ${job.id} status:`, updateError)
+        } finally {
+          this.release()
         }
-      } finally {
-        this.release()
-      }
-    })
+      }),
+    )
   }
 
   private tryAcquire(): boolean {

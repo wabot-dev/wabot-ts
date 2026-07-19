@@ -1,5 +1,6 @@
 import debug, { type Debugger } from 'debug'
 import { errorToPlainObject } from '@/core/error/CustomError'
+import { activeTraceContext } from '@/core/observability/telemetry'
 import type { ErrorSeverity, IErrorMonitor } from './IErrorMonitor'
 import { getLogContext } from './logContext'
 
@@ -181,6 +182,7 @@ export class Logger {
 
     return {
       ...getLogContext(),
+      ...activeTraceContext(), // traceId/spanId when OpenTelemetry is active
       ...this.extractExtra(args),
       ...(error ? { err: errorToPlainObject(error) } : {}),
       time: new Date().toISOString(),
