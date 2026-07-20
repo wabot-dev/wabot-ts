@@ -1,5 +1,6 @@
 import { Entity, IEntityData } from '../entity'
 import { ICrudRepository } from './ICrudRepository'
+import { IPage, IPageOptions } from './pagination'
 
 export class CrudRepository<T extends Entity<IEntityData>, Ext = never>
   implements ICrudRepository<T>
@@ -16,6 +17,9 @@ export class CrudRepository<T extends Entity<IEntityData>, Ext = never>
     throw new Error('Method not implemented.')
   }
   findAll(id: string): Promise<T[]> {
+    throw new Error('Method not implemented.')
+  }
+  findPage(options: IPageOptions): Promise<IPage<T>> {
     throw new Error('Method not implemented.')
   }
   create(item: T): Promise<void> {

@@ -4,15 +4,21 @@ import { Entity, IEntityData } from '@/core/entity'
 import { IConstructor } from '@/core/generics'
 import {
   DB_EXTENSION_ID,
+  IPage,
+  IPageOptions,
   IQueryAst,
+  IQueryCondition,
   IRepositoryAdapter,
   IRepositoryConfig,
   IRepositoryRuntime,
+  buildPage,
+  decodeCursor,
 } from '@/feature/repository'
 import { IPgRepositoryConfig } from './IPgRepositoryConfig'
 import { PgCrudRepository } from './PgCrudRepository'
 import { PgSqlRepositoryBase } from './PgSqlRepositoryBase'
 import { buildQuerySql } from './buildQuerySql'
+import { buildPageSql } from './pgPageSql'
 import { withPgClient } from './withPgClient'
 
 function inheritsFrom(ctor: Function, base: Function): boolean {
@@ -58,6 +64,21 @@ class PgJsonRepositoryRuntime<P extends Entity<IEntityData>>
     const built = buildQuerySql(ast, this.table, this.columns, Object.keys(this.addColumns))
     const params = built.buildParams(args)
     await this.exec(built.sql, params)
+  }
+
+  async runPage(
+    conditions: IQueryCondition[],
+    args: unknown[],
+    options: IPageOptions,
+  ): Promise<IPage<P>> {
+    const cursor = options.cursor ? decodeCursor(options.cursor) : undefined
+    const built = buildPageSql(this.table, this.columns, conditions, Object.keys(this.addColumns), {
+      cursorCreatedAt: cursor ? new Date(cursor.createdAt) : undefined,
+      cursorId: cursor?.id,
+      limit: options.limit,
+    })
+    const rows = await this.query(built.sql, built.buildParams(args))
+    return buildPage(rows, Math.max(1, Math.floor(options.limit)))
   }
 }
 

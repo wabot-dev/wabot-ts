@@ -10,7 +10,8 @@ import { evaluateQueryAst } from './evaluateQueryAst'
 import { IRepositoryAdapter } from './IRepositoryAdapter'
 import { IRepositoryConfig } from './IRepositoryConfig'
 import { IRepositoryRuntime } from './IRepositoryRuntime'
-import { IQueryAst } from './types'
+import { IPage, IPageOptions, pageInMemory } from './pagination'
+import { IQueryAst, IQueryCondition } from './types'
 
 const DEFAULT_PERSIST_DIR = '.wabot/in-memory'
 const DEFAULT_MAX_ITEMS = 32
@@ -190,6 +191,20 @@ class MemoryRepositoryRuntime<P extends Entity<IEntityData>> implements IReposit
       this.items.delete(item.id)
     }
     if (matched.length > 0) this.store.persist()
+  }
+
+  async runPage(
+    conditions: IQueryCondition[],
+    args: unknown[],
+    options: IPageOptions,
+  ): Promise<IPage<P>> {
+    const ast: IQueryAst = { prefix: 'find', conditions, orderBy: [] }
+    const matched = evaluateQueryAst(this.items.values(), ast, args)
+    const page = pageInMemory(matched, options)
+    return {
+      items: page.items.map((i) => cloneEntity(this.config, i)),
+      nextCursor: page.nextCursor,
+    }
   }
 }
 

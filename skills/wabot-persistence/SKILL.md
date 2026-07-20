@@ -1,6 +1,6 @@
 ---
 name: wabot-persistence
-description: Use when defining entities, repositories, queries, indexes, per-adapter query extensions, or database migrations in Wabot. Covers Entity / IEntityData, @repository, the @query method-name DSL (find/findOne/count/exists/delete + And/Or + operators), @queryExtension, @memExtension / MemoryRepositoryExtension, @dbExtension with PgJsonbRepositoryExtension (JSONB, default) or PgSqlRepositoryExtension (relational columns), automatic + explicit indexes, add.columns promotion, plain-SQL migrations via the wabot-migrate CLI, the JSONB→relational swap, and how the active backend is chosen automatically by the project runner.
+description: Use when defining entities, repositories, queries, pagination, indexes, per-adapter query extensions, or database migrations in Wabot. Covers Entity / IEntityData, @repository, the @query method-name DSL (find/findOne/count/exists/delete + And/Or + operators), cursor/keyset pagination (findPage, IPageOptions, IPage, opaque nextCursor, fixed created_at ordering), @queryExtension, @memExtension / MemoryRepositoryExtension, @dbExtension with PgJsonbRepositoryExtension (JSONB, default) or PgSqlRepositoryExtension (relational columns), automatic + explicit indexes, add.columns promotion, plain-SQL migrations via the wabot-migrate CLI, the JSONB→relational swap, and how the active backend is chosen automatically by the project runner.
 ---
 
 # Persistence
@@ -83,6 +83,45 @@ Examples that work:
 Argument count and order must match the conditions left-to-right. `IsNull`/`IsNotNull` take no argument; `In`/`NotIn` take an array.
 
 If your query cannot be expressed by the DSL (joins, aggregates, JSON paths) use `@queryExtension()` instead — see below.
+
+## Pagination (cursor)
+
+Repositories page with a **keyset (cursor)**, not `OFFSET`, so the cost stays constant no matter how deep you go. Both entry points return `IPage<T> = { items: T[]; nextCursor?: string }` (both types are exported from `@wabot-dev/framework`):
+
+- `findPage({ limit, cursor? })` — page over **all** entities. A CRUD method, always available; no declaration needed.
+- Any `find…` query method with a **trailing `IPageOptions`** argument switches that call to paginated. Declare the overload so both shapes are typed:
+
+```typescript
+@query() declare findByUserIdAndStatus: {
+  (userId: string, status: IGameStatus): Promise<Game[]>
+  (userId: string, status: IGameStatus, page: IPageOptions): Promise<IPage<Game>>
+}
+```
+
+Walk pages until `nextCursor` is absent:
+
+```typescript
+let cursor: string | undefined
+do {
+  const page = await games.findByUserIdAndStatus(userId, 'playing', { limit: 20, cursor })
+  render(page.items)
+  cursor = page.nextCursor
+} while (cursor)
+```
+
+`nextCursor` is an **opaque** base64url token — send it back verbatim as the next `cursor`; never build or parse it. A malformed or stale cursor is treated as the first page. Works identically on every backend (memory, JSONB, relational).
+
+### Ordering is fixed to `created_at DESC, id DESC`
+
+Cursor pages always come back **newest-first**, tie-broken by `id`. That tuple is exactly what keeps the cursor stable and index-friendly, so it is **not** configurable — you cannot cursor-paginate by another column through `findPage` / `IPageOptions`.
+
+To sort by a different field, use an `OrderBy…` query method with `Limit`. This returns a **plain bounded array** (no cursor, no `IPage`) — good for top-N lists, not for walking a large table:
+
+```typescript
+@query() declare findByUserIdOrderByHoursPlayedDescLimit50: (userId: string) => Promise<Game[]>
+```
+
+If you need a custom sort **and** deep paging together, hand-write keyset SQL in a `@queryExtension()`: promote the sort field to a real column (`add.columns`) or move the repo to the relational strategy, then order by `(yourField, id)` and compare against a cursor you carry yourself. The built-in `created_at` cursor is the supported default; anything else is a manual extension.
 
 ## Adapter extensions
 

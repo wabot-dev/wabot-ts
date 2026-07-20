@@ -3,6 +3,7 @@ import * as path from 'node:path'
 import { generate as generateShortUuid } from 'short-uuid'
 import { singleton } from '@/core/injection'
 import { Logger } from '@/core/logger'
+import { IPage, IPageOptions, pageInMemory } from '@/feature/repository'
 import { Job, type IJobData, type IJobRepository } from '@/feature/async'
 
 const JOBS_FILE = '.wabot/in-memory/jobs.json'
@@ -35,6 +36,10 @@ export class InMemoryJobRepository implements IJobRepository {
 
   async findAll(): Promise<Job[]> {
     return [...this.items.values()]
+  }
+
+  async findPage(options: IPageOptions): Promise<IPage<Job>> {
+    return pageInMemory(this.items.values(), options)
   }
 
   async create(item: Job): Promise<void> {

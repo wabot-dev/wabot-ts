@@ -3,10 +3,19 @@ import { generate as generateShortUuid } from 'short-uuid'
 
 import { Entity, IEntityData } from '@/core/entity'
 import { CustomError } from '@/core/error'
-import { IQueryAst, IRepositoryRuntime } from '@/feature/repository'
+import {
+  IPage,
+  IPageOptions,
+  IQueryAst,
+  IQueryCondition,
+  IRepositoryRuntime,
+  buildPage,
+  decodeCursor,
+} from '@/feature/repository'
 import { DbRepositoryExtension } from '@/feature/repository/DbRepositoryExtension'
 import { IPgRepositoryConfig } from './IPgRepositoryConfig'
 import { buildQuerySql } from './buildQuerySql'
+import { buildPageSql } from './pgPageSql'
 import { columnarInsertSql, columnarSelectList, columnarUpdateSql } from './pgColumnarSql'
 import { withPgClient } from './withPgClient'
 
@@ -153,6 +162,21 @@ export class PgSqlRepositoryBase<P extends Entity<IEntityData>>
   async runDelete(ast: IQueryAst, args: unknown[]): Promise<void> {
     const built = buildQuerySql(ast, this.table, this.selectColumns, this.columnFields)
     await this.exec(built.sql, built.buildParams(args))
+  }
+
+  async runPage(
+    conditions: IQueryCondition[],
+    args: unknown[],
+    options: IPageOptions,
+  ): Promise<IPage<P>> {
+    const cursor = options.cursor ? decodeCursor(options.cursor) : undefined
+    const built = buildPageSql(this.table, this.selectColumns, conditions, this.columnFields, {
+      cursorCreatedAt: cursor ? new Date(cursor.createdAt) : undefined,
+      cursorId: cursor?.id,
+      limit: options.limit,
+    })
+    const rows = await this.query(built.sql, built.buildParams(args))
+    return buildPage(rows, Math.max(1, Math.floor(options.limit)))
   }
 }
 

@@ -172,6 +172,14 @@ function buildDeleteSql(
   return { sql, argCount: where.argCount }
 }
 
+/** Render just the WHERE clause for a set of conditions (used by keyset pagination). */
+export function buildWhereClause(
+  conditions: IQueryCondition[],
+  promotedColumns: string[] = [],
+): { sql: string; argCount: number } {
+  return renderWhere(conditions, makeFieldResolver(new Set(promotedColumns)))
+}
+
 export function buildQuerySql(
   ast: IQueryAst,
   table: string,

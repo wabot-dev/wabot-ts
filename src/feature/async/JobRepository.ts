@@ -1,5 +1,6 @@
 import { Job } from './Job'
 import { singleton } from '@/core/injection'
+import { IPage, IPageOptions } from '@/core/repository'
 import { IJobRepository } from './IJobRepository'
 
 @singleton()
@@ -20,6 +21,9 @@ export class JobRepository implements IJobRepository {
     throw new Error('Method not implemented.')
   }
   findAll(id: string): Promise<Job[]> {
+    throw new Error('Method not implemented.')
+  }
+  findPage(options: IPageOptions): Promise<IPage<Job>> {
     throw new Error('Method not implemented.')
   }
   create(item: Job): Promise<void> {

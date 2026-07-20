@@ -5,6 +5,7 @@ import { IQueryAst } from './types'
 import { deriveIndexes, mergeIndexes } from './indexes'
 import { IRepositoryConfig } from './IRepositoryConfig'
 import { IRepositoryRuntime } from './IRepositoryRuntime'
+import { countConditionArgs, IPageOptions, isPageOptions } from './pagination'
 import { parseQueryMethodName } from './parseQueryMethodName'
 import { RepositoryAdapterRegistry } from './RepositoryAdapterRegistry'
 import { RepositoryMetadataStore } from './RepositoryMetadataStore'
@@ -110,8 +111,16 @@ function makeQueryImpl(methodName: string) {
     const ast = getAst(this, methodName)
     const runtime = getRuntime(this)
     switch (ast.prefix) {
-      case 'find':
+      case 'find': {
+        // A trailing IPageOptions (after the condition args) switches a `find…`
+        // method to keyset pagination: same filter, cursor-ordered page.
+        const conditionArgs = countConditionArgs(ast.conditions)
+        const pageOptions = args[conditionArgs]
+        if (args.length === conditionArgs + 1 && isPageOptions(pageOptions)) {
+          return runtime.runPage(ast.conditions, args.slice(0, conditionArgs), pageOptions)
+        }
         return runtime.runQuery(ast, args)
+      }
       case 'findOne': {
         const rows = await runtime.runQuery(ast, args)
         return rows[0] ?? null
@@ -138,6 +147,9 @@ const CRUD_METHODS = {
   },
   async findAll(this: any) {
     return getRuntime(this).findAll()
+  },
+  async findPage(this: any, options: IPageOptions) {
+    return getRuntime(this).runPage([], [], options)
   },
   async create(this: any, item: any) {
     return getRuntime(this).create(item)
