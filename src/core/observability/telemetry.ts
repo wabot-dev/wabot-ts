@@ -118,6 +118,40 @@ export function recordValue(name: string, value: number, attributes?: SpanAttrib
   histogram.record(value, cleanAttributes(attributes))
 }
 
+const observableGauges = new Set<string>()
+
+/** One point of an observable gauge — a value with its own attribute set. */
+export interface IGaugeObservation {
+  value: number
+  attributes?: SpanAttributes
+}
+
+/**
+ * Register an observable gauge sampled via `observe` on each metric collection —
+ * for point-in-time values like pool size or queue depth. Return a single number
+ * for one series, or an array to emit several series (e.g. one per database).
+ * Idempotent per `name` (a second call with the same name is ignored), so a
+ * multi-series callback can keep reading a shared, growing set. No-op without OTel.
+ */
+export function registerObservableGauge(
+  name: string,
+  observe: () => number | IGaugeObservation[],
+  attributes?: SpanAttributes,
+): void {
+  if (!api) return
+  if (observableGauges.has(name)) return
+  observableGauges.add(name)
+  const gauge = api.metrics.getMeter(METER_NAME).createObservableGauge(name)
+  gauge.addCallback((result) => {
+    const observed = observe()
+    if (typeof observed === 'number') {
+      result.observe(observed, cleanAttributes(attributes))
+    } else {
+      for (const point of observed) result.observe(point.value, cleanAttributes(point.attributes))
+    }
+  })
+}
+
 /**
  * The active span's trace/span ids, for correlating logs with traces. `undefined`
  * when OTel is off or no span is active (or the span is non-recording).

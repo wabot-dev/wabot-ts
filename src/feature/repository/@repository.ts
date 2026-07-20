@@ -1,4 +1,5 @@
 import { Entity, IEntityData } from '@/core/entity'
+import { CrudRepository, ReadRepository } from '@/core/repository'
 import { container, singleton } from '@/core/injection'
 import { IConstructor } from '@/core/generics'
 import { IQueryAst } from './types'
@@ -23,12 +24,19 @@ function getConfig(self: any): IRepositoryConfig<any> {
   return config
 }
 
+// The repo's `pool` provider picks which database's adapter serves it; no `pool`
+// falls back to the default database.
+function getAdapterFor(config: IRepositoryConfig<any>) {
+  const registry = container.resolve(RepositoryAdapterRegistry)
+  return config.pool ? registry.getForProvider(config.pool) : registry.getDefault()
+}
+
 function getRuntime<P extends Entity<IEntityData>>(self: any): IRepositoryRuntime<P> {
   let runtime: IRepositoryRuntime<P> | undefined = self[RUNTIME_KEY]
   if (runtime) return runtime
 
   const config = getConfig(self)
-  const adapter = container.resolve(RepositoryAdapterRegistry).getDefault()
+  const adapter = getAdapterFor(config)
   // The repo's db extension (if any) selects the backend's storage strategy via
   // the base class it extends; undefined falls back to the backend default.
   const ctor = self.constructor as IConstructor<any>
@@ -43,7 +51,7 @@ function getExtension(self: any): unknown {
   if (cached !== undefined) return cached
 
   const ctor = self.constructor as IConstructor<any>
-  const adapter = container.resolve(RepositoryAdapterRegistry).getDefault()
+  const adapter = getAdapterFor(getConfig(self))
   const store = container.resolve(RepositoryMetadataStore)
   const ExtensionCtor = store.getExtension(ctor, adapter.id)
   if (!ExtensionCtor) {
@@ -135,7 +143,7 @@ function makeQueryImpl(methodName: string) {
   }
 }
 
-const CRUD_METHODS = {
+const READ_METHODS = {
   async find(this: any, id: string) {
     return getRuntime(this).find(id)
   },
@@ -151,6 +159,9 @@ const CRUD_METHODS = {
   async findPage(this: any, options: IPageOptions) {
     return getRuntime(this).runPage([], [], options)
   },
+}
+
+const WRITE_METHODS = {
   async create(this: any, item: any) {
     return getRuntime(this).create(item)
   },
@@ -162,9 +173,25 @@ const CRUD_METHODS = {
   },
 }
 
-function installCrudMethods(target: IConstructor<any>) {
+// A repository is read-only when it extends ReadRepository but not the full
+// CrudRepository — its type has no writes, so we install only the read methods.
+function inheritsFrom(ctor: Function, base: Function): boolean {
+  let proto: any = ctor.prototype
+  while (proto) {
+    if (proto === base.prototype) return true
+    proto = Object.getPrototypeOf(proto)
+  }
+  return false
+}
+
+function isReadOnlyRepository(target: IConstructor<any>): boolean {
+  return inheritsFrom(target, ReadRepository) && !inheritsFrom(target, CrudRepository)
+}
+
+function installCrudMethods(target: IConstructor<any>, readOnly: boolean) {
   const proto = target.prototype
-  for (const [name, fn] of Object.entries(CRUD_METHODS)) {
+  const methods = readOnly ? READ_METHODS : { ...READ_METHODS, ...WRITE_METHODS }
+  for (const [name, fn] of Object.entries(methods)) {
     if (Object.prototype.hasOwnProperty.call(proto, name)) {
       const existing = proto[name]
       if (typeof existing === 'function') continue
@@ -178,7 +205,8 @@ export function repository<P extends Entity<IEntityData>>(config: IRepositoryCon
     const store = container.resolve(RepositoryMetadataStore)
     store.saveRepositoryConfig(target, config)
 
-    installCrudMethods(target)
+    const readOnly = isReadOnlyRepository(target)
+    installCrudMethods(target, readOnly)
     installExtensionAccessor(target)
 
     const queryMethods = store.getQueryMethods(target)
@@ -192,6 +220,12 @@ export function repository<P extends Entity<IEntityData>>(config: IRepositoryCon
     config.indexes = mergeIndexes(config.indexes ?? [], derivedIndexes)
 
     for (const meta of queryMethods) {
+      if (readOnly && parseQueryMethodName(meta.functionName).prefix === 'delete') {
+        throw new Error(
+          `${target.name}.${meta.functionName}: a read-only repository (extends ReadRepository) ` +
+            `cannot declare a mutation query. Use a CrudRepository if it must write.`,
+        )
+      }
       if (Object.prototype.hasOwnProperty.call(target.prototype, meta.functionName)) {
         const existing = target.prototype[meta.functionName]
         if (typeof existing === 'function' && existing.length > 0) {

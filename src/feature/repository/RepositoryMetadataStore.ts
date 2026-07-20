@@ -44,6 +44,11 @@ export class RepositoryMetadataStore {
     return this.repositoryConfigs.get(ctor)
   }
 
+  /** Every registered repository config — used to discover which databases are referenced. */
+  getAllConfigs(): IRepositoryConfig<any>[] {
+    return [...this.repositoryConfigs.values()]
+  }
+
   getQueryMethods(ctor: IConstructor<any>): IQueryMethodMetadata[] {
     return this.collectMethodsFromHierarchy(ctor, this.queryMethods)
   }

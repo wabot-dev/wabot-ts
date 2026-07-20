@@ -1,6 +1,6 @@
 ---
 name: wabot-persistence
-description: Use when defining entities, repositories, queries, pagination, indexes, per-adapter query extensions, or database migrations in Wabot. Covers Entity / IEntityData, @repository, the @query method-name DSL (find/findOne/count/exists/delete + And/Or + operators), cursor/keyset pagination (findPage, IPageOptions, IPage, opaque nextCursor, fixed created_at ordering), @queryExtension, @memExtension / MemoryRepositoryExtension, @dbExtension with PgJsonbRepositoryExtension (JSONB, default) or PgSqlRepositoryExtension (relational columns), automatic + explicit indexes, add.columns promotion, plain-SQL migrations via the wabot-migrate CLI, the JSONB→relational swap, and how the active backend is chosen automatically by the project runner.
+description: Use when defining entities, repositories, queries, pagination, indexes, per-adapter query extensions, or database migrations in Wabot. Covers Entity / IEntityData, @repository, the @query method-name DSL (find/findOne/count/exists/delete + And/Or + operators), cursor/keyset pagination (findPage, IPageOptions, IPage, opaque nextCursor, fixed created_at ordering), multiple databases via @dbPool / IDbPoolProvider providers referenced by @repository({ pool }), read-only repositories (ReadRepository) for CQRS read models / replicas, connection pool tuning (WABOT_PG_*), @queryExtension, @memExtension / MemoryRepositoryExtension, @dbExtension with PgJsonbRepositoryExtension (JSONB, default) or PgSqlRepositoryExtension (relational columns), automatic + explicit indexes, add.columns promotion, plain-SQL migrations via the wabot-migrate CLI, the JSONB→relational swap, and how the active backend is chosen automatically by the project runner.
 ---
 
 # Persistence
@@ -253,6 +253,90 @@ wabot-migrate status    # applied / pending / drifted
 ```
 
 Migrations are forward-only plain `.sql` files under `./migrations`, tracked in a `_wabot_migrations` table with a SHA-256 checksum. Editing an already-applied migration is refused (drift) — add a new migration instead. `wabot-migrate up`/`status` read `DATABASE_URL`; `create` needs no database.
+
+## Connection pool tuning (Postgres)
+
+The runner creates **one** `pg.Pool` shared by every repository/adapter. Tune it with env vars — defaults are production-safe, so you only set what you need:
+
+| Env var                          | Default | pg option                 | Notes                                                           |
+| -------------------------------- | ------- | ------------------------- | --------------------------------------------------------------- |
+| `WABOT_PG_POOL_MAX`              | `10`    | `max`                     | Max clients. The main throughput knob.                          |
+| `WABOT_PG_POOL_MIN`              | `0`     | `min`                     | Warm idle clients kept open.                                    |
+| `WABOT_PG_IDLE_TIMEOUT_MS`       | `10000` | `idleTimeoutMillis`       | Close a client after it sits idle this long.                    |
+| `WABOT_PG_CONNECTION_TIMEOUT_MS` | `10000` | `connectionTimeoutMillis` | Wait for a free client, then fail. pg's default waits forever.  |
+| `WABOT_PG_MAX_LIFETIME_SECONDS`  | `0`     | `maxLifetimeSeconds`      | `0` = off. Recycle long-lived clients (behind a load balancer). |
+| `WABOT_PG_STATEMENT_TIMEOUT_MS`  | `0`     | `statement_timeout`       | `0` = off. Server-side cap on runaway queries.                  |
+| `WABOT_PG_APP_NAME`              | `wabot` | `application_name`        | Identifies the process in `pg_stat_activity`.                   |
+
+The pool also has an `error` listener (an idle client dropping its connection is logged and recycled, never crashes the process) and, when `@opentelemetry/api` is installed, exports gauges `wabot.pg.pool.total` / `.idle` / `.waiting`, labeled by `database` — watch `waiting > 0` for pool saturation. The `wabot-migrate` CLI uses its own short-lived pool, unaffected by these.
+
+## Multiple databases
+
+By default every repository uses `DATABASE_URL`. To talk to more than one database, define a **pool provider** — a class with `@dbPool` implementing `IDbPoolProvider` — and point a repository at it by **class reference**:
+
+```typescript
+import { dbPool, IDbPoolProvider } from '@wabot-dev/framework'
+
+@dbPool()
+export class ReportingDb implements IDbPoolProvider {
+  connection() {
+    return process.env.REPORTING_DATABASE_URL! // string | Promise<string>
+  }
+  pool?() {
+    return { max: 20 } // optional per-database overrides, layered over WABOT_PG_*
+  }
+}
+```
+
+```typescript
+@repository({ table: 'event', constructor: Event, pool: ReportingDb })
+export class EventRepository extends CrudRepository<Event> {}
+
+// no `pool` → the default database (DATABASE_URL)
+@repository({ table: 'user', constructor: User })
+export class UserRepository extends CrudRepository<User> {}
+```
+
+- The runner discovers every referenced provider at boot, resolves it through DI (so `connection()` may be `async` — fetch it from a secret store), and builds **one tuned pool per provider** (own `application_name`, shutdown, metrics). Referencing the class guarantees the provider is wired before any repository runs.
+- If a provider's `connection()` is empty / not Postgres, **that** database falls back to its own in-memory store — tests need no DB even for extra databases.
+- Referencing a class that isn't `@dbPool`, or one that couldn't be wired, fails fast at boot.
+- The framework's non-repository services (chat memory, jobs, locker, idempotency, rate limiting) stay on the **default** database. A `@transaction()` cannot span two physical databases.
+
+To source the **default** database itself from a provider (e.g. its URL from a secret store), pass one to `run` — a single field, so there is never more than one default:
+
+```typescript
+// _run_.ts
+export const config: IProjectRunnerConfig = { defaultDatabase: SecretsDb }
+```
+
+Repositories with no `pool` (and the non-repository services) then use it; omit it and the default stays `DATABASE_URL`.
+
+### Read-only repositories (CQRS)
+
+Extend `ReadRepository<T>` instead of `CrudRepository<T>` for a **read model**: the decorator installs only the read methods (`find`, `findByIds`, `findAll`, `findPage`, and your `@query` finders / `count` / `exists`) and **refuses `deleteBy…` queries** at boot. There is no `create`/`update`/`delete` — the type prevents writes, so it is safe to route at a read replica.
+
+```typescript
+import { ReadRepository } from '@wabot-dev/framework'
+
+@dbPool()
+export class ReplicaDb implements IDbPoolProvider {
+  connection() {
+    return process.env.DATABASE_REPLICA_URL!
+  }
+}
+
+// Read model on the replica — no writes possible
+@repository({ table: 'order', constructor: Order, pool: ReplicaDb })
+export class OrderReadRepository extends ReadRepository<Order> {
+  @query() declare findByCustomerId: (customerId: string) => Promise<Order[]>
+}
+
+// Write model on the primary (default pool) — or use @commandHandler (see wabot-async)
+@repository({ table: 'order', constructor: Order })
+export class OrderRepository extends CrudRepository<Order> {}
+```
+
+Reads on a replica are **eventually consistent** (replication lag): if a flow must read what it just wrote, read it from the primary.
 
 ## Transactions
 

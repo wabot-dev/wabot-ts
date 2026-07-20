@@ -1,27 +1,12 @@
 import { Entity, IEntityData } from '../entity'
 import { ICrudRepository } from './ICrudRepository'
-import { IPage, IPageOptions } from './pagination'
+import { ReadRepository } from './ReadRepository'
 
+/** Base for a full repository: read methods (from `ReadRepository`) plus writes. */
 export class CrudRepository<T extends Entity<IEntityData>, Ext = never>
+  extends ReadRepository<T, Ext>
   implements ICrudRepository<T>
 {
-  declare protected readonly extension: Ext
-
-  find(id: string): Promise<T | null> {
-    throw new Error('Method not implemented.')
-  }
-  findOrThrow(id: string): Promise<T> {
-    throw new Error('Method not implemented.')
-  }
-  findByIds(ids: string[]): Promise<T[]> {
-    throw new Error('Method not implemented.')
-  }
-  findAll(id: string): Promise<T[]> {
-    throw new Error('Method not implemented.')
-  }
-  findPage(options: IPageOptions): Promise<IPage<T>> {
-    throw new Error('Method not implemented.')
-  }
   create(item: T): Promise<void> {
     throw new Error('Method not implemented.')
   }

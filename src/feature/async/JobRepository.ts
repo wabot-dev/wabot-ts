@@ -20,7 +20,7 @@ export class JobRepository implements IJobRepository {
   findByIds(ids: string[]): Promise<Job[]> {
     throw new Error('Method not implemented.')
   }
-  findAll(id: string): Promise<Job[]> {
+  findAll(): Promise<Job[]> {
     throw new Error('Method not implemented.')
   }
   findPage(options: IPageOptions): Promise<IPage<Job>> {

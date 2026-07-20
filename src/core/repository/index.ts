@@ -1,3 +1,5 @@
 export * from './ICrudRepository'
+export * from './IReadRepository'
 export * from './CrudRepository'
+export * from './ReadRepository'
 export * from './pagination'

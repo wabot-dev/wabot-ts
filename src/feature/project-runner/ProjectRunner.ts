@@ -10,6 +10,7 @@ import { Idempotency } from '@/core/idempotency'
 import { RateLimiter } from '@/core/rate-limit'
 import { initTelemetry } from '@/core/observability'
 import { setupCrashHandlers, ShutdownManager } from '@/core/lifecycle'
+import { buildPgPoolConfig, trackPgPool } from '@/feature/pg'
 import { ChatRepository, IChatAdapter, runAudioAdapters, runChatAdapters } from '@/feature/chat-bot'
 import { IChatChannel, runChatControllers, stopChatControllers } from '@/feature/chat-controller'
 import { SocketServerProvider } from '@/feature/socket'
@@ -47,6 +48,11 @@ import { RestControllerMetadataStore } from '@/feature/rest-controller/metadata'
 import { SocketControllerMetadataStore } from '@/feature/socket-controller/metadata'
 import { UiControllerMetadataStore } from '@/feature/ui-controller/metadata'
 import {
+  DbPoolMetadataStore,
+  DefaultDbPool,
+  IDbPoolOverrides,
+  IDbPoolProvider,
+  IRepositoryAdapter,
   MemoryRepositoryAdapter,
   RepositoryAdapterRegistry,
   RepositoryMetadataStore,
@@ -68,6 +74,14 @@ export interface IProjectRunnerConfig {
    * mode used by the bundled output produced by src/build/build.ts.
    */
   preloaded?: boolean
+  /**
+   * Override the default database. When set, its `@dbPool` provider sources the
+   * connection for repositories that don't set `pool` (and for the framework's
+   * non-repository services) — e.g. to fetch `DATABASE_URL` from a secret store.
+   * A single value, so there is never more than one default. Omit to use
+   * `DATABASE_URL`.
+   */
+  defaultDatabase?: IConstructor<IDbPoolProvider>
   /** UI / island bundling options. */
   ui?: IUiRunnerConfig
 }
@@ -131,6 +145,9 @@ export class ProjectRunner {
   private preloaded: boolean
   private ui: IUiRunnerConfig
   private pool: Pool | null = null
+  private additionalPools: { name: string; pool: Pool }[] = []
+  private defaultDatabaseProvider?: IConstructor<IDbPoolProvider>
+  private defaultPoolOverrides: IDbPoolOverrides = {}
 
   constructor(config: IProjectRunnerConfig = {}) {
     this.directories = config.directories ?? ['src']
@@ -139,6 +156,7 @@ export class ProjectRunner {
     this.connectionString = this.resolveConnectionString(config.connectionString)
     this.isPg = this.connectionString != null && isPostgresUrl(this.connectionString)
     this.preloaded = config.preloaded === true
+    this.defaultDatabaseProvider = config.defaultDatabase
     this.ui = config.ui ?? {}
   }
 
@@ -151,6 +169,11 @@ export class ProjectRunner {
     // Load @opentelemetry/api if the app installed it, so spans/metrics and
     // trace-correlated logs light up. A no-op otherwise.
     await initTelemetry()
+
+    // A custom default database provider (config.defaultDatabase) sources the
+    // default connection — possibly async (a secret store) — so resolve it before
+    // deciding Postgres vs in-memory.
+    await this.resolveDefaultDatabase()
 
     let scannedFiles: string[] = []
     if (this.preloaded) {
@@ -167,6 +190,7 @@ export class ProjectRunner {
     const components = this.discoverComponents()
 
     await this.registerAdapters(components)
+    await this.registerAdditionalDatabases()
     await this.startComponents(components, scannedFiles)
   }
 
@@ -180,10 +204,88 @@ export class ProjectRunner {
     return cs
   }
 
+  private async resolveDefaultDatabase(): Promise<void> {
+    const provider = this.defaultDatabaseProvider
+    if (!provider) return
+    if (!container.resolve(DbPoolMetadataStore).isProvider(provider)) {
+      throw new Error(`config.defaultDatabase "${provider.name}" is missing the @dbPool decorator.`)
+    }
+    const instance = container.resolve(provider)
+    this.connectionString = (await instance.connection()) || null
+    this.isPg = this.connectionString != null && isPostgresUrl(this.connectionString)
+    this.defaultPoolOverrides = instance.pool?.() ?? {}
+  }
+
   private async initPool(): Promise<void> {
     const { Pool } = await import('pg')
-    this.pool = new Pool({ connectionString: this.connectionString! })
+    this.pool = new Pool(
+      buildPgPoolConfig(this.connectionString!, container.resolve(Env), this.defaultPoolOverrides),
+    )
+    // An idle client can emit 'error' when its connection drops (network blip, DB
+    // restart). Without a listener pg rethrows and crashes the process; log it and
+    // let the pool discard and replace the client.
+    this.pool.on('error', (err) => logger.error('pg pool idle client error', err))
+    trackPgPool('default', this.pool)
     container.registerInstance(Pool, this.pool)
+  }
+
+  /**
+   * Wire the databases that repositories reference via `@repository({ pool })`,
+   * beyond the default. Runs after imports so every `@repository` config is
+   * known. Each distinct provider gets its own tuned pool (or an in-memory
+   * fallback when its `connection()` is not Postgres), registered by provider
+   * class so the repo resolves it. Guarantees providers are ready before any
+   * repository is used.
+   */
+  private async registerAdditionalDatabases(): Promise<void> {
+    const metaStore = container.resolve(RepositoryMetadataStore)
+    const poolStore = container.resolve(DbPoolMetadataStore)
+    const registry = container.resolve(RepositoryAdapterRegistry)
+    const env = container.resolve(Env)
+
+    const providers = new Set<IConstructor<IDbPoolProvider>>()
+    for (const config of metaStore.getAllConfigs()) {
+      // Skip the default database — it (and a custom default provider) is already
+      // wired by registerAdapters.
+      if (
+        config.pool &&
+        config.pool !== DefaultDbPool &&
+        config.pool !== this.defaultDatabaseProvider
+      ) {
+        providers.add(config.pool)
+      }
+    }
+    if (providers.size === 0) return
+
+    for (const providerCtor of providers) {
+      const name = providerCtor.name
+      if (!poolStore.isProvider(providerCtor)) {
+        throw new Error(`Repository database provider "${name}" is missing the @dbPool decorator.`)
+      }
+      const provider = container.resolve(providerCtor)
+      const connectionString = await provider.connection()
+
+      let adapter: IRepositoryAdapter
+      if (connectionString && isPostgresUrl(connectionString)) {
+        const { Pool } = await import('pg')
+        const { PgJsonRepositoryAdapter } = await import('../../feature/pg/PgJsonRepositoryAdapter')
+        const poolConfig = buildPgPoolConfig(connectionString, env, {
+          applicationName: `wabot:${name}`,
+          ...(provider.pool?.() ?? {}),
+        })
+        const pool = new Pool(poolConfig)
+        pool.on('error', (err) => logger.error(`pg pool idle client error [${name}]`, err))
+        trackPgPool(name, pool)
+        this.additionalPools.push({ name, pool })
+        adapter = new PgJsonRepositoryAdapter(pool)
+      } else {
+        // No Postgres connection → this database uses its own in-memory store.
+        adapter = new MemoryRepositoryAdapter()
+        logger.warn(`Database "${name}" has no Postgres connection; using in-memory fallback`)
+      }
+      registry.register(providerCtor, adapter)
+    }
+    logger.info(`Configured ${providers.size} additional database(s)`)
   }
 
   private async importFiles(files: string[]): Promise<void> {
@@ -286,7 +388,10 @@ export class ProjectRunner {
     container.register(Idempotency, { useToken: idempotencyMod.InMemoryIdempotency as any })
     container.register(RateLimiter, { useToken: rateLimitMod.InMemoryRateLimiter as any })
     const memoryAdapter = new MemoryRepositoryAdapter()
-    container.resolve(RepositoryAdapterRegistry).setDefault(memoryAdapter)
+    const registry = container.resolve(RepositoryAdapterRegistry)
+    registry.setDefault(memoryAdapter)
+    registry.register(DefaultDbPool, memoryAdapter)
+    if (this.defaultDatabaseProvider) registry.register(this.defaultDatabaseProvider, memoryAdapter)
     container.resolve(RepositoryMetadataStore).validateExtensionsRegistered(memoryAdapter.id)
 
     if (jobMod) {
@@ -336,7 +441,10 @@ export class ProjectRunner {
     container.register(Idempotency, { useToken: idempotencyMod.PgIdempotency as any })
     container.register(RateLimiter, { useToken: rateLimitMod.PgRateLimiter as any })
     const pgAdapter = new repoAdapterMod.PgJsonRepositoryAdapter(this.pool)
-    container.resolve(RepositoryAdapterRegistry).setDefault(pgAdapter)
+    const registry = container.resolve(RepositoryAdapterRegistry)
+    registry.setDefault(pgAdapter)
+    registry.register(DefaultDbPool, pgAdapter)
+    if (this.defaultDatabaseProvider) registry.register(this.defaultDatabaseProvider, pgAdapter)
     container.resolve(RepositoryMetadataStore).validateExtensionsRegistered(pgAdapter.id)
 
     const transactionStore = container.resolve(TransactionMetadataStore)
@@ -514,6 +622,9 @@ export class ProjectRunner {
     if (this.pool) {
       const pool = this.pool
       shutdown.register({ name: 'pg-pool', phase: 'close', run: () => pool.end() })
+    }
+    for (const { name, pool } of this.additionalPools) {
+      shutdown.register({ name: `pg-pool-${name}`, phase: 'close', run: () => pool.end() })
     }
 
     shutdown.installSignalHandlers()
