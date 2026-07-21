@@ -5,6 +5,7 @@ import { Request, Response } from 'express'
 import jwt from 'jsonwebtoken'
 
 import { Auth } from '@/core/auth'
+import { AuditActorResolver, setAuditActor } from '@/core/audit'
 import { JwtConfig } from './JwtConfig'
 
 @injectable()
@@ -26,6 +27,7 @@ export class JwtGuardMiddleware implements IMiddleware {
         algorithms: [this.config.algorithm],
       })
       this.auth.assign(jwtPayload)
+      setAuditActor(container.resolve(AuditActorResolver).fromAuth(jwtPayload))
     } catch (err) {
       throw new CustomError({
         httpCode: 401,

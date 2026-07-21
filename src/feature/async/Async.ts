@@ -1,4 +1,6 @@
 import { singleton } from '@/core/injection'
+import { getAuditActor } from '@/core/audit'
+import { getLogContext } from '@/core/logger'
 import { CustomError } from '@/core/error'
 import { AsyncMetadataStore } from './AsyncMetadataStore'
 import { Job } from './Job'
@@ -55,6 +57,12 @@ export class Async {
     const options = this.metadataStore.getJobOptionsForCommandName(commandName)
     const dedupConfig = this.metadataStore.getDedupConfigForCommandName(commandName)
 
+    // Capture who dispatched this command (and the correlation id) so a deferred
+    // run — possibly in another process — attributes audited changes to the
+    // original actor, not to the command.
+    const actor = getAuditActor()
+    const requestId = getLogContext()?.requestId
+
     const buildJob = (dedupKey?: string) =>
       new Job({
         commandName,
@@ -64,6 +72,8 @@ export class Async {
         aceptableRunningTimeSeconds: options.aceptableRunningTimeSeconds,
         stuckRetryAttempts: options.stuckRetryAttempts,
         dedupKey,
+        actor,
+        requestId,
       })
 
     if (!dedupConfig) {

@@ -123,6 +123,11 @@ export class PgSqlRepositoryBase<P extends Entity<IEntityData>>
     await this.exec(columnarInsertSql(this.table, this.columnFields), this.values(item))
   }
 
+  async restore(item: P): Promise<void> {
+    item.validate()
+    await this.exec(columnarInsertSql(this.table, this.columnFields), this.values(item))
+  }
+
   async update(item: P): Promise<void> {
     item.validate()
     const sql = columnarUpdateSql(this.table, this.columnFields)

@@ -158,6 +158,13 @@ class MemoryRepositoryRuntime<P extends Entity<IEntityData>> implements IReposit
     this.store.persist()
   }
 
+  async restore(item: P): Promise<void> {
+    item.validate()
+    this.store.touch(cloneEntity(this.config, item))
+    this.store.enforceLimit()
+    this.store.persist()
+  }
+
   async update(item: P): Promise<void> {
     item.validate()
     if (!this.items.has(item.id)) {

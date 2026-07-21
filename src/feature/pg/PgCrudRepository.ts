@@ -93,6 +93,16 @@ export class PgCrudRepository<P extends Entity<IEntityData>>
     await this.exec(sql, this.values(item))
   }
 
+  async restore(item: P): Promise<void> {
+    item.validate()
+    const sql = `
+      INSERT INTO
+        ${this.table}(${this.columns})
+      VALUES (${this.vars})
+    `
+    await this.exec(sql, this.values(item))
+  }
+
   async update(item: P): Promise<void> {
     item.validate()
 

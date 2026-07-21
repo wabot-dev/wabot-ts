@@ -16,4 +16,8 @@ export class CrudRepository<T extends Entity<IEntityData>, Ext = never>
   delete(item: T): Promise<void> {
     throw new Error('Method not implemented.')
   }
+  /** Restore a destroyed entity from its audit snapshot. Requires `audit` enabled. */
+  recover(id: string): Promise<T> {
+    throw new Error('Method not implemented.')
+  }
 }

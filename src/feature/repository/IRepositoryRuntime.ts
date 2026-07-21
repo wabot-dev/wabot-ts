@@ -10,6 +10,8 @@ export interface IRepositoryRuntime<P extends Entity<IEntityData>> {
   create(item: P): Promise<void>
   update(item: P): Promise<void>
   delete(item: P): Promise<void>
+  /** Insert an already-created entity as-is, preserving its id/createdAt (audit recovery). */
+  restore(item: P): Promise<void>
   runQuery(ast: IQueryAst, args: unknown[]): Promise<P[]>
   runCount(ast: IQueryAst, args: unknown[]): Promise<number>
   runExists(ast: IQueryAst, args: unknown[]): Promise<boolean>

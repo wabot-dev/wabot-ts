@@ -9,6 +9,7 @@ import { Locker } from '@/core/lock'
 import { Idempotency } from '@/core/idempotency'
 import { RateLimiter } from '@/core/rate-limit'
 import { initTelemetry } from '@/core/observability'
+import { AuditLog } from '@/core/audit'
 import { setupCrashHandlers, ShutdownManager } from '@/core/lifecycle'
 import { buildPgPoolConfig, trackPgPool } from '@/feature/pg'
 import { ChatRepository, IChatAdapter, runAudioAdapters, runChatAdapters } from '@/feature/chat-bot'
@@ -54,6 +55,7 @@ import {
   IDbPoolProvider,
   IRepositoryAdapter,
   MemoryRepositoryAdapter,
+  normalizeAudit,
   RepositoryAdapterRegistry,
   RepositoryMetadataStore,
 } from '@/feature/repository'
@@ -148,6 +150,8 @@ export class ProjectRunner {
   private additionalPools: { name: string; pool: Pool }[] = []
   private defaultDatabaseProvider?: IConstructor<IDbPoolProvider>
   private defaultPoolOverrides: IDbPoolOverrides = {}
+  // Resolved pool per database provider, for routing audit streams to the right DB.
+  private providerPools = new Map<IConstructor<IDbPoolProvider>, Pool>()
 
   constructor(config: IProjectRunnerConfig = {}) {
     this.directories = config.directories ?? ['src']
@@ -191,6 +195,7 @@ export class ProjectRunner {
 
     await this.registerAdapters(components)
     await this.registerAdditionalDatabases()
+    this.registerAuditStreams()
     await this.startComponents(components, scannedFiles)
   }
 
@@ -227,6 +232,9 @@ export class ProjectRunner {
     this.pool.on('error', (err) => logger.error('pg pool idle client error', err))
     trackPgPool('default', this.pool)
     container.registerInstance(Pool, this.pool)
+    this.providerPools.set(DefaultDbPool, this.pool)
+    if (this.defaultDatabaseProvider)
+      this.providerPools.set(this.defaultDatabaseProvider, this.pool)
   }
 
   /**
@@ -237,6 +245,24 @@ export class ProjectRunner {
    * class so the repo resolves it. Guarantees providers are ready before any
    * repository is used.
    */
+  /**
+   * Route each audited repository's stream to the pool of its audit database
+   * (defaulting to the repository's own data pool). Only the Postgres audit log
+   * needs routing; the in-memory one has no pools.
+   */
+  private registerAuditStreams(): void {
+    const auditLog = container.resolve(AuditLog) as {
+      setStreamPool?: (stream: string, pool: Pool) => void
+    }
+    if (typeof auditLog.setStreamPool !== 'function') return
+    for (const config of container.resolve(RepositoryMetadataStore).getAllConfigs()) {
+      const audit = normalizeAudit(config)
+      if (!audit) continue
+      const pool = this.providerPools.get(audit.pool ?? DefaultDbPool)
+      if (pool) auditLog.setStreamPool(audit.stream, pool)
+    }
+  }
+
   private async registerAdditionalDatabases(): Promise<void> {
     const metaStore = container.resolve(RepositoryMetadataStore)
     const poolStore = container.resolve(DbPoolMetadataStore)
@@ -277,6 +303,7 @@ export class ProjectRunner {
         pool.on('error', (err) => logger.error(`pg pool idle client error [${name}]`, err))
         trackPgPool(name, pool)
         this.additionalPools.push({ name, pool })
+        this.providerPools.set(providerCtor, pool)
         adapter = new PgJsonRepositoryAdapter(pool)
       } else {
         // No Postgres connection → this database uses its own in-memory store.
@@ -369,12 +396,13 @@ export class ProjectRunner {
   private async registerMemoryAdapters(components: DiscoveredComponents): Promise<void> {
     const needsJobs = components.commandHandlers.length > 0 || components.cronHandlers.length > 0
 
-    const [chatBotMod, lockMod, idempotencyMod, rateLimitMod, jobMod, cronJobMod] =
+    const [chatBotMod, lockMod, idempotencyMod, rateLimitMod, auditMod, jobMod, cronJobMod] =
       await Promise.all([
         import('../../addon/chat-bot/in-memory/InMemoryChatRepository'),
         import('../../addon/lock/InMemoryLocker'),
         import('../../addon/idempotency/InMemoryIdempotency'),
         import('../../addon/rate-limit/InMemoryRateLimiter'),
+        import('../../addon/audit/InMemoryAuditLog'),
         needsJobs
           ? import('../../addon/async/in-memory/InMemoryJobRepository')
           : Promise.resolve(null),
@@ -387,6 +415,7 @@ export class ProjectRunner {
     container.register(Locker, { useToken: lockMod.InMemoryLocker as any })
     container.register(Idempotency, { useToken: idempotencyMod.InMemoryIdempotency as any })
     container.register(RateLimiter, { useToken: rateLimitMod.InMemoryRateLimiter as any })
+    container.register(AuditLog, { useToken: auditMod.InMemoryAuditLog as any })
     const memoryAdapter = new MemoryRepositoryAdapter()
     const registry = container.resolve(RepositoryAdapterRegistry)
     registry.setDefault(memoryAdapter)
@@ -419,6 +448,7 @@ export class ProjectRunner {
       lockerMod,
       idempotencyMod,
       rateLimitMod,
+      auditMod,
       repoAdapterMod,
       txMod,
       jobMod,
@@ -428,6 +458,7 @@ export class ProjectRunner {
       import('../../feature/pg/PgLocker'),
       import('../../feature/pg/PgIdempotency'),
       import('../../feature/pg/PgRateLimiter'),
+      import('../../feature/pg/PgAuditLog'),
       import('../../feature/pg/PgJsonRepositoryAdapter'),
       import('../../addon/async/pg/PgTransactionAdapter'),
       hasCommandHandlers || hasCronHandlers
@@ -440,6 +471,7 @@ export class ProjectRunner {
     container.register(Locker, { useToken: lockerMod.PgLocker as any })
     container.register(Idempotency, { useToken: idempotencyMod.PgIdempotency as any })
     container.register(RateLimiter, { useToken: rateLimitMod.PgRateLimiter as any })
+    container.register(AuditLog, { useToken: auditMod.PgAuditLog as any })
     const pgAdapter = new repoAdapterMod.PgJsonRepositoryAdapter(this.pool)
     const registry = container.resolve(RepositoryAdapterRegistry)
     registry.setDefault(pgAdapter)

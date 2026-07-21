@@ -1,9 +1,14 @@
+import { IAuditActor } from '@/core/audit'
 import { Entity, IEntityData } from '@/core/entity'
 import { errorToPlainObject } from '@/core/error'
 
 export interface IJobData extends IEntityData {
   commandName: string
   commandData: any
+  /** The actor that dispatched this command, carried across the async boundary for auditing. */
+  actor?: IAuditActor
+  /** The dispatch-time correlation id, so async work stays correlated in logs/audit. */
+  requestId?: string
   scheduledAt?: number
   startedAt?: number
   successAt?: number
@@ -45,6 +50,14 @@ export class Job extends Entity<IJobData> {
 
   get dedupKey() {
     return this.data.dedupKey
+  }
+
+  get actor() {
+    return this.data.actor
+  }
+
+  get requestId() {
+    return this.data.requestId
   }
 
   get runningSeconds() {

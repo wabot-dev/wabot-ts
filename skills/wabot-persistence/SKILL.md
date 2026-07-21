@@ -1,6 +1,6 @@
 ---
 name: wabot-persistence
-description: Use when defining entities, repositories, queries, pagination, indexes, per-adapter query extensions, or database migrations in Wabot. Covers Entity / IEntityData, @repository, the @query method-name DSL (find/findOne/count/exists/delete + And/Or + operators), cursor/keyset pagination (findPage, IPageOptions, IPage, opaque nextCursor, fixed created_at ordering), multiple databases via @dbPool / IDbPoolProvider providers referenced by @repository({ pool }), read-only repositories (ReadRepository) for CQRS read models / replicas, connection pool tuning (WABOT_PG_*), @queryExtension, @memExtension / MemoryRepositoryExtension, @dbExtension with PgJsonbRepositoryExtension (JSONB, default) or PgSqlRepositoryExtension (relational columns), automatic + explicit indexes, add.columns promotion, plain-SQL migrations via the wabot-migrate CLI, the JSONB→relational swap, and how the active backend is chosen automatically by the project runner.
+description: Use when defining entities, repositories, queries, pagination, indexes, per-adapter query extensions, or database migrations in Wabot. Covers Entity / IEntityData, @repository, the @query method-name DSL (find/findOne/count/exists/delete + And/Or + operators), cursor/keyset pagination (findPage, IPageOptions, IPage, opaque nextCursor, fixed created_at ordering), multiple databases via @dbPool / IDbPoolProvider providers referenced by @repository({ pool }), read-only repositories (ReadRepository) for CQRS read models / replicas, connection pool tuning (WABOT_PG_*), per-repository audit trails (audit: config, append-only audit_<stream> tables, recover() as a soft-delete replacement, AuditLog.record/query for custom streams, IAuditActor + optional AuditActorResolver, actor carried across commands), @queryExtension, @memExtension / MemoryRepositoryExtension, @dbExtension with PgJsonbRepositoryExtension (JSONB, default) or PgSqlRepositoryExtension (relational columns), automatic + explicit indexes, add.columns promotion, plain-SQL migrations via the wabot-migrate CLI, the JSONB→relational swap, and how the active backend is chosen automatically by the project runner.
 ---
 
 # Persistence
@@ -25,13 +25,13 @@ export interface IGameData extends IEntityData {
 export class Game extends Entity<IGameData> {}
 ```
 
-`IEntityData` adds `id?: string`, `createdAt?: number | null`, `discardedAt?: number | null`. The id/createdAt are filled in by the repository on `create`.
+`IEntityData` adds `id?: string`, `createdAt?: number | null`. The id/createdAt are filled in by the repository on `create`. There is no soft-delete field: `delete()` is a hard delete — use `audit` (below) to keep destroyed objects reviewable/recoverable.
 
 `Entity` exposes:
 
 - `id` (throws if not yet created)
 - `createdAt: Date`
-- `update(partial)` — merges allowed fields and sets `updatedAt`; rejects writes to id/createdAt/discardedAt
+- `update(partial)` — merges allowed fields and sets `updatedAt`; rejects writes to id/createdAt
 - `wasCreated()`, `validate()`
 - `lockerKey()` — returns the id, so any `Entity` can be passed to `Locker.withKey(...)`
 
@@ -76,7 +76,7 @@ Examples that work:
 @query() declare findOneByUserIdAndStatus: (userId: string, status: IGameStatus) => Promise<Game | null>
 @query() declare countByStatusInAndAddedAtGt: (statuses: IGameStatus[], addedAt: number) => Promise<number>
 @query() declare existsByTitleLike: (title: string) => Promise<boolean>
-@query() declare deleteByDiscardedAtIsNotNull: () => Promise<void>
+@query() declare deleteByStatus: (status: IGameStatus) => Promise<void>
 @query() declare findByUserIdOrderByAddedAtAscLimit10: (userId: string) => Promise<Game[]>
 ```
 
@@ -337,6 +337,65 @@ export class OrderRepository extends CrudRepository<Order> {}
 ```
 
 Reads on a replica are **eventually consistent** (replication lag): if a flow must read what it just wrote, read it from the primary.
+
+## Audit trail (and the soft-delete replacement)
+
+Auditing is **off by default**, enabled per repository. Prefer it over soft-deletion: `delete()` really removes the row (clean tables, no soft-delete flag polluting queries/indexes), and the destroyed object is preserved in an append-only audit stream — reviewable and **recoverable**.
+
+```typescript
+@repository({
+  table: 'order',
+  constructor: Order,
+  audit: true, // all events; or { events: ['destroy'], stream: 'order', pool: AuditDb }
+})
+export class OrderRepository extends CrudRepository<Order> {}
+
+await orders.delete(order) // hard DELETE + a 'destroyed' snapshot in stream `order`
+const back = await orders.recover(order.id) // re-insert from the snapshot, same id
+```
+
+- **Events** `create` / `update` / `destroy` (default all). Each records the entity snapshot; `destroy` is what makes recovery work.
+- **Storage scales**: each stream is its **own** append-only table `audit_<stream>` (default stream = the table name), so millions of rows shard by domain. **Pool** defaults to the repository's data pool; set `audit.pool` to isolate the trail in another database.
+- **Append-only**: no update/delete — it is the durable record.
+
+Every entry auto-captures **who** (actor), **when**, the correlation id, and provenance (`source`) — callers only say what happened. Read a stream back (investigations) by injecting `AuditLog`:
+
+```typescript
+const trail = await auditLog.query({ stream: 'order', target: orderId, action: 'destroyed' })
+```
+
+For domain events not tied to an entity, record to any **custom stream**:
+
+```typescript
+await auditLog.record({
+  stream: 'security',
+  action: 'user.role_changed',
+  target: userId,
+  metadata: { from, to },
+})
+```
+
+### The actor (who caused the change)
+
+The actor rides the log context, captured automatically:
+
+| Origin                | actor                                                                                                                                       |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Authenticated request | `{ type: 'user', … }`                                                                                                                       |
+| Cron                  | `{ type: 'cron', id: cronName }`                                                                                                            |
+| Command               | **inherits** the actor that dispatched it — carried across the async/deferred boundary on the job; the command name is recorded as `source` |
+| None (boot/script)    | `{ type: 'system' }`                                                                                                                        |
+
+Because `Auth<D>` is app-shaped, the framework never guesses a user id — an authenticated action defaults to a bare `{ type: 'user' }`. To attribute a real id/label, register an **`AuditActorResolver`** (optional):
+
+```typescript
+class MyAuditActor extends AuditActorResolver {
+  fromAuth(info: MyAuthInfo) {
+    return { type: 'user' as const, id: info.userId, label: info.email }
+  }
+}
+container.register(AuditActorResolver, { useClass: MyAuditActor })
+```
 
 ## Transactions
 

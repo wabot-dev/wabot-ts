@@ -1,7 +1,10 @@
 import { Entity, IEntityData } from '@/core/entity'
+import { AuditLog } from '@/core/audit'
 import { CrudRepository, ReadRepository } from '@/core/repository'
 import { container, singleton } from '@/core/injection'
 import { IConstructor } from '@/core/generics'
+import { normalizeAudit } from './auditConfig'
+import { IRepositoryAuditEvent } from './IRepositoryConfig'
 import { IQueryAst } from './types'
 import { deriveIndexes, mergeIndexes } from './indexes'
 import { IRepositoryConfig } from './IRepositoryConfig'
@@ -161,15 +164,63 @@ const READ_METHODS = {
   },
 }
 
+const EVENT_ACTION: Record<IRepositoryAuditEvent, string> = {
+  create: 'created',
+  update: 'updated',
+  destroy: 'destroyed',
+}
+
+// Record a lifecycle event to the repo's audit stream, if auditing is enabled
+// for that event. The entity data is snapshotted so a destroyed object stays
+// reviewable/recoverable.
+async function recordAudit(self: any, event: IRepositoryAuditEvent, item: any): Promise<void> {
+  const audit = normalizeAudit(getConfig(self))
+  if (!audit || !audit.events.has(event)) return
+  await container.resolve(AuditLog).record({
+    stream: audit.stream,
+    action: EVENT_ACTION[event],
+    target: item.id,
+    data: JSON.parse(JSON.stringify(item['data'])),
+  })
+}
+
+async function recoverEntity(self: any, id: string): Promise<any> {
+  const config = getConfig(self)
+  const audit = normalizeAudit(config)
+  if (!audit) {
+    throw new Error(`${self.constructor.name}.recover: audit is not enabled for this repository`)
+  }
+  const auditLog = container.resolve(AuditLog)
+  const [entry] = await auditLog.query({
+    stream: audit.stream,
+    target: id,
+    action: 'destroyed',
+    limit: 1,
+  })
+  if (!entry?.data) {
+    throw new Error(`${config.constructor.name}.recover: no destroyed snapshot for id '${id}'`)
+  }
+  const entity = new config.constructor(entry.data as any)
+  await getRuntime(self).restore(entity)
+  await auditLog.record({ stream: audit.stream, action: 'restored', target: id })
+  return entity
+}
+
 const WRITE_METHODS = {
   async create(this: any, item: any) {
-    return getRuntime(this).create(item)
+    await getRuntime(this).create(item)
+    await recordAudit(this, 'create', item)
   },
   async update(this: any, item: any) {
-    return getRuntime(this).update(item)
+    await getRuntime(this).update(item)
+    await recordAudit(this, 'update', item)
   },
   async delete(this: any, item: any) {
-    return getRuntime(this).delete(item)
+    await getRuntime(this).delete(item)
+    await recordAudit(this, 'destroy', item)
+  },
+  async recover(this: any, id: string) {
+    return recoverEntity(this, id)
   },
 }
 
