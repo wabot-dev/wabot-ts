@@ -36,6 +36,8 @@ export class ShutdownManager {
   private shuttingDown = false
   private signalsInstalled = false
   private logger = new Logger('wabot:shutdown')
+  /** Tasks started and not finished yet, so a timeout can name the culprit. */
+  private pending = new Set<string>()
 
   constructor(private env: Env) {}
 
@@ -89,7 +91,11 @@ export class ShutdownManager {
     if (this.shuttingDown) return 0
     this.shuttingDown = true
 
-    const timeoutSeconds = this.env.requireNumber('WABOT_SHUTDOWN_TIMEOUT_SECONDS', { default: 30 })
+    // Production gets a real drain window; in dev nothing is worth waiting for
+    // and a long deadline just reads as "Ctrl+C did nothing".
+    const timeoutSeconds = this.env.requireNumber('WABOT_SHUTDOWN_TIMEOUT_SECONDS', {
+      default: process.env.NODE_ENV === 'production' ? 30 : 3,
+    })
 
     let timer: ReturnType<typeof setTimeout> | undefined
     const deadline = new Promise<'timeout'>((resolve) => {
@@ -100,8 +106,10 @@ export class ShutdownManager {
     if (timer) clearTimeout(timer)
 
     if (outcome === 'timeout') {
+      const stuck = this.pending.size ? [...this.pending].join(', ') : 'none reported'
       this.logger.error(
-        `Graceful shutdown exceeded ${timeoutSeconds}s (reason: ${reason}) — forcing exit`,
+        `Graceful shutdown exceeded ${timeoutSeconds}s (reason: ${reason}) — ` +
+          `still running: ${stuck}. Forcing exit`,
       )
       return 1
     }
@@ -122,11 +130,14 @@ export class ShutdownManager {
   }
 
   private async runTask(task: IShutdownTask): Promise<void> {
+    this.pending.add(task.name)
     try {
       await task.run()
       this.logger.debug(`Shutdown task "${task.name}" done`)
     } catch (err) {
       this.logger.error(`Shutdown task "${task.name}" failed`, err)
+    } finally {
+      this.pending.delete(task.name)
     }
   }
 }

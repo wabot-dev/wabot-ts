@@ -293,7 +293,7 @@ Utilidades transversales pensadas para operar de verdad — **todas con implemen
 
 - **Logging estructurado** — legible en dev (`debug`), JSON en prod, con _correlation ids_ y niveles configurables (`WABOT_LOG_LEVEL`).
 - **OpenTelemetry** — traces y métricas como _peer dependency opcional_.
-- **Ciclo de vida** — _graceful shutdown_ central, manejo de crashes, `ShutdownManager.isShuttingDown` para readiness.
+- **Ciclo de vida** — _graceful shutdown_ central, manejo de crashes, `ShutdownManager.isShuttingDown` para readiness. El drenado está acotado por `WABOT_SHUTDOWN_TIMEOUT_SECONDS` (30s en producción, 3s fuera) y las conexiones abiertas se cortan pasado `WABOT_HTTP_DRAIN_TIMEOUT_SECONDS` (10s / 0.5s), así un stream SSE no deja el Ctrl+C colgado.
 - **Locking distribuido**, **idempotencia / deduplicación de webhooks**, **rate limiting** (`@rateLimit` en REST, 429 + headers).
 - **Config fail-fast** — valida referencias tipadas al arrancar (`ConfigError`), no en producción a medianoche.
 - `CustomError` con códigos HTTP, `Password` (scrypt) y `Random` seguro.

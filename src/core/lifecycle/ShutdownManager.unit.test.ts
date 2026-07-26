@@ -79,6 +79,31 @@ test.describe('ShutdownManager', () => {
     assert.equal(cleared, false)
   })
 
+  test('the deadline message names the task that is still running', async () => {
+    const logged: string[] = []
+    const manager = managerWithTimeout(0.05)
+    ;(manager as any).logger = {
+      info: () => {},
+      debug: () => {},
+      warn: () => {},
+      error: (message: string) => logged.push(message),
+    }
+
+    manager.register({
+      name: 'http-server',
+      phase: 'drain',
+      run: () => new Promise<void>(() => {}),
+    })
+    manager.register({ name: 'quick', phase: 'drain', run: () => {} })
+
+    await manager.shutdown('SIGINT')
+
+    const timeout = logged.find((message) => message.includes('exceeded'))
+    assert.ok(timeout, 'the timeout is logged')
+    assert.match(timeout!, /still running: http-server/)
+    assert.doesNotMatch(timeout!, /quick/, 'a task that finished is not blamed')
+  })
+
   test('shutdown is idempotent: a second call is a no-op returning 0', async () => {
     const manager = managerWithTimeout(30)
     let runs = 0
