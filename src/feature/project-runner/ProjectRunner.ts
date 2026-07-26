@@ -720,11 +720,20 @@ export class ProjectRunner {
 
     const bundler = new bundlerMod.UiBundler({ islands, client, alias: this.ui.bundlerAlias })
     await bundler.startDev()
-    bundlerMod.mountUiDevAssets(container.resolve(ExpressProvider).getExpress(), bundler)
+    const devAssets = await bundlerMod.mountUiDevAssets(
+      container.resolve(ExpressProvider).getExpress(),
+      bundler,
+    )
+    container.resolve(ShutdownManager).register({
+      name: 'ui-live-reload',
+      phase: 'drain',
+      run: () => devAssets.close(),
+    })
 
     return (used) =>
       bundlerMod.pageAssetsFromManifest(bundler.getManifest(), used, {
         liveReloadPath: '/_wabot/livereload',
+        liveReloadPort: devAssets.liveReloadPort,
       })
   }
 

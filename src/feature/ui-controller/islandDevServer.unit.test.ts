@@ -32,6 +32,7 @@ let server: Server
 let baseUrl = ''
 let bundler: UiBundler
 let islandId = ''
+let devAssets: { liveReloadPort: number; close(): Promise<void> }
 
 test.before(async () => {
   const child = container.createChildContainer()
@@ -51,13 +52,15 @@ test.before(async () => {
 
   const httpServerProvider = new HttpServerProvider()
   const expressProvider = new ExpressProvider(httpServerProvider)
-  mountUiDevAssets(expressProvider.getExpress(), bundler)
+  // Port 0: an ephemeral port, so the suite never fights a real dev server.
+  devAssets = await mountUiDevAssets(expressProvider.getExpress(), bundler, { liveReloadPort: 0 })
   registerUiControllers([GreeterController], {
     baseContainer: child,
     expressProvider,
     pageAssets: (used) =>
       pageAssetsFromManifest(bundler.getManifest(), used, {
         liveReloadPath: '/_wabot/livereload',
+        liveReloadPort: devAssets.liveReloadPort,
       }),
   })
 
@@ -67,6 +70,7 @@ test.before(async () => {
 })
 
 test.after(async () => {
+  await devAssets.close()
   await bundler.dispose()
   await new Promise<void>((resolve, reject) =>
     server.close((err) => (err ? reject(err) : resolve())),
@@ -81,7 +85,23 @@ test.describe('island dev server', () => {
     assert.match(html, /data-props="{&quot;name&quot;:&quot;World&quot;}"/)
     assert.match(html, /<button>Hello World<\/button>/)
     assert.match(html, new RegExp(`<script type="module" src="/_wabot/${islandId}\\.js">`))
-    assert.match(html, /EventSource\("\/_wabot\/livereload"\)/)
+    assert.match(html, new RegExp(`":${devAssets.liveReloadPort}"\\+"/_wabot/livereload"`))
+  })
+
+  test('el live reload corre en su propio puerto, fuera del pool del origen de la app', async () => {
+    assert.notEqual(devAssets.liveReloadPort, (server.address() as any).port)
+
+    const res = await fetch(`http://127.0.0.1:${devAssets.liveReloadPort}/_wabot/livereload`, {
+      headers: { Accept: 'text/event-stream' },
+    })
+    assert.equal(res.headers.get('content-type'), 'text/event-stream')
+    // Cross-origin now, so the stream must say so or EventSource refuses it.
+    assert.equal(res.headers.get('access-control-allow-origin'), '*')
+
+    const reader = res.body!.getReader()
+    const first = new TextDecoder().decode((await reader.read()).value)
+    assert.match(first, /data: connected/)
+    await reader.cancel()
   })
 
   test('los chunks con hash de contenido se cachean fuerte; los entries revalidan', async () => {
