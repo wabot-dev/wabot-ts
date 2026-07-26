@@ -3,7 +3,10 @@ import { CustomError } from '@/core/error'
 import { IStorableType } from '@/core/storable/IStorableType'
 import { query, queryExtension, repository } from '@/feature/repository'
 import { IJwtRefreshTokenQueries } from './IJwtRefreshTokenQueries'
-import { IJwtRefreshTokenRepository } from './IJwtRefreshTokenRepository'
+import {
+  IJwtRefreshTokenRepository,
+  IJwtRefreshTokenValidateOptions,
+} from './IJwtRefreshTokenRepository'
 import { JwtRefreshToken } from './JwtRefreshToken'
 
 /**
@@ -30,9 +33,17 @@ export class JwtRefreshTokenRepository<D extends object>
     metadata: Record<string, string>,
   ) => Promise<JwtRefreshToken<D>[]>
 
-  async findAndValidate(secret: string): Promise<IStorableType<D>> {
+  async findAndValidate(
+    secret: string,
+    options: IJwtRefreshTokenValidateOptions = {},
+  ): Promise<IStorableType<D>> {
     const token = await this.findOneBySecretHash(JwtRefreshToken.hashSecret(secret))
     if (!token || !token.isValidToken(secret)) {
+      throw new CustomError({ message: 'Invalid refresh token', httpCode: 401 })
+    }
+    // Same error on an audience mismatch: a caller must not learn that the
+    // secret is valid for some other kind of session.
+    if (options.audience != null && token.audience !== options.audience) {
       throw new CustomError({ message: 'Invalid refresh token', httpCode: 401 })
     }
     return token.authInfo

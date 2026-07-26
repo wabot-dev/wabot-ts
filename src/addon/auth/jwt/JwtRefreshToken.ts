@@ -8,6 +8,8 @@ export interface IJwtRefreshTokenData<A extends object> extends IEntityData {
   authInfo: A
   expirationTime: number
   revokedAt?: number
+  /** Audience this session belongs to; stamped on every access token it mints. */
+  audience?: string
 }
 
 export class JwtRefreshToken<A extends object> extends Entity<IJwtRefreshTokenData<A>> {
@@ -23,6 +25,10 @@ export class JwtRefreshToken<A extends object> extends Entity<IJwtRefreshTokenDa
 
   get metadata() {
     return this.data.metadata ?? {}
+  }
+
+  get audience() {
+    return this.data.audience
   }
 
   get expirationTime() {

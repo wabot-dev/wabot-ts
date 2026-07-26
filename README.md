@@ -245,6 +245,46 @@ export class OrdersService {
 
 Protege rutas con `@jwtGuard` / `@apiKeyGuard` (y sus variantes de handshake para Socket).
 
+El token viaja en el header `Authorization: Bearer` o en una cookie. Cuando conviven **varios tipos de usuario en el mismo navegador** (por ejemplo un panel admin y el portal de clientes), dale a cada sesión su propia cookie y el guard sólo leerá la suya:
+
+```typescript
+@onPost('/admin/login')
+async adminLogin(req: LoginRequest) {
+  const { access } = await this.jwt.createToken(undefined, { audience: 'admin' })
+  this.cookies.set('wabot_admin', access.token, { httpOnly: true, expires: access.expiration })
+}
+
+@onGet('/admin/orders')
+@jwtGuard({ cookie: 'wabot_admin', audience: 'admin' })
+list() { ... }
+
+@onPost('/logout')
+@jwtGuard({ cookie: ['wabot_admin', 'wabot_client'] }) // cualquiera de las dos
+logout() { ... }
+```
+
+La cookie evita que las sesiones se pisen; el **`audience`** es lo que las aísla de verdad: como todas se firman con el mismo `JWT_SECRET`, sin `aud` un token de cliente movido a la cookie de admin pasaría el guard. Con `audience`:
+
+- el access token lleva el claim `aud` y sólo lo aceptan los guards que declaran ese mismo valor (un guard sin `audience` acepta cualquier token válido);
+- el refresh token recuerda su audiencia, así que `findRefreshTokenAuthInfo(secret, { audience: 'admin' })` rechaza renovar una sesión de cliente desde el endpoint de admin;
+- también funciona en sockets: `@jwtHandshakeGuard({ audience: 'admin' })`.
+
+Sin `cookie`, el guard usa `JWT_COOKIE_NAME` (`wabot_jwt` por defecto).
+
+### Sockets con cookie `httpOnly`
+
+El handshake acepta el token en `handshake.auth`, en `Authorization` o —única forma de usar una cookie que el JS del navegador no puede leer— en la cookie de sesión:
+
+```typescript
+@socketController({ namespace: 'admin' })
+@jwtHandshakeGuard({ cookie: 'wabot_admin', audience: 'admin' })
+export class AdminSocketController { ... }
+```
+
+Leer la cookie **exige** una allowlist de orígenes (`JWT_COOKIE_ALLOWED_ORIGINS=https://app.tudominio.com`, o `allowedOrigins` en el guard). El navegador adjunta la cookie a un WebSocket abierto por cualquier página y no aplica CORS sobre él, así que sin verificar el `Origin` cualquier sitio podría montarse sobre la sesión (_cross-site WebSocket hijacking_). El guard falla cerrado: sin allowlist, sin header `Origin`, con un origen no listado o con `*`, rechaza el handshake. Los tokens que llegan por `handshake.auth` no corren ese riesgo y no se verifican por origen.
+
+Del lado del cliente, si el front está en otro dominio: `io(url, { withCredentials: true })`, `cors: { origin: '<origen exacto>', credentials: true }` en el server y la cookie con `SameSite=None; Secure`.
+
 ---
 
 ## 🛡️ Listo para producción

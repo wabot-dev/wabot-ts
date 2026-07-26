@@ -13,6 +13,13 @@ import { IStorableType } from '@/core/storable/IStorableType'
 export interface ITestJwtOptions {
   secret?: string
   accessExpirationSeconds?: number
+  /** Origins allowed to authenticate a socket handshake with a cookie. */
+  cookieAllowedOrigins?: string[]
+}
+
+export interface ITestSignOptions {
+  /** `aud` claim to stamp on the signed token. */
+  audience?: string
 }
 
 /**
@@ -30,14 +37,19 @@ export class TestJwt {
     config.accessExpirationSeconds = options.accessExpirationSeconds ?? 10 * 60
     config.refreshExpirationSeconds = 365 * 24 * 3600
     config.cookieName = 'wabot_jwt'
+    config.cookieAllowedOrigins = options.cookieAllowedOrigins ?? []
     this.config = config
   }
 
-  /** Sign a valid access token carrying the given authInfo. */
-  sign(authInfo: object): string {
+  /**
+   * Sign a valid access token carrying the given authInfo. Pass `audience` to
+   * stamp the `aud` claim `@jwtGuard({ audience })` checks.
+   */
+  sign(authInfo: object, options: ITestSignOptions = {}): string {
     return jwt.sign(authInfo, this.config.secretOrPrivateKey, {
       algorithm: this.config.algorithm,
       expiresIn: this.config.accessExpirationSeconds,
+      ...(options.audience ? { audience: options.audience } : {}),
     })
   }
 

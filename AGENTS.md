@@ -568,7 +568,7 @@ harness.tools()
 
 **Rest of the framework:**
 
-- `createRestHarness({ controllers, jwt: true, register })` — mounts `@restController`s on an ephemeral port via `registerRestControllers` (the no-listen split of `runRestControllers`); `api.request('POST', '/api/items', { body })`, `api.as(authInfo)` signs real JWTs for `@jwtGuard`, `TestApiKeyRepository` (register as `ApiKeyRepository`) backs `@apiKeyGuard`. Call `api.close()` when done.
+- `createRestHarness({ controllers, jwt: true, register })` — mounts `@restController`s on an ephemeral port via `registerRestControllers` (the no-listen split of `runRestControllers`); `api.request('POST', '/api/items', { body })`, `api.as(authInfo)` signs real JWTs for `@jwtGuard` (`api.as(authInfo, { cookie, audience })` sends them in a session cookie instead of the header and stamps the `aud` claim), `TestApiKeyRepository` (register as `ApiKeyRepository`) backs `@apiKeyGuard`. Call `api.close()` when done.
 - `createAsyncHarness()` — `execute(CommandCtor, data)` validates and runs the `@commandHandler` inline; `runCron(CronCtor)` runs a `@cronHandler` once. No PG, no workers.
 - `useMemoryRepositories()` — backs every `@repository` with `MemoryRepositoryAdapter` (`persist: false`). Call before resolving repositories (runtimes cache on first use).
 - Validation: `validateFixture` / `assertValid` / `assertInvalid(Ctor, data, { path })` with flattened issue paths.
