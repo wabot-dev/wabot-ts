@@ -84,6 +84,26 @@ test.describe('island dev server', () => {
     assert.match(html, /EventSource\("\/_wabot\/livereload"\)/)
   })
 
+  test('los chunks con hash de contenido se cachean fuerte; los entries revalidan', async () => {
+    const entry = await fetch(`${baseUrl}${bundler.getManifest().islands[islandId].js}`)
+    assert.equal(entry.headers.get('cache-control'), 'no-cache')
+
+    const code = await entry.text()
+    const chunk = code.match(/["'](\.\/chunks\/[^"']+)["']/)?.[1]
+    assert.ok(chunk, 'the entry should import a shared chunk')
+    const chunkRes = await fetch(`${baseUrl}/_wabot/${chunk!.replace('./', '')}`)
+    assert.equal(chunkRes.status, 200)
+    assert.equal(chunkRes.headers.get('cache-control'), 'public, max-age=31536000, immutable')
+  })
+
+  test('un asset que ya no existe responde JS, no el 404 HTML de la app', async () => {
+    const res = await fetch(`${baseUrl}/_wabot/chunks/chunk-GONE1234.js`)
+
+    assert.equal(res.status, 404)
+    assert.match(res.headers.get('content-type') ?? '', /javascript/)
+    assert.match(await res.text(), /console\.error\("\[wabot\] dev asset not found/)
+  })
+
   test('el bundle de cliente del island se sirve y se auto-registra', async () => {
     const jsUrl = bundler.getManifest().islands[islandId].js
     const res = await fetch(`${baseUrl}${jsUrl}`)

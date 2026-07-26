@@ -41,12 +41,31 @@ export function mountUiDevAssets(
     req.on('close', () => clients.delete(res))
   })
 
-  app.use(mountPath, (req: Request, res: Response, next) => {
+  app.use(mountPath, async (req: Request, res: Response, next) => {
     const servePath = mountPath + req.path
-    const file = bundler.getFile(servePath)
-    if (!file) return next()
+    const file = await bundler.getFile(servePath)
+    if (!file) {
+      // An asset that a rebuild renamed away. Answering with the app's HTML 404
+      // would hand a module script something it cannot parse, so reply in the
+      // asset's own language and say why in the console.
+      const notice = `[wabot] dev asset not found: ${servePath}`
+      if (req.path.endsWith('.css')) {
+        res.status(404).type('text/css').send(`/* ${notice} */`)
+        return
+      }
+      if (req.path.endsWith('.js')) {
+        res
+          .status(404)
+          .type('text/javascript')
+          .send(`console.error(${JSON.stringify(notice)})`)
+        return
+      }
+      return next()
+    }
     res.set('Content-Type', file.type)
-    res.set('Cache-Control', 'no-cache')
+    // Chunk URLs carry a hash of their contents, so they can be cached hard;
+    // entry URLs are stable across rebuilds and must be revalidated.
+    res.set('Cache-Control', file.immutable ? 'public, max-age=31536000, immutable' : 'no-cache')
     res.send(Buffer.from(file.contents))
   })
 
