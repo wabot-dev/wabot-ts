@@ -1,3 +1,3 @@
-export * from './PgCronJobRepository'
-export * from './PgJobRepository'
+export * from './CronJobPgQueries'
+export * from './JobPgQueries'
 export * from './PgTransactionAdapter'

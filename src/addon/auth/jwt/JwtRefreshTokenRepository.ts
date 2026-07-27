@@ -22,7 +22,7 @@ import { JwtRefreshToken } from './JwtRefreshToken'
  * subset matching on the metadata object, so it delegates to a per-adapter
  * extension (both shipped by the framework — see the *MemoryQueries / *PgQueries).
  */
-@repository({ table: 'jwt_refresh_token', constructor: JwtRefreshToken })
+@repository({ schema: 'wabot', table: 'jwt_refresh_token', constructor: JwtRefreshToken })
 export class JwtRefreshTokenRepository<D extends object>
   extends CrudRepository<JwtRefreshToken<D>, IJwtRefreshTokenQueries<D>>
   implements IJwtRefreshTokenRepository<D>

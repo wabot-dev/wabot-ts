@@ -3,7 +3,9 @@ import { randomUUID } from 'node:crypto'
 import {
   Chat,
   ChatItem,
+  ChatMemory,
   ChatOperator,
+  ChatRepository,
   IChatConnection,
   IChatItemData,
   IChatMemory,
@@ -77,6 +79,10 @@ export class TestChatRepository implements IChatRepository {
     const chat = this.chats.find((item) => item.id === chatId) ?? null
     const memory = this.memories.get(chatId)
     if (!chat || !memory) return null
-    return new ChatOperator(chat, memory, this)
+    return new ChatOperator(
+      chat,
+      memory as unknown as ChatMemory,
+      this as unknown as ChatRepository,
+    )
   }
 }

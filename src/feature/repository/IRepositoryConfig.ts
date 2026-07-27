@@ -55,4 +55,19 @@ export interface IRepositoryConfig<P extends Entity<IEntityData>> {
    * without a database behaves like production.
    */
   fields?: Exclude<keyof IEntityDataOf<P>, 'id' | 'createdAt'>[]
+  /**
+   * Extra top-level columns derived from each entity, on backends that store
+   * the entity as a document. They are written on every save and queried
+   * natively, so a hot lookup uses a real index instead of digging into the
+   * document. Ignored by backends that have no such notion.
+   */
+  add?: {
+    columns: {
+      [column: string]: {
+        /** Column type in the backend's own DDL, e.g. `'TEXT'`. */
+        type: string
+        value: (item: P) => boolean | number | string | null | Date
+      }
+    }
+  }
 }

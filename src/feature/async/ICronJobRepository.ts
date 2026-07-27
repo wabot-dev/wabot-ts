@@ -5,5 +5,6 @@ export interface ICronJobRepository {
   findDue(date?: Date): Promise<CronJob[]>
   findOrThrow(id: string): Promise<CronJob>
   update(cronJob: CronJob): Promise<void>
-  findByName(name: string): Promise<CronJob | null>
+  /** `findOne` prefix: the method-name grammar is what generates this query. */
+  findOneByName(name: string): Promise<CronJob | null>
 }

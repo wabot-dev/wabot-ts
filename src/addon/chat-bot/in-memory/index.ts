@@ -1,2 +1,2 @@
-export * from './InMemoryChatMemory'
-export * from './InMemoryChatRepository'
+export * from './ChatItemMemoryQueries'
+export * from './ChatMemoryQueries'

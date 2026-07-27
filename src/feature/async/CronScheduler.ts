@@ -63,7 +63,7 @@ export class CronScheduler {
 
     try {
       const cronJobs = await Promise.all(
-        configToReconciliate.map((x) => this.reconciliateConfig(x)),
+        configToReconciliate.map((x: ICronJobScheduleConfig) => this.reconciliateConfig(x)),
       )
       for (const cronJob of cronJobs) {
         this.logger.info(`config CRON ${cronJob.name} ${cronJob.schedule}`)
@@ -152,7 +152,7 @@ export class CronScheduler {
 
   private async reconciliateConfig(config: ICronJobScheduleConfig & { reconciliated?: boolean }) {
     return await this.locker.withKey(`wabot-cron-config-${config.name}`).run(async () => {
-      let cronJob = await this.cronRepo.findByName(config.name)
+      let cronJob = await this.cronRepo.findOneByName(config.name)
       if (cronJob) {
         this.logger.debug(`found cron job for name='${config.name}'`)
         cronJob.update({

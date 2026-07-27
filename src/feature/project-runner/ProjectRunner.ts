@@ -12,7 +12,7 @@ import { initTelemetry } from '@/core/observability'
 import { AuditLog } from '@/core/audit'
 import { setupCrashHandlers, ShutdownManager } from '@/core/lifecycle'
 import { buildPgPoolConfig, trackPgPool } from '@/feature/pg'
-import { ChatRepository, IChatAdapter, runAudioAdapters, runChatAdapters } from '@/feature/chat-bot'
+import { IChatAdapter, runAudioAdapters, runChatAdapters } from '@/feature/chat-bot'
 import { IChatChannel, runChatControllers, stopChatControllers } from '@/feature/chat-controller'
 import { SocketServerProvider } from '@/feature/socket'
 import { JobExecutor } from '@/feature/async/JobExecutor'
@@ -32,8 +32,6 @@ import {
   TransactionMetadataStore,
   ICommandHandler,
   ICronHandler,
-  JobRepository,
-  CronJobRepository,
 } from '@/feature/async'
 import { runSocketControllers } from '@/feature/socket-controller'
 import { ExpressProvider } from '@/feature/express'
@@ -396,22 +394,17 @@ export class ProjectRunner {
   private async registerMemoryAdapters(components: DiscoveredComponents): Promise<void> {
     const needsJobs = components.commandHandlers.length > 0 || components.cronHandlers.length > 0
 
-    const [chatBotMod, lockMod, idempotencyMod, rateLimitMod, auditMod, jobMod, cronJobMod] =
-      await Promise.all([
-        import('../../addon/chat-bot/in-memory/InMemoryChatRepository'),
-        import('../../addon/lock/InMemoryLocker'),
-        import('../../addon/idempotency/InMemoryIdempotency'),
-        import('../../addon/rate-limit/InMemoryRateLimiter'),
-        import('../../addon/audit/InMemoryAuditLog'),
-        needsJobs
-          ? import('../../addon/async/in-memory/InMemoryJobRepository')
-          : Promise.resolve(null),
-        components.cronHandlers.length > 0
-          ? import('../../addon/async/in-memory/InMemoryCronJobRepository')
-          : Promise.resolve(null),
-      ])
+    // Repositories resolve through the adapter registry, so only their custom
+    // queries need importing — each extension registers itself on import.
+    const [lockMod, idempotencyMod, rateLimitMod, auditMod] = await Promise.all([
+      import('../../addon/lock/InMemoryLocker'),
+      import('../../addon/idempotency/InMemoryIdempotency'),
+      import('../../addon/rate-limit/InMemoryRateLimiter'),
+      import('../../addon/audit/InMemoryAuditLog'),
+      import('../../addon/chat-bot/in-memory/index'),
+      needsJobs ? import('../../addon/async/in-memory/index') : Promise.resolve(null),
+    ])
 
-    container.register(ChatRepository, { useToken: chatBotMod.InMemoryChatRepository as any })
     container.register(Locker, { useToken: lockMod.InMemoryLocker as any })
     container.register(Idempotency, { useToken: idempotencyMod.InMemoryIdempotency as any })
     container.register(RateLimiter, { useToken: rateLimitMod.InMemoryRateLimiter as any })
@@ -422,15 +415,6 @@ export class ProjectRunner {
     registry.register(DefaultDbPool, memoryAdapter)
     if (this.defaultDatabaseProvider) registry.register(this.defaultDatabaseProvider, memoryAdapter)
     container.resolve(RepositoryMetadataStore).validateExtensionsRegistered(memoryAdapter.id)
-
-    if (jobMod) {
-      container.register(JobRepository, { useToken: jobMod.InMemoryJobRepository as any })
-    }
-    if (cronJobMod) {
-      container.register(CronJobRepository, {
-        useToken: cronJobMod.InMemoryCronJobRepository as any,
-      })
-    }
 
     logger.info('Configured with in-memory adapters')
   }
@@ -443,31 +427,22 @@ export class ProjectRunner {
     const hasCommandHandlers = components.commandHandlers.length > 0
     const hasCronHandlers = components.cronHandlers.length > 0
 
-    const [
-      chatBotMod,
-      lockerMod,
-      idempotencyMod,
-      rateLimitMod,
-      auditMod,
-      repoAdapterMod,
-      txMod,
-      jobMod,
-      cronJobMod,
-    ] = await Promise.all([
-      import('../../addon/chat-bot/pg/PgChatRepository'),
-      import('../../feature/pg/PgLocker'),
-      import('../../feature/pg/PgIdempotency'),
-      import('../../feature/pg/PgRateLimiter'),
-      import('../../feature/pg/PgAuditLog'),
-      import('../../feature/pg/PgJsonRepositoryAdapter'),
-      import('../../addon/async/pg/PgTransactionAdapter'),
-      hasCommandHandlers || hasCronHandlers
-        ? import('../../addon/async/pg/PgJobRepository')
-        : Promise.resolve(null),
-      hasCronHandlers ? import('../../addon/async/pg/PgCronJobRepository') : Promise.resolve(null),
-    ])
+    // Repositories resolve through the adapter registry, so only their custom
+    // queries need importing — each extension registers itself on import.
+    const [lockerMod, idempotencyMod, rateLimitMod, auditMod, repoAdapterMod, txMod] =
+      await Promise.all([
+        import('../../feature/pg/PgLocker'),
+        import('../../feature/pg/PgIdempotency'),
+        import('../../feature/pg/PgRateLimiter'),
+        import('../../feature/pg/PgAuditLog'),
+        import('../../feature/pg/PgJsonRepositoryAdapter'),
+        import('../../addon/async/pg/PgTransactionAdapter'),
+        import('../../addon/chat-bot/pg/index'),
+        hasCommandHandlers || hasCronHandlers
+          ? import('../../addon/async/pg/index')
+          : Promise.resolve(null),
+      ])
 
-    container.register(ChatRepository, { useToken: chatBotMod.PgChatRepository as any })
     container.register(Locker, { useToken: lockerMod.PgLocker as any })
     container.register(Idempotency, { useToken: idempotencyMod.PgIdempotency as any })
     container.register(RateLimiter, { useToken: rateLimitMod.PgRateLimiter as any })
@@ -481,13 +456,6 @@ export class ProjectRunner {
 
     const transactionStore = container.resolve(TransactionMetadataStore)
     transactionStore.registerAdapter('default', new txMod.PgTransactionAdapter(this.pool))
-
-    if (jobMod) {
-      container.register(JobRepository, { useToken: jobMod.PgJobRepository })
-    }
-    if (cronJobMod) {
-      container.register(CronJobRepository, { useToken: cronJobMod.PgCronJobRepository })
-    }
 
     logger.info('Configured with PostgreSQL adapters')
   }

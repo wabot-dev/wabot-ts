@@ -3,7 +3,10 @@ import { IChatItem } from './IChatItem'
 import { IChatMessage } from './IChatMessage'
 import { IFunctionCall } from './IFunctionCall'
 
-export type IChatItemData = IEntityData & IChatItem
+/** The chat this item belongs to; promoted to a column by `ChatItemRepository`. */
+export type IChatItemOwner = { chatId?: string }
+
+export type IChatItemData = IEntityData & IChatItem & IChatItemOwner
 
 export class ChatItem extends Entity<IChatItemData> {
   get type() {
