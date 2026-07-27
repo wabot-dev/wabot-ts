@@ -414,7 +414,9 @@ export class ProjectRunner {
     registry.setDefault(memoryAdapter)
     registry.register(DefaultDbPool, memoryAdapter)
     if (this.defaultDatabaseProvider) registry.register(this.defaultDatabaseProvider, memoryAdapter)
-    container.resolve(RepositoryMetadataStore).validateExtensionsRegistered(memoryAdapter.id)
+    // The memory backend runs no statements, so every projection needs its own
+    // in-memory implementation — checked here rather than at the first call.
+    container.resolve(RepositoryMetadataStore).validateExtensionsRegistered(memoryAdapter.id, false)
 
     logger.info('Configured with in-memory adapters')
   }

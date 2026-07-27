@@ -9,6 +9,7 @@ import {
   IQueryAst,
   IQueryCondition,
   IRepositoryAdapter,
+  IProjectionRuntime,
   IRepositoryConfig,
   IRepositoryRuntime,
   buildPage,
@@ -17,6 +18,7 @@ import {
 import { describeStorage, IStorageDeclaration, storageOf } from '@/core/repository'
 import { IPgRepositoryConfig } from './IPgRepositoryConfig'
 import { PG_ENGINE } from './pgEngine'
+import { PgProjectionRuntime } from './PgProjectionRuntime'
 import { PgCrudRepository } from './PgCrudRepository'
 import { PgSqlRepositoryBase } from './PgSqlRepositoryBase'
 import { buildQuerySql } from './buildQuerySql'
@@ -117,6 +119,11 @@ export class PgRepositoryAdapter implements IRepositoryAdapter {
       )
     }
     return new ExtensionCtor(this.pool, config as unknown as IPgRepositoryConfig<any>)
+  }
+
+  /** Projections run their own SQL on this backend's pool. */
+  buildProjection(): IProjectionRuntime {
+    return new PgProjectionRuntime(this.pool)
   }
 
   private usesColumns(

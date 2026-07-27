@@ -1,6 +1,6 @@
 ---
 name: wabot-persistence
-description: Use when defining entities, repositories, queries, pagination, indexes, per-adapter query extensions, or database migrations in Wabot. Covers Entity / IEntityData, @repository, the @query method-name DSL (find/findOne/count/exists/delete + And/Or + operators), cursor/keyset pagination (findPage, IPageOptions, IPage, opaque nextCursor, fixed created_at ordering), multiple databases via @dbPool / IDbPoolProvider providers referenced by @repository({ pool }), read-only repositories (ReadRepository) for CQRS read models / replicas, connection pool tuning (WABOT_PG_*), per-repository audit trails (audit: config, append-only audit_<stream> tables, recover() as a soft-delete replacement, AuditLog.record/query for custom streams, IAuditActor + optional AuditActorResolver, actor carried across commands), @queryExtension, @memExtension / MemoryRepositoryExtension, @dbExtension with PgJsonbRepositoryExtension or PgColumnsRepositoryExtension, the storage strategy declared by the repository base class (PgJsonbRepository / PgColumnsRepository and their Read variants), the optional fields projection, automatic + explicit indexes, add.columns promotion, plain-SQL migrations via the wabot-migrate CLI, the document-to-columns swap, and how the active backend is chosen automatically by the project runner.
+description: Use when defining entities, repositories, queries, pagination, indexes, per-adapter query extensions, or database migrations in Wabot. Covers Entity / IEntityData, @repository, the @query method-name DSL (find/findOne/count/exists/delete + And/Or + operators), cursor/keyset pagination (findPage, IPageOptions, IPage, opaque nextCursor, fixed created_at ordering), multiple databases via @dbPool / IDbPoolProvider providers referenced by @repository({ pool }), read-only repositories (ReadRepository) for CQRS read models / replicas, connection pool tuning (WABOT_PG_*), per-repository audit trails (audit: config, append-only audit_<stream> tables, recover() as a soft-delete replacement, AuditLog.record/query for custom streams, IAuditActor + optional AuditActorResolver, actor carried across commands), @queryExtension, @memExtension / MemoryRepositoryExtension, @dbExtension with PgJsonbRepositoryExtension or PgColumnsRepositoryExtension, the storage strategy declared by the repository base class (PgJsonbRepository / PgColumnsRepository and their Read variants), the optional fields subset, automatic + explicit indexes, add.columns promotion, plain-SQL migrations via the wabot-migrate CLI, the document-to-columns swap, projections (@projection / Projection / MemoryProjectionExtension) for read-only objects built by their own SQL — joins and aggregates — with pool resolution, transaction participation and rows mapped to validated classes, and how the active backend is chosen automatically by the project runner.
 ---
 
 # Persistence
@@ -235,7 +235,7 @@ The base class is what the backend reads: `PgColumnsRepository` → a column per
 
 The name says Postgres, but it does not tie the repository to it: with no database the memory backend serves any of them, so `DATABASE_URL`-less development keeps working. A _different_ engine, once one exists, refuses a repository declared for another with a clear error.
 
-`fields` is an optional **projection**: those fields alone are read and written, and anything else in the row is invisible to that repository — the way to sit a repository on a wide or legacy table. Omit it to take the whole row. The memory backend honours it too, so dev matches production. Column name = field name (`id`/`createdAt` map to the `id`/`created_at` columns). **No auto-DDL**: you own the schema via migrations.
+`fields` is an optional **field subset**: those fields alone are read and written, and anything else in the row is invisible to that repository — the way to sit a repository on a wide or legacy table. Omit it to take the whole row. The memory backend honours it too, so dev matches production. Column name = field name (`id`/`createdAt` map to the `id`/`created_at` columns). **No auto-DDL**: you own the schema via migrations.
 
 An extension is still optional here; add one extending `PgColumnsRepositoryExtension<Game>` only when you need hand-written SQL.
 
@@ -333,6 +333,61 @@ export class OrderRepository extends CrudRepository<Order> {}
 ```
 
 Reads on a replica are **eventually consistent** (replication lag): if a flow must read what it just wrote, read it from the primary.
+
+## Projections (objects built by their own SQL)
+
+A repository maps to a table. When the answer is a **join or an aggregate** — revenue per customer, activity per channel — there is no table to map, and forcing one means inventing an entity with an `id` and a `createdAt` it does not have. That is what a projection is for: a read-only object built by its own statements.
+
+```typescript
+import { isNumber, isString } from '@wabot-dev/framework'
+import {
+  MemoryProjectionExtension,
+  Projection,
+  memExtension,
+  projection,
+} from '@wabot-dev/framework'
+
+export class CustomerRevenueRow {
+  @isString() customerId: string
+  @isNumber() total: number
+}
+
+@projection() // or @projection({ pool: ReplicaDb })
+export class CustomerRevenue extends Projection {
+  async topSpenders(limit: number): Promise<CustomerRevenueRow[]> {
+    return this.query(
+      CustomerRevenueRow,
+      `SELECT c.id AS "customerId", sum(o.total) AS total
+         FROM orders o JOIN customers c ON c.id = o.customer_id
+        GROUP BY c.id ORDER BY total DESC LIMIT $1`,
+      [limit],
+    )
+  }
+}
+
+@memExtension(CustomerRevenue)
+export class CustomerRevenueMemory extends MemoryProjectionExtension {
+  constructor(private orders: OrderRepository) {
+    super()
+  }
+
+  async topSpenders(limit: number): Promise<CustomerRevenueRow[]> {
+    /* the same answer, computed from the repositories it derives from */
+  }
+}
+```
+
+**The class is the database implementation.** There is no `@dbExtension` for a projection and no `@query` DSL — you write the whole statement, so there is nothing left for a method-name grammar to generate. The decorator configures one thing only: which database answers, and only when it isn't the default one.
+
+**Every projection needs an in-memory implementation.** The memory backend runs no statements, so each call is served by the `@memExtension` registered for the projection, matched by method name. It is resolved through the container — a projection extension is handed no store, so it can inject the repositories it derives its answer from. A projection without one **fails at startup**, naming itself, rather than at the first call.
+
+What the framework adds over holding a `Pool` yourself:
+
+- **The database is resolved like a repository's** — `@projection({ pool })` routes to a `@dbPool` provider, replica included.
+- **Statements join an open transaction** on the same pool: they run on its connection and see its uncommitted writes. Note the corollary — a projection pointed at a _replica_ cannot take part in a transaction on the primary, since that is a different pool and a different connection.
+- **Rows come back as instances of the declared class**, coerced to the types its validators declare and then validated. This is not cosmetic: the driver returns `numeric`, `bigint` and `count(*)` as **strings**, so without that step a summed total is text pretending to be a number — and projections are mostly sums and counts.
+
+Reach for a plain `@injectable()` service holding a pool when you want none of the above; reach for a repository when the thing really is a table.
 
 ## Audit trail (and the soft-delete replacement)
 

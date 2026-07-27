@@ -1,6 +1,7 @@
 import { singleton } from '@/core/injection'
 import { IConstructor } from '@/core/generics'
 import { Entity, IEntityData } from '@/core/entity'
+import { IProjectionConfig } from './IProjectionConfig'
 import { IRepositoryConfig } from './IRepositoryConfig'
 
 export interface IQueryMethodMetadata {
@@ -14,6 +15,7 @@ export class RepositoryMetadataStore {
   private extensionMethods = new Map<Function, Map<string, IQueryMethodMetadata>>()
   private repositoryConfigs = new Map<Function, IRepositoryConfig<any>>()
   private extensions = new Map<Function, Map<symbol, IConstructor<any>>>()
+  private projectionConfigs = new Map<Function, IProjectionConfig>()
 
   saveQueryMethodMetadata(metadata: IQueryMethodMetadata) {
     let perClass = this.queryMethods.get(metadata.repositoryConstructor)
@@ -42,6 +44,19 @@ export class RepositoryMetadataStore {
 
   getRepositoryConfig(ctor: IConstructor<any>): IRepositoryConfig<any> | undefined {
     return this.repositoryConfigs.get(ctor)
+  }
+
+  saveProjectionConfig(ctor: IConstructor<any>, config: IProjectionConfig) {
+    this.projectionConfigs.set(ctor, config)
+  }
+
+  getProjectionConfig(ctor: IConstructor<any>): IProjectionConfig | undefined {
+    return this.projectionConfigs.get(ctor)
+  }
+
+  /** Every registered projection — a backend without SQL must serve them all. */
+  getProjections(): IConstructor<any>[] {
+    return [...this.projectionConfigs.keys()] as IConstructor<any>[]
   }
 
   /** Every registered repository config — used to discover which databases are referenced. */
@@ -113,20 +128,40 @@ export class RepositoryMetadataStore {
     return undefined
   }
 
-  validateExtensionsRegistered(adapterId: symbol): void {
+  /**
+   * Fail at startup, not at the first call, when something that needs a
+   * per-adapter implementation has none for the backend about to be used.
+   * `canRunProjections` says whether the backend runs a projection's own
+   * statements; when it cannot, every projection needs its own implementation.
+   */
+  validateExtensionsRegistered(adapterId: symbol, canRunProjections = true): void {
     const offenders: string[] = []
     for (const ctor of this.extensionMethods.keys()) {
       if (!this.getExtension(ctor as IConstructor<any>, adapterId)) {
         offenders.push((ctor as Function).name)
       }
     }
-    if (offenders.length === 0) return
+    if (offenders.length > 0) {
+      throw new Error(
+        `Repository extension wiring error: the following repositories declare ` +
+          `@queryExtension methods but no extension is registered for adapter ` +
+          `"${adapterId.description ?? 'unknown'}":\n  - ${offenders.join('\n  - ')}\n` +
+          `Did you forget to import the extension classes (so their decorators run), ` +
+          `or are you running with the wrong adapter?`,
+      )
+    }
+
+    if (canRunProjections) return
+
+    const unserved = this.getProjections()
+      .filter((ctor) => !this.getExtension(ctor, adapterId))
+      .map((ctor) => ctor.name)
+    if (unserved.length === 0) return
     throw new Error(
-      `Repository extension wiring error: the following repositories declare ` +
-        `@queryExtension methods but no extension is registered for adapter ` +
-        `"${adapterId.description ?? 'unknown'}":\n  - ${offenders.join('\n  - ')}\n` +
-        `Did you forget to import the extension classes (so their decorators run), ` +
-        `or are you running with the wrong adapter?`,
+      `Projection wiring error: the active backend cannot run statements, and the ` +
+        `following projections have no implementation registered for adapter ` +
+        `"${adapterId.description ?? 'unknown'}":\n  - ${unserved.join('\n  - ')}\n` +
+        `Write one per projection and register it with @memExtension(<Projection>).`,
     )
   }
 }
