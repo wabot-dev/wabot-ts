@@ -4,7 +4,12 @@ import { ChatItem } from './ChatItem'
 import { IChatConnection } from './IChatConnection'
 import { IChatMessage } from './IChatMessage'
 import { ChatMemory } from './ChatMemory'
-import { ChatRepository } from './ChatRepository'
+// Type-only: `ChatRepository` builds operators, so a value import would close a
+// cycle and leave whichever module is evaluated first reading the other's
+// bindings before they exist. Nothing resolves ChatOperator through the
+// container — it is always constructed with a chat and a memory in hand — so
+// losing it from the emitted parameter metadata costs nothing.
+import type { ChatRepository } from './ChatRepository'
 
 @injectable()
 export class ChatOperator {
