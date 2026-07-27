@@ -242,6 +242,10 @@ export class PgMyRepository extends PgCrudRepository<MyEntity> implements IMyRep
 }
 ```
 
+**Storage strategy:** a repository declares where its fields live by the base class it extends — `PgJsonbRepository` (one JSONB blob, framework-managed schema) or `PgColumnsRepository` (a real column per field, schema owned by migrations). Plain `CrudRepository` declares nothing and the active backend picks its default. The declaration is read off the class by `storageOf()` (a `static storage = { engine, strategy }` inherited through the constructor chain) and handed to `adapter.build()`; the memory backend ignores it, which is what keeps `DATABASE_URL`-less runs working whatever the base class.
+
+`@repository({ fields })` is an optional projection: those fields alone are read and written, everything else in the row is invisible to that repository. The memory backend honours it too, so dev matches production. Two validations guard the pairing — `@dbExtension` refuses an extension whose strategy contradicts the repository's (at import time), and the adapter refuses a repository or extension declaring another engine (at build time).
+
 ## Extending the Framework
 
 ### Adding a New Chat Channel

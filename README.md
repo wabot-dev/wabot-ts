@@ -222,7 +222,19 @@ const page = await games.findPage({ limit: 20, cursor })
 ```
 
 - **JSONB por defecto**, con **índices automáticos** derivados de tus queries.
-- **Migración a columnas relacionales sin tocar la lógica** cuando necesitas escalar — mismos `@query`, mismos tests.
+- **Migración a columnas sin tocar la lógica** cuando necesitas escalar — mismos `@query`, mismos tests. La estrategia se declara en la clase base del repositorio:
+
+  ```typescript
+  // Cada campo en una columna real; la tabla es de tus migraciones
+  @repository({ table: 'user', constructor: User })
+  export class UserRepository extends PgColumnsRepository<User> {
+    @query() declare findByEmail: (email: string) => Promise<User[]>
+  }
+  ```
+
+  `PgJsonbRepository` declara la otra estrategia, y `CrudRepository` deja que el backend elija (JSONB en Postgres). Sin `DATABASE_URL` el fallback a memoria sirve las tres igual, así que la clase base declara intención, no ata el runtime.
+
+- **Proyección opcional** con `@repository({ fields })`: el repositorio lee y escribe sólo esos campos y el resto de la fila le es invisible — útil sobre tablas anchas o heredadas, y sobre read models. La respeta también el backend en memoria.
 - **Migraciones en SQL plano** con el CLI `wabot-migrate` (forward-only, checksum, advisory locks).
 - **Paginación por cursor** integrada (`findPage` / `IPageOptions`).
 

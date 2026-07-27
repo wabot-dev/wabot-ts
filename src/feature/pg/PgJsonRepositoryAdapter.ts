@@ -14,7 +14,9 @@ import {
   buildPage,
   decodeCursor,
 } from '@/feature/repository'
+import { describeStorage, IStorageDeclaration, storageOf } from '@/core/repository'
 import { IPgRepositoryConfig } from './IPgRepositoryConfig'
+import { PG_ENGINE } from './pgEngine'
 import { PgCrudRepository } from './PgCrudRepository'
 import { PgSqlRepositoryBase } from './PgSqlRepositoryBase'
 import { buildQuerySql } from './buildQuerySql'
@@ -83,9 +85,10 @@ class PgJsonRepositoryRuntime<P extends Entity<IEntityData>>
 }
 
 /**
- * The Postgres backend. Supports two storage strategies, chosen per repository
- * by the base class its `@dbExtension` extends: `PgSqlRepositoryExtension` →
- * relational (real columns), anything else (including no extension) → JSONB.
+ * The Postgres backend. Serves two storage strategies, chosen per repository by
+ * the base class it extends: `PgColumnsRepository` → real columns,
+ * `PgJsonbRepository` → JSONB. A repository that declares nothing (plain
+ * `CrudRepository`) gets JSONB, which is what it has always got.
  */
 export class PgRepositoryAdapter implements IRepositoryAdapter {
   readonly id = DB_EXTENSION_ID
@@ -95,16 +98,43 @@ export class PgRepositoryAdapter implements IRepositoryAdapter {
   build<P extends Entity<IEntityData>>(
     config: IRepositoryConfig<P>,
     extensionCtor?: IConstructor<any>,
+    storage?: IStorageDeclaration,
   ): IRepositoryRuntime<P> {
     const pgConfig = config as unknown as IPgRepositoryConfig<P>
-    if (extensionCtor && inheritsFrom(extensionCtor, PgSqlRepositoryBase)) {
+    if (this.usesColumns(config, storage, extensionCtor)) {
       return new PgSqlRepositoryBase<P>(this.pool, pgConfig)
     }
     return new PgJsonRepositoryRuntime<P>(this.pool, pgConfig)
   }
 
   buildExtension<E>(config: IRepositoryConfig<any>, ExtensionCtor: IConstructor<E>): E {
+    const declared = storageOf(ExtensionCtor)
+    if (declared && declared.engine !== PG_ENGINE) {
+      throw new Error(
+        `${ExtensionCtor.name} is an extension for ${describeStorage(declared)}, but the ` +
+          `active backend is Postgres. Extend PgJsonbRepositoryExtension or ` +
+          `PgColumnsRepositoryExtension.`,
+      )
+    }
     return new ExtensionCtor(this.pool, config as unknown as IPgRepositoryConfig<any>)
+  }
+
+  private usesColumns(
+    config: IRepositoryConfig<any>,
+    storage: IStorageDeclaration | undefined,
+    extensionCtor?: IConstructor<any>,
+  ): boolean {
+    if (storage) {
+      if (storage.engine !== PG_ENGINE) {
+        throw new Error(
+          `${config.table}: the repository declares ${describeStorage(storage)} storage, but the ` +
+            `active backend is Postgres. Extend PgJsonbRepository or PgColumnsRepository.`,
+        )
+      }
+      return storage.strategy === 'columns'
+    }
+    // Nothing declared on the repository: fall back to the extension's base.
+    return Boolean(extensionCtor && inheritsFrom(extensionCtor, PgSqlRepositoryBase))
   }
 }
 

@@ -14,6 +14,9 @@ export interface IRepositoryAuditConfig {
   pool?: IConstructor<IDbPoolProvider>
 }
 
+/** The data shape an entity carries, so `fields` can be checked against it. */
+export type IEntityDataOf<P> = P extends Entity<infer D> ? D : never
+
 // Adapter-specific fields (e.g. `schema`, `add.columns` for Postgres) can be
 // included by the caller; the active adapter is responsible for reading them.
 export interface IRepositoryConfig<P extends Entity<IEntityData>> {
@@ -40,4 +43,16 @@ export interface IRepositoryConfig<P extends Entity<IEntityData>> {
    * auto one, and `disabled: true` opts out. Ignored by the memory backend.
    */
   indexes?: IIndexDecl[]
+  /**
+   * Projection: the entity fields this repository reads and writes. Anything
+   * outside the list is invisible to it — not loaded, not persisted — which is
+   * what makes a repository over a wide or legacy table (or a CQRS read model)
+   * possible. Omit it to take every field.
+   *
+   * Meaningful for storage strategies that map fields to native columns
+   * (`PgColumnsRepository`); the document strategy stores the entity whole and
+   * ignores it. The memory backend honours it either way, so development
+   * without a database behaves like production.
+   */
+  fields?: Exclude<keyof IEntityDataOf<P>, 'id' | 'createdAt'>[]
 }

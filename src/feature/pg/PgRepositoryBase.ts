@@ -6,8 +6,12 @@ import { withPgClient } from './withPgClient'
 import { Logger } from '@/core/logger'
 import { PgLocker } from './PgLocker'
 import { buildIndexDdl } from './pgIndexes'
+import { PG_JSONB } from './pgEngine'
 
 export class PgRepositoryBase<P extends Entity<IEntityData>> extends DbRepositoryExtension {
+  /** Which repositories this extension may serve: Postgres, document storage. */
+  static readonly storage = PG_JSONB
+
   private tableIsReady = false
   protected schema: string
   protected table: string

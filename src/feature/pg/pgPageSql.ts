@@ -1,5 +1,5 @@
 import { IQueryCondition } from '@/feature/repository'
-import { buildWhereClause } from './buildQuerySql'
+import { buildWhereClause, type IPromotedColumns } from './buildQuerySql'
 
 export interface IBuiltPage {
   sql: string
@@ -22,7 +22,7 @@ export function buildPageSql(
   table: string,
   columns: string,
   conditions: IQueryCondition[],
-  promotedColumns: string[],
+  promotedColumns: IPromotedColumns,
   options: IPageSqlOptions,
 ): IBuiltPage {
   const where = buildWhereClause(conditions, promotedColumns)

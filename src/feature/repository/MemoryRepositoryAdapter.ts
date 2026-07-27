@@ -24,9 +24,44 @@ export interface IMemoryRepositoryAdapterOptions {
   maxItems?: number
 }
 
+/**
+ * Drop everything outside `config.fields`, so a projection hides the same
+ * fields here as it does on a real database. Without a projection the data is
+ * passed through untouched.
+ */
+function projectData(config: IRepositoryConfig<any>, data: any): any {
+  const fields = config.fields as string[] | undefined
+  if (!fields?.length) return data
+  const projected: any = { id: data.id, createdAt: data.createdAt }
+  for (const field of fields) {
+    if (field in data) projected[field] = data[field]
+  }
+  return projected
+}
+
 function cloneEntity<P extends Entity<IEntityData>>(config: IRepositoryConfig<P>, item: P): P {
   const data = JSON.parse(JSON.stringify(item['data']))
-  return new config.constructor(data)
+  return new config.constructor(projectData(config, data))
+}
+
+/**
+ * The stored entity with the projected fields overwritten. An UPDATE names only
+ * the projected columns and leaves the rest of the row alone, so replacing the
+ * whole record here would make memory lose data a database would have kept.
+ */
+function mergeProjected<P extends Entity<IEntityData>>(
+  config: IRepositoryConfig<P>,
+  stored: P,
+  incoming: P,
+): P {
+  const fields = config.fields as string[] | undefined
+  if (!fields?.length) return cloneEntity(config, incoming)
+  const merged = JSON.parse(JSON.stringify(stored['data']))
+  const source = incoming['data'] as Record<string, unknown>
+  for (const field of fields) {
+    if (field in source) merged[field] = JSON.parse(JSON.stringify(source[field] ?? null))
+  }
+  return new config.constructor(merged)
 }
 
 interface IPersistOptions {
@@ -167,10 +202,11 @@ class MemoryRepositoryRuntime<P extends Entity<IEntityData>> implements IReposit
 
   async update(item: P): Promise<void> {
     item.validate()
-    if (!this.items.has(item.id)) {
+    const stored = this.items.get(item.id)
+    if (!stored) {
       throw new Error(`Update failed: no affected rows`)
     }
-    this.store.touch(cloneEntity(this.config, item))
+    this.store.touch(mergeProjected(this.config, stored, item))
     this.store.persist()
   }
 

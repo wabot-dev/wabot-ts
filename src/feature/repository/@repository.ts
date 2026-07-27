@@ -1,6 +1,6 @@
 import { Entity, IEntityData } from '@/core/entity'
 import { AuditLog } from '@/core/audit'
-import { CrudRepository, ReadRepository } from '@/core/repository'
+import { CrudRepository, ReadRepository, storageOf } from '@/core/repository'
 import { container, singleton } from '@/core/injection'
 import { IConstructor } from '@/core/generics'
 import { normalizeAudit } from './auditConfig'
@@ -40,11 +40,12 @@ function getRuntime<P extends Entity<IEntityData>>(self: any): IRepositoryRuntim
 
   const config = getConfig(self)
   const adapter = getAdapterFor(config)
-  // The repo's db extension (if any) selects the backend's storage strategy via
-  // the base class it extends; undefined falls back to the backend default.
+  // The repository declares its storage by the engine base it extends
+  // (`PgColumnsRepository`, …); undefined means "no opinion" and the backend
+  // uses its default.
   const ctor = self.constructor as IConstructor<any>
   const extensionCtor = container.resolve(RepositoryMetadataStore).getExtension(ctor, adapter.id)
-  runtime = adapter.build(config, extensionCtor) as IRepositoryRuntime<P>
+  runtime = adapter.build(config, extensionCtor, storageOf(ctor)) as IRepositoryRuntime<P>
   Object.defineProperty(self, RUNTIME_KEY, { value: runtime, enumerable: false })
   return runtime
 }

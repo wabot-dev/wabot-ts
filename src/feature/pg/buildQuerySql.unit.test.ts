@@ -175,6 +175,29 @@ test.describe('buildQuerySql', () => {
     })
   })
 
+  test.describe("'all' columns (column storage with no fields projection)", () => {
+    const buildAll = (methodName: string) =>
+      buildQuerySql(parseQueryMethodName(methodName), TABLE, '*', 'all')
+
+    test('every field is a column: nothing falls back to data->>', () => {
+      // There is no `data` blob in this strategy, so a JSON extraction here
+      // would be invalid SQL rather than a slow query.
+      const r = buildAll('findByStatusAndType')
+      assert.match(squash(r.sql), /WHERE "status" = \$1 AND "type" = \$2$/)
+      assert.doesNotMatch(r.sql, /data->>/)
+    })
+
+    test('comparisons keep the column type, with no ::numeric cast', () => {
+      const r = buildAll('findByAgeGreaterThan')
+      assert.match(r.sql, /WHERE "age" > \$1$/)
+    })
+
+    test('ORDER BY sorts on the column, not on text', () => {
+      const r = buildAll('findAllOrderByAgeDesc')
+      assert.match(r.sql, /ORDER BY "age" DESC$/)
+    })
+  })
+
   test.describe('buildParams arg validation', () => {
     test('passes through correct argument count', () => {
       const r = build('findByStatusAndType')

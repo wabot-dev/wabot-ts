@@ -18,6 +18,13 @@ const RESERVED_COLUMN_BY_FIELD: Record<string, string> = {
   createdAt: 'created_at',
 }
 
+/**
+ * Fields backed by a real column. `'all'` is the column storage strategy with
+ * no `fields` projection: there is no `data` blob to fall back to, so every
+ * field is a column.
+ */
+export type IPromotedColumns = string[] | 'all'
+
 interface IFieldResolver {
   /** Whether the field is backed by a native typed column (reserved or promoted). */
   isNative(field: string): boolean
@@ -29,21 +36,25 @@ function escapeJsonKey(field: string): string {
   return field.replace(/'/g, "''")
 }
 
-function makeFieldResolver(promotedColumns: Set<string>): IFieldResolver {
+function makeFieldResolver(promotedColumns: Set<string> | 'all'): IFieldResolver {
+  const promoted = (field: string) => promotedColumns === 'all' || promotedColumns.has(field)
   return {
     isNative(field: string): boolean {
       return (
-        Object.prototype.hasOwnProperty.call(RESERVED_COLUMN_BY_FIELD, field) ||
-        promotedColumns.has(field)
+        Object.prototype.hasOwnProperty.call(RESERVED_COLUMN_BY_FIELD, field) || promoted(field)
       )
     },
     ref(field: string): string {
       const reserved = RESERVED_COLUMN_BY_FIELD[field]
       if (reserved) return reserved
-      if (promotedColumns.has(field)) return `"${field}"`
+      if (promoted(field)) return `"${field}"`
       return `data->>'${escapeJsonKey(field)}'`
     },
   }
+}
+
+function resolverFor(promotedColumns: IPromotedColumns): IFieldResolver {
+  return makeFieldResolver(promotedColumns === 'all' ? 'all' : new Set(promotedColumns))
 }
 
 function operatorArity(op: QueryOperator): number {
@@ -175,18 +186,18 @@ function buildDeleteSql(
 /** Render just the WHERE clause for a set of conditions (used by keyset pagination). */
 export function buildWhereClause(
   conditions: IQueryCondition[],
-  promotedColumns: string[] = [],
+  promotedColumns: IPromotedColumns = [],
 ): { sql: string; argCount: number } {
-  return renderWhere(conditions, makeFieldResolver(new Set(promotedColumns)))
+  return renderWhere(conditions, resolverFor(promotedColumns))
 }
 
 export function buildQuerySql(
   ast: IQueryAst,
   table: string,
   columns: string,
-  promotedColumns: string[] = [],
+  promotedColumns: IPromotedColumns = [],
 ): IBuiltQuery {
-  const res = makeFieldResolver(new Set(promotedColumns))
+  const res = resolverFor(promotedColumns)
   let sql: string
   let argCount: number
 
