@@ -166,6 +166,8 @@ test('auth paths', async () => {
   assert.equal(anon.status, 401)
 
   const ok = await harness.as({ userId: 'u1' }).request('GET', '/api/items/secret') // fresh signed Bearer per request
+  // For a guard scoped to a session cookie and/or an audience:
+  // harness.as({ userId: 'a1' }, { cookie: 'wabot_admin', audience: 'admin' })
   assert.deepEqual(ok.body, { userId: 'u1' })
 
   const secret = await apiKeys.addKey({ userId: 'u2' })

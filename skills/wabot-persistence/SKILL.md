@@ -1,6 +1,6 @@
 ---
 name: wabot-persistence
-description: Use when defining entities, repositories, queries, pagination, indexes, per-adapter query extensions, or database migrations in Wabot. Covers Entity / IEntityData, @repository, the @query method-name DSL (find/findOne/count/exists/delete + And/Or + operators), cursor/keyset pagination (findPage, IPageOptions, IPage, opaque nextCursor, fixed created_at ordering), multiple databases via @dbPool / IDbPoolProvider providers referenced by @repository({ pool }), read-only repositories (ReadRepository) for CQRS read models / replicas, connection pool tuning (WABOT_PG_*), per-repository audit trails (audit: config, append-only audit_<stream> tables, recover() as a soft-delete replacement, AuditLog.record/query for custom streams, IAuditActor + optional AuditActorResolver, actor carried across commands), @queryExtension, @memExtension / MemoryRepositoryExtension, @dbExtension with PgJsonbRepositoryExtension (JSONB, default) or PgSqlRepositoryExtension (relational columns), automatic + explicit indexes, add.columns promotion, plain-SQL migrations via the wabot-migrate CLI, the JSONB→relational swap, and how the active backend is chosen automatically by the project runner.
+description: Use when defining entities, repositories, queries, pagination, indexes, per-adapter query extensions, or database migrations in Wabot. Covers Entity / IEntityData, @repository, the @query method-name DSL (find/findOne/count/exists/delete + And/Or + operators), cursor/keyset pagination (findPage, IPageOptions, IPage, opaque nextCursor, fixed created_at ordering), multiple databases via @dbPool / IDbPoolProvider providers referenced by @repository({ pool }), read-only repositories (ReadRepository) for CQRS read models / replicas, connection pool tuning (WABOT_PG_*), per-repository audit trails (audit: config, append-only audit_<stream> tables, recover() as a soft-delete replacement, AuditLog.record/query for custom streams, IAuditActor + optional AuditActorResolver, actor carried across commands), @queryExtension, @memExtension / MemoryRepositoryExtension, @dbExtension with PgJsonbRepositoryExtension or PgColumnsRepositoryExtension, the storage strategy declared by the repository base class (PgJsonbRepository / PgColumnsRepository and their Read variants), the optional fields projection, automatic + explicit indexes, add.columns promotion, plain-SQL migrations via the wabot-migrate CLI, the document-to-columns swap, and how the active backend is chosen automatically by the project runner.
 ---
 
 # Persistence
@@ -109,7 +109,7 @@ do {
 } while (cursor)
 ```
 
-`nextCursor` is an **opaque** base64url token — send it back verbatim as the next `cursor`; never build or parse it. A malformed or stale cursor is treated as the first page. Works identically on every backend (memory, JSONB, relational).
+`nextCursor` is an **opaque** base64url token — send it back verbatim as the next `cursor`; never build or parse it. A malformed or stale cursor is treated as the first page. Works identically on every backend (memory, document, columns).
 
 ### Ordering is fixed to `created_at DESC, id DESC`
 
@@ -121,7 +121,7 @@ To sort by a different field, use an `OrderBy…` query method with `Limit`. Thi
 @query() declare findByUserIdOrderByHoursPlayedDescLimit50: (userId: string) => Promise<Game[]>
 ```
 
-If you need a custom sort **and** deep paging together, hand-write keyset SQL in a `@queryExtension()`: promote the sort field to a real column (`add.columns`) or move the repo to the relational strategy, then order by `(yourField, id)` and compare against a cursor you carry yourself. The built-in `created_at` cursor is the supported default; anything else is a manual extension.
+If you need a custom sort **and** deep paging together, hand-write keyset SQL in a `@queryExtension()`: promote the sort field to a real column (`add.columns`) or move the repo to column storage, then order by `(yourField, id)` and compare against a cursor you carry yourself. The built-in `created_at` cursor is the supported default; anything else is a manual extension.
 
 ## Adapter extensions
 
@@ -130,12 +130,12 @@ The runner picks the backend per process from `DATABASE_URL`:
 - **memory** — `MemoryRepositoryAdapter` when `DATABASE_URL` is missing or not a `postgres://` URL. Always the fallback when there is no database.
 - **Postgres** — when `DATABASE_URL` is a Postgres URL.
 
-A repository has at most two extension slots, and **the base class you extend selects the storage strategy**:
+A repository has at most two extension slots. The **repository's own base class declares the storage strategy** (see _Scaling_); an extension only holds the queries the DSL cannot express, and has to agree with what the repository declared:
 
 - `@memExtension(Repo)` on a class extending `MemoryRepositoryExtension<T>` — the in-RAM implementation (tests / no DB).
-- `@dbExtension(Repo)` on a class extending `PgJsonbRepositoryExtension<T>` (JSONB, the default) **or** `PgSqlRepositoryExtension<T>` (relational columns — see _Scaling_ below).
+- `@dbExtension(Repo)` on a class extending `PgJsonbRepositoryExtension<T>` (document storage) **or** `PgColumnsRepositoryExtension<T>` (column storage). Declaring the wrong one for the repository is refused when the module is imported.
 
-You only need an extension when a query can't be expressed by the `@query` DSL, or to opt a repository into the relational strategy. For each `@queryExtension()` method, ship one implementation per backend you support:
+You only need an extension when a query can't be expressed by the `@query` DSL. For each `@queryExtension()` method, ship one implementation per backend you support:
 
 ```typescript
 import {
@@ -180,7 +180,7 @@ export class GamePgQueries
 - Inside a Postgres JSONB extension, fields live under a `data` JSONB column — use `this['columns']` / `this['table']` / `this['query'](sql, params)` from the base.
 - A repository may support only one backend — if you only ship `@memExtension`, it throws when invoked under Postgres, and vice-versa.
 
-> `@pgExtension` / `PgRepositoryExtension` are deprecated aliases of `@dbExtension` / `PgJsonbRepositoryExtension`. Existing code keeps working; use the new names going forward.
+> `@pgExtension` / `PgRepositoryExtension` are deprecated aliases of `@dbExtension` / `PgJsonbRepositoryExtension`, and `PgSqlRepositoryExtension` of `PgColumnsRepositoryExtension`. Existing code keeps working; use the new names going forward.
 
 ## Indexes (Postgres)
 
@@ -212,36 +212,32 @@ Add to or override the auto set with `indexes`:
 })
 ```
 
-## Scaling: relational storage + migrations
+## Scaling: column storage + migrations
 
-JSONB is the easy default but doesn't scale as well. When a repository needs real columns, switch it to the relational strategy **without touching business code** — services, controllers, `@query` methods and tests all stay the same.
+Document storage (JSONB) is the easy default but doesn't scale as well. When a repository needs real columns, switch its **base class** — services, controllers, `@query` methods and tests all stay the same.
 
-**1. Point the repo's `@dbExtension` at the relational base and declare the columns:**
+**1. Extend the column-storage base:**
 
 ```typescript
-import {
-  CrudRepository,
-  dbExtension,
-  PgSqlRepositoryExtension,
-  repository,
-} from '@wabot-dev/framework'
+import { PgColumnsRepository, repository } from '@wabot-dev/framework'
 
 @repository({
   table: 'game',
   constructor: Game,
-  columns: ['userId', 'title', 'status', 'hoursPlayed', 'addedAt'],
+  fields: ['userId', 'title', 'status', 'hoursPlayed', 'addedAt'], // optional
 })
-export class GameRepository extends CrudRepository<Game> {
+export class GameRepository extends PgColumnsRepository<Game> {
   /* the same @query methods as before */
-}
-
-@dbExtension(GameRepository)
-export class GameSql extends PgSqlRepositoryExtension<Game> {
-  // selects the relational strategy; add hand-written SQL methods here if needed
 }
 ```
 
-Column name = field name (`id`/`createdAt` map to the `id`/`created_at` columns). Every queried field must be a declared column — there is no `data` blob to fall back to. **No auto-DDL**: you own the schema via migrations.
+The base class is what the backend reads: `PgColumnsRepository` → a column per field, `PgJsonbRepository` → the document, and plain `CrudRepository` → whatever the active backend defaults to (JSONB on Postgres). Read-only variants exist for CQRS read models: `PgColumnsReadRepository`, `PgJsonbReadRepository`.
+
+The name says Postgres, but it does not tie the repository to it: with no database the memory backend serves any of them, so `DATABASE_URL`-less development keeps working. A _different_ engine, once one exists, refuses a repository declared for another with a clear error.
+
+`fields` is an optional **projection**: those fields alone are read and written, and anything else in the row is invisible to that repository — the way to sit a repository on a wide or legacy table. Omit it to take the whole row. The memory backend honours it too, so dev matches production. Column name = field name (`id`/`createdAt` map to the `id`/`created_at` columns). **No auto-DDL**: you own the schema via migrations.
+
+An extension is still optional here; add one extending `PgColumnsRepositoryExtension<Game>` only when you need hand-written SQL.
 
 **2. Write the migration(s) in plain SQL and apply them:**
 

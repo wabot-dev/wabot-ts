@@ -110,7 +110,8 @@ Logger.setMonitor(monitor)
 
 The project runner installs process lifecycle handling automatically — you don't wire any of it:
 
-- **Graceful shutdown** — `SIGTERM` / `SIGINT` disconnect chat channels, stop the job/cron pollers, drain in-flight jobs and HTTP requests, then close the DB pool. Bounded by `WABOT_SHUTDOWN_TIMEOUT_SECONDS` (default 30); a second signal forces an immediate exit.
+- **Graceful shutdown** — `SIGTERM` / `SIGINT` disconnect chat channels, stop the job/cron pollers, drain in-flight jobs and HTTP requests, then close the DB pool. Bounded by `WABOT_SHUTDOWN_TIMEOUT_SECONDS` (30 in production, 3 outside it); a second signal forces an immediate exit, and the timeout log names the tasks still running.
+- **Connection drain** — `server.close()` waits for the last socket, so one streaming response (SSE, a hanging fetch) would hold shutdown open for the whole deadline. Anything still connected after `WABOT_HTTP_DRAIN_TIMEOUT_SECONDS` (10 in production, 0.5 outside it) is cut. It is a deadline, not a delay: with nothing connected, close is immediate.
 - **Crash handlers** — `uncaughtException` / `unhandledRejection` are logged (and reported to the monitor, with a short flush window), then the process exits non-zero. The state is assumed corrupt, so it does **not** drain.
 
 `setupCrashHandlers({ exitOnUncaughtException, exitOnUnhandledRejection })` installs the crash handlers manually if you run without the project runner. (`setupErrorHandlers` is a deprecated alias.)

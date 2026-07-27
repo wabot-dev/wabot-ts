@@ -189,4 +189,4 @@ Both share one Express + HTTP server via `ExpressProvider` / `HttpServerProvider
 
 ## Testing
 
-`createRestHarness({ controllers, jwt?, register? })` from `@wabot-dev/framework/testing` mounts `@restController` classes on a private ephemeral-port server and exercises the real pipeline (parsers, middlewares/guards, validation, error mapping). `harness.request(...)` returns `{ status, body, headers }`; `harness.as(authInfo)` sends signed Bearer tokens through the real `@jwtGuard`. See the `wabot-testing` skill.
+`createRestHarness({ controllers, jwt?, register? })` from `@wabot-dev/framework/testing` mounts `@restController` classes on a private ephemeral-port server and exercises the real pipeline (parsers, middlewares/guards, validation, error mapping). `harness.request(...)` returns `{ status, body, headers }`; `harness.as(authInfo)` sends signed Bearer tokens through the real `@jwtGuard`, and `harness.as(authInfo, { cookie, audience })` sends them in a session cookie with an `aud` claim. See the `wabot-testing` skill.
