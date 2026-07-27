@@ -1,6 +1,6 @@
 import { singleton } from '@/core/injection'
 import { Logger } from '@/core/logger'
-import { HttpServerProvider } from '@/feature/http'
+import { drainConnections, HttpServerProvider, httpDrainGraceMs } from '@/feature/http'
 import { Server } from 'socket.io'
 import { SocketServerConfig } from './SocketServerConfig'
 
@@ -33,20 +33,23 @@ export class SocketServerProvider {
   /**
    * Disconnect all clients and close the Socket.IO server. Because Socket.IO is
    * attached to the shared HTTP server, `io.close()` also drains and closes it,
-   * so this owns the HTTP shutdown whenever a socket server is active. Idle
-   * keep-alive sockets are freed so the drain is not held open. Resolves once
-   * everything has closed.
+   * so this owns the HTTP shutdown whenever a socket server is active. Plain
+   * HTTP connections on that shared server are drained the same way as in
+   * {@link HttpServerProvider.close} — Socket.IO hangs up its own clients, but
+   * an unrelated streaming response would otherwise keep the port open.
    */
-  async close(): Promise<void> {
+  async close(graceMs: number = httpDrainGraceMs()): Promise<void> {
     const io = this.socketServer
     if (!io) return
     this.socketServer = null
 
     io.removeAllListeners()
+    let cancelDrain: (() => void) | undefined
     await new Promise<void>((resolve) => {
       io.close(() => resolve())
-      this.httpServerProvider.getHttpServer().closeIdleConnections?.()
+      cancelDrain = drainConnections(this.httpServerProvider.getHttpServer(), graceMs)
     })
+    cancelDrain?.()
     this.logger.info('socket server closed')
   }
 

@@ -1,2 +1,2 @@
-export * from './PgChatRepository'
-export * from './PgChatMemory'
+export * from './ChatItemPgQueries'
+export * from './ChatPgQueries'

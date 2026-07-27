@@ -68,6 +68,43 @@ test.describe('UiBundler', () => {
     }
   })
 
+  test('mantiene el build anterior una generación y marca los chunks como inmutables', async () => {
+    const renderer = new PreactRenderer()
+    const bundler = new UiBundler({ islands: [], client: renderer.client!, cwd: repoRoot })
+
+    // Feed build outputs directly: a rebuild renames the chunks whose contents
+    // changed, which is exactly what the grace window is there to survive.
+    const ingest = (files: string[]) =>
+      (bundler as any).ingest(
+        {
+          outputFiles: files.map((file) => ({
+            path: path.join('/out', file),
+            contents: new TextEncoder().encode(file),
+          })),
+        },
+        '/out',
+      )
+
+    ingest(['Counter-test.js', 'chunks/chunk-OLD.js'])
+    ingest(['Counter-test.js', 'chunks/chunk-NEW.js'])
+
+    assert.ok(await bundler.getFile('/_wabot/chunks/chunk-NEW.js'), 'current build is served')
+    assert.ok(
+      await bundler.getFile('/_wabot/chunks/chunk-OLD.js'),
+      'a page loaded before the rebuild still resolves its chunk',
+    )
+
+    ingest(['Counter-test.js', 'chunks/chunk-NEWER.js'])
+    assert.equal(
+      await bundler.getFile('/_wabot/chunks/chunk-OLD.js'),
+      undefined,
+      'two rebuilds later the old chunk is dropped',
+    )
+
+    assert.equal((await bundler.getFile('/_wabot/chunks/chunk-NEWER.js'))!.immutable, true)
+    assert.equal((await bundler.getFile('/_wabot/Counter-test.js'))!.immutable, false)
+  })
+
   test('emite CSS Modules como hoja de estilos del island', async () => {
     const renderer = new PreactRenderer()
     const bundler = new UiBundler({

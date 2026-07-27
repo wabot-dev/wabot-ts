@@ -10,7 +10,8 @@ import { evaluateQueryAst } from './evaluateQueryAst'
 import { IRepositoryAdapter } from './IRepositoryAdapter'
 import { IRepositoryConfig } from './IRepositoryConfig'
 import { IRepositoryRuntime } from './IRepositoryRuntime'
-import { IQueryAst } from './types'
+import { IPage, IPageOptions, pageInMemory } from './pagination'
+import { IQueryAst, IQueryCondition } from './types'
 
 const DEFAULT_PERSIST_DIR = '.wabot/in-memory'
 const DEFAULT_MAX_ITEMS = 32
@@ -23,9 +24,44 @@ export interface IMemoryRepositoryAdapterOptions {
   maxItems?: number
 }
 
+/**
+ * Drop everything outside `config.fields`, so a projection hides the same
+ * fields here as it does on a real database. Without a projection the data is
+ * passed through untouched.
+ */
+function projectData(config: IRepositoryConfig<any>, data: any): any {
+  const fields = config.fields as string[] | undefined
+  if (!fields?.length) return data
+  const projected: any = { id: data.id, createdAt: data.createdAt }
+  for (const field of fields) {
+    if (field in data) projected[field] = data[field]
+  }
+  return projected
+}
+
 function cloneEntity<P extends Entity<IEntityData>>(config: IRepositoryConfig<P>, item: P): P {
   const data = JSON.parse(JSON.stringify(item['data']))
-  return new config.constructor(data)
+  return new config.constructor(projectData(config, data))
+}
+
+/**
+ * The stored entity with the projected fields overwritten. An UPDATE names only
+ * the projected columns and leaves the rest of the row alone, so replacing the
+ * whole record here would make memory lose data a database would have kept.
+ */
+function mergeProjected<P extends Entity<IEntityData>>(
+  config: IRepositoryConfig<P>,
+  stored: P,
+  incoming: P,
+): P {
+  const fields = config.fields as string[] | undefined
+  if (!fields?.length) return cloneEntity(config, incoming)
+  const merged = JSON.parse(JSON.stringify(stored['data']))
+  const source = incoming['data'] as Record<string, unknown>
+  for (const field of fields) {
+    if (field in source) merged[field] = JSON.parse(JSON.stringify(source[field] ?? null))
+  }
+  return new config.constructor(merged)
 }
 
 interface IPersistOptions {
@@ -157,12 +193,20 @@ class MemoryRepositoryRuntime<P extends Entity<IEntityData>> implements IReposit
     this.store.persist()
   }
 
+  async restore(item: P): Promise<void> {
+    item.validate()
+    this.store.touch(cloneEntity(this.config, item))
+    this.store.enforceLimit()
+    this.store.persist()
+  }
+
   async update(item: P): Promise<void> {
     item.validate()
-    if (!this.items.has(item.id)) {
+    const stored = this.items.get(item.id)
+    if (!stored) {
       throw new Error(`Update failed: no affected rows`)
     }
-    this.store.touch(cloneEntity(this.config, item))
+    this.store.touch(mergeProjected(this.config, stored, item))
     this.store.persist()
   }
 
@@ -190,6 +234,20 @@ class MemoryRepositoryRuntime<P extends Entity<IEntityData>> implements IReposit
       this.items.delete(item.id)
     }
     if (matched.length > 0) this.store.persist()
+  }
+
+  async runPage(
+    conditions: IQueryCondition[],
+    args: unknown[],
+    options: IPageOptions,
+  ): Promise<IPage<P>> {
+    const ast: IQueryAst = { prefix: 'find', conditions, orderBy: [] }
+    const matched = evaluateQueryAst(this.items.values(), ast, args)
+    const page = pageInMemory(matched, options)
+    return {
+      items: page.items.map((i) => cloneEntity(this.config, i)),
+      nextCursor: page.nextCursor,
+    }
   }
 }
 

@@ -111,6 +111,8 @@ export class WhatsAppReceiverByCloudApi extends WhatsAppApiReceiver {
 
     await listener({
       chatConnection,
+      // WhatsApp Cloud retries webhooks; the message id dedups repeat deliveries.
+      idempotencyKey: message.id,
       message: {
         senderName: contact.profile.name,
         text: message.text.body,

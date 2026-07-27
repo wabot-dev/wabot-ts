@@ -1,7 +1,9 @@
 import { Auth } from '@/core/auth'
 import { IConstructor } from '@/core/generics'
+import { Idempotency } from '@/core/idempotency'
 import { container, Container, DependencyContainer } from '@/core/injection'
-import { Logger } from '@/core/logger'
+import { addLogContext, Logger, runWithLogContext } from '@/core/logger'
+import { addCount, setSpanAttributes, withSpan } from '@/core/observability'
 import { Chat, ChatBot, ChatBotMetadataStore, ChatMemory, ChatRepository } from '@/feature/chat-bot'
 import { IMindset, Mindset } from '@/feature/mindset'
 import { ChatResolver } from './ChatResolver'
@@ -56,6 +58,13 @@ export function runChatControllers(controllers: IConstructor<any>[]): IChatChann
   const chatResolver = container.resolve(ChatResolver)
   const channels: IChatChannel[] = []
 
+  // Inbound deduplication: when a channel tags a message with `idempotencyKey`
+  // (a provider message id), skip duplicate deliveries — webhook retries would
+  // otherwise re-run the whole chat turn. Registered by the project runner; if
+  // absent (e.g. a bare harness) dedup is simply off.
+  const idempotency = container.isRegistered(Idempotency) ? container.resolve(Idempotency) : null
+  const idempotencyTtl = Number(process.env.WABOT_IDEMPOTENCY_TTL_SECONDS) || 3600
+
   for (const controllerCtor of controllers) {
     const chatControllerMetadata = metadataStore.getChatControllerMetadata(controllerCtor)
     if (!chatControllerMetadata) {
@@ -70,36 +79,58 @@ export function runChatControllers(controllers: IConstructor<any>[]): IChatChann
         })
       }
       const channel = channelContainer.resolve(channelMetadata.channelConstructor)
-      channel.listen(async (channelMessage: IChannelMessage) => {
-        const chat = await chatResolver.resolve(channelMessage.chatConnection)
-
-        const chatContainer = await prepareChatContainer(channelContainer, {
-          chat,
-          ...channelMessage,
-        })
-
-        if (channelMessage.injectInstances) {
-          for (const [token, instance] of channelMessage.injectInstances) {
-            chatContainer.registerInstance(token, instance)
+      channel.listen((channelMessage: IChannelMessage) =>
+        runWithLogContext({ channel: channelMessage.chatConnection.channelName }, async () => {
+          const { idempotencyKey } = channelMessage
+          if (
+            idempotencyKey &&
+            idempotency &&
+            (await idempotency.alreadyProcessed(idempotencyKey, idempotencyTtl))
+          ) {
+            logger.trace(`Skipping duplicate inbound message ${idempotencyKey}`)
+            return
           }
-        }
 
-        const chatController = chatContainer.resolve(channelMetadata.controllerConstructor)
+          const channelName = channelMessage.chatConnection.channelName
+          addCount('wabot.chat.messages', 1, { channel: channelName })
+          await withSpan('chat.turn', { 'wabot.channel': channelName }, async () => {
+            try {
+              const chat = await chatResolver.resolve(channelMessage.chatConnection)
+              addLogContext({ chatId: chat.id })
+              setSpanAttributes({ 'wabot.chat_id': chat.id })
 
-        const receivedMessage: IReceivedMessage = {
-          message: channelMessage.message,
-          reply: channelMessage.reply,
-        }
+              const chatContainer = await prepareChatContainer(channelContainer, {
+                chat,
+                ...channelMessage,
+              })
 
-        try {
-          await chatController[channelMetadata.functionName](receivedMessage)
-        } catch (error) {
-          logger.error(
-            `Error in chat controller ${channelMetadata.controllerConstructor.name}.${channelMetadata.functionName}:`,
-            error,
-          )
-        }
-      })
+              if (channelMessage.injectInstances) {
+                for (const [token, instance] of channelMessage.injectInstances) {
+                  chatContainer.registerInstance(token, instance)
+                }
+              }
+
+              const chatController = chatContainer.resolve(channelMetadata.controllerConstructor)
+
+              const receivedMessage: IReceivedMessage = {
+                message: channelMessage.message,
+                reply: channelMessage.reply,
+              }
+
+              await chatController[channelMetadata.functionName](receivedMessage)
+            } catch (error) {
+              // Release the key so a retry can reprocess a delivery that failed.
+              if (idempotencyKey && idempotency) {
+                await idempotency.forget(idempotencyKey).catch(() => {})
+              }
+              logger.error(
+                `Error in chat controller ${channelMetadata.controllerConstructor.name}.${channelMetadata.functionName}:`,
+                error,
+              )
+            }
+          })
+        }),
+      )
 
       channel.connect()
       channels.push(channel)

@@ -23,6 +23,13 @@ export interface IRestRequestOptions {
   query?: Record<string, string>
 }
 
+export interface IRestAsOptions {
+  /** Send the signed token in this cookie instead of the Authorization header. */
+  cookie?: string
+  /** Sign the token for this audience, for `@jwtGuard({ audience })`. */
+  audience?: string
+}
+
 export interface IRestResponse {
   status: number
   body: any
@@ -119,10 +126,16 @@ export class RestHarness {
   }
 
   /**
-   * Client that sends every request with a freshly signed Bearer token for
-   * the given authInfo (requires the jwt option).
+   * Client that sends every request with a freshly signed token for the given
+   * authInfo (requires the jwt option). By default the token travels in the
+   * `Authorization` header; pass `cookie` to send it in that cookie instead
+   * and `audience` to stamp the `aud` claim, which is how you exercise
+   * `@jwtGuard({ cookie, audience })`.
    */
-  as(authInfo: object): {
+  as(
+    authInfo: object,
+    options: IRestAsOptions = {},
+  ): {
     request: (method: string, path: string, options?: IRestRequestOptions) => Promise<IRestResponse>
   } {
     const jwt = this.jwt
@@ -130,11 +143,16 @@ export class RestHarness {
       throw new Error('RestHarness: enable the jwt option to use as(authInfo)')
     }
     return {
-      request: (method, path, options = {}) =>
-        this.request(method, path, {
-          ...options,
-          headers: { Authorization: `Bearer ${jwt.sign(authInfo)}`, ...options.headers },
-        }),
+      request: (method, path, requestOptions = {}) => {
+        const token = jwt.sign(authInfo, { audience: options.audience })
+        const authHeaders: Record<string, string> = options.cookie
+          ? { Cookie: `${options.cookie}=${token}` }
+          : { Authorization: `Bearer ${token}` }
+        return this.request(method, path, {
+          ...requestOptions,
+          headers: { ...authHeaders, ...requestOptions.headers },
+        })
+      },
     }
   }
 

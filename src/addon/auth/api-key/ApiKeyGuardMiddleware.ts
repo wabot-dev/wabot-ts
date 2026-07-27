@@ -2,6 +2,7 @@ import { DependencyContainer, injectable } from '@/core/injection'
 import { IMiddleware } from '@/feature/rest-controller'
 
 import { Auth } from '@/core/auth'
+import { AuditActorResolver, setAuditActor } from '@/core/audit'
 import { CustomError } from '@/core/error'
 import { Request, Response } from 'express'
 import { ApiKeyRepository } from './ApiKeyRepository'
@@ -27,6 +28,7 @@ export class ApiKeyGuardMiddleware implements IMiddleware {
     try {
       const authInfo = await this.apiKeyRepository.findAndValidate(keySecret)
       this.auth.assign(authInfo)
+      setAuditActor(container.resolve(AuditActorResolver).fromAuth(authInfo))
     } catch (err) {
       throw new CustomError({
         httpCode: 401,

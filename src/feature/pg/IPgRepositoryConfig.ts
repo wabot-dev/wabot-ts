@@ -9,11 +9,13 @@ export type IPgRepositoryConfig<P extends Entity<IEntityData>> = {
   /** Explicit + auto-derived indexes (populated by `@repository`). */
   indexes?: IIndexDecl[]
   /**
-   * Relational (pg-sql strategy) only: the entity fields stored as real
-   * top-level columns. Column name equals the field name (id/createdAt map to
-   * the reserved id/created_at columns). The table and columns are created by
-   * migrations, not auto-DDL. Ignored by the JSONB strategy.
+   * Column strategy only: the projection of entity fields this repository reads
+   * and writes. Column name equals the field name (id/createdAt map to the
+   * reserved id/created_at columns). Omit to take the whole row. Ignored by the
+   * document (JSONB) strategy.
    */
+  fields?: string[]
+  /** @deprecated Renamed to `fields`. */
   columns?: string[]
   add?: {
     columns: {

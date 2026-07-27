@@ -1,6 +1,6 @@
 ---
 name: wabot-auth
-description: Use when adding authentication to a Wabot REST endpoint or Socket.IO namespace, issuing JWT access/refresh tokens, or protecting endpoints with API keys. Covers the chat/request-scoped Auth<D> service, @jwtGuard / @jwtHandshakeGuard, JwtConfig and the JWT_* env vars, Jwt.createToken / findRefreshTokenAuthInfo, JwtRefreshToken, and @apiKeyGuard / @apiKeyHandshakeGuard with PgApiKeyRepository / RemoteApiKeyRepository.
+description: Use when adding authentication to a Wabot REST endpoint or Socket.IO namespace, issuing JWT access/refresh tokens, or protecting endpoints with API keys. Covers the chat/request-scoped Auth<D> service, @jwtGuard / @jwtHandshakeGuard with per-session cookies and audiences, JwtConfig and the JWT_* env vars, Jwt.createToken / findRefreshTokenAuthInfo, JwtRefreshToken, and @apiKeyGuard / @apiKeyHandshakeGuard with ApiKeyRepository / RemoteApiKeyRepository.
 ---
 
 # Authentication
@@ -50,7 +50,29 @@ export class AccountController {
 }
 ```
 
-`@jwtGuard()` reads `Authorization: Bearer <token>`, verifies it with `JwtConfig` (env-driven, see below), and calls `auth.assign(payload)`.
+`@jwtGuard()` reads `Authorization: Bearer <token>` or, failing that, the auth cookie (`JWT_COOKIE_NAME`, default `wabot_jwt`), verifies it with `JwtConfig` (env-driven, see below), and calls `auth.assign(payload)`.
+
+### Several kinds of user in one browser
+
+Give each kind of session its own cookie so they do not overwrite each other, and its own **audience** so a token minted for one is useless on the other's endpoints — they are all signed with the same secret, so the cookie alone is not isolation:
+
+```typescript
+@onPost('/admin/login')
+async adminLogin() {
+  const { access } = await this.jwt.createToken(undefined, { audience: 'admin' })
+  this.cookies.set('wabot_admin', access.token, { httpOnly: true, expires: access.expiration })
+}
+
+@onGet('/admin/orders')
+@jwtGuard({ cookie: 'wabot_admin', audience: 'admin' })
+list() { /* ... */ }
+
+@onPost('/logout')
+@jwtGuard({ cookie: ['wabot_admin', 'wabot_client'] })   // either session
+logout() { /* ... */ }
+```
+
+`cookie` takes one name or a list (first one present wins). A guard without `audience` accepts any valid token; one with it rejects both the wrong audience and a token carrying none. The refresh token remembers its audience, so `findRefreshTokenAuthInfo(secret, { audience })` refuses to renew a session of another kind.
 
 ## JWT — Socket
 
@@ -64,7 +86,17 @@ export class PrivateSocketController {
 }
 ```
 
-The token is read from `socket.handshake.auth.token` first, falling back to the `Authorization` header.
+The token is read from `socket.handshake.auth.token` first, falling back to the `Authorization` header. `@jwtHandshakeGuard({ audience })` scopes it the same way REST guards do.
+
+To authenticate a socket with an `httpOnly` cookie the browser's JS cannot read, add `cookie`:
+
+```typescript
+@socketController('admin')
+@jwtHandshakeGuard({ cookie: 'wabot_admin', audience: 'admin' })
+export class AdminSocketController {}
+```
+
+Reading a cookie **requires** an origin allowlist (`JWT_COOKIE_ALLOWED_ORIGINS`, or `allowedOrigins` on the guard): browsers attach cookies to a WebSocket handshake opened by any page and enforce no CORS on it, so without the check any site could ride the user's session. The guard fails closed — no allowlist, no `Origin` header, an unlisted origin or `*` all reject. Tokens arriving through `handshake.auth` are not exposed to this and are never origin-checked.
 
 ## Issuing tokens
 
@@ -104,19 +136,21 @@ export class AuthController {
 `Jwt.createToken(metadata?)`:
 
 - Reads the current `auth.require()` info.
-- Persists a `JwtRefreshToken` via `JwtRefreshTokenRepository`. The base class throws `Method not implemented` — the project must register an implementation: `container.registerType(JwtRefreshTokenRepository, PgJwtRefreshTokenRepository)` (table `wabot.jwt_refresh_token`), or its own.
+- Persists a `JwtRefreshToken` via `JwtRefreshTokenRepository` (table `wabot.jwt_refresh_token`). Nothing to register: it is a framework `@repository`, so it runs in memory with no database and on Postgres when `DATABASE_URL` is set.
 - Returns `{ access: { token, expiration }, refresh: { token, expiration } }`.
 
-`Jwt.findRefreshTokenAuthInfo(secret)` validates the refresh secret (hash-compare + expiration + revocation) and returns the original auth payload. Throws 401 if any check fails.
+`Jwt.findRefreshTokenAuthInfo(secret, options?)` validates the refresh secret (hash-compare + expiration + revocation) and returns the original auth payload. Throws 401 if any check fails. Pass the same `audience` the session was created with so a refresh endpoint only renews sessions of its own kind.
 
 ### Env vars
 
-| Variable                         | Default           | Description                                             |
-| -------------------------------- | ----------------- | ------------------------------------------------------- |
-| `JWT_SECRET`                     | (required)        | Symmetric secret or asymmetric key used for sign/verify |
-| `JWT_ALGORITHM`                  | `HS256`           | Any `jsonwebtoken.Algorithm`                            |
-| `JWT_ACCESS_EXPIRATION_SECONDS`  | `600` (10 min)    | Access token lifetime                                   |
-| `JWT_REFRESH_EXPIRATION_SECONDS` | `31536000` (1 yr) | Refresh token lifetime                                  |
+| Variable                         | Default           | Description                                                                      |
+| -------------------------------- | ----------------- | -------------------------------------------------------------------------------- |
+| `JWT_SECRET`                     | (required)        | Symmetric secret or asymmetric key used for sign/verify                          |
+| `JWT_ALGORITHM`                  | `HS256`           | Any `jsonwebtoken.Algorithm`                                                     |
+| `JWT_ACCESS_EXPIRATION_SECONDS`  | `600` (10 min)    | Access token lifetime                                                            |
+| `JWT_REFRESH_EXPIRATION_SECONDS` | `31536000` (1 yr) | Refresh token lifetime                                                           |
+| `JWT_COOKIE_NAME`                | `wabot_jwt`       | Cookie a guard reads when it names none of its own                               |
+| `JWT_COOKIE_ALLOWED_ORIGINS`     | (empty)           | Comma-separated origins allowed to authenticate a **socket handshake** by cookie |
 
 `JwtConfig` is `@singleton()` and reads these at boot.
 
@@ -153,7 +187,7 @@ export class AdminSocketController {
 
 The guard reads `Authorization: Api-Key <secret>` (REST) or `socket.handshake.auth.token` / the `Authorization` handshake header (socket), validates via `ApiKeyRepository`, and assigns the lookup result to `Auth`.
 
-`ApiKeyRepository` is a base class with no storage — register an implementation yourself: `container.registerType(ApiKeyRepository, PgApiKeyRepository)` (table `wabot.api_key`), or `RemoteApiKeyRepository` to delegate validation to an external service:
+`ApiKeyRepository` is a framework `@repository` (table `wabot.api_key`) and needs no registration — in memory without a database, on Postgres with one. Register `RemoteApiKeyRepository` instead to delegate validation to an external service:
 
 ```typescript
 import { container, ApiKeyRepository, RemoteApiKeyRepository } from '@wabot-dev/framework'

@@ -1,8 +1,11 @@
 import debug, { type Debugger } from 'debug'
 import { errorToPlainObject } from '@/core/error/CustomError'
+import { activeTraceContext } from '@/core/observability/telemetry'
 import type { ErrorSeverity, IErrorMonitor } from './IErrorMonitor'
+import { getLogContext } from './logContext'
 
 type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal'
+type LogFormat = 'pretty' | 'json'
 
 const levelColors: Record<LogLevel, number> = {
   trace: 0,
@@ -13,6 +16,15 @@ const levelColors: Record<LogLevel, number> = {
   fatal: 1,
 }
 
+const LEVEL_ORDER: Record<LogLevel, number> = {
+  trace: 10,
+  debug: 20,
+  info: 30,
+  warn: 40,
+  error: 50,
+  fatal: 60,
+}
+
 const levelToSeverity: Partial<Record<LogLevel, ErrorSeverity>> = {
   warn: 'warning',
   error: 'error',
@@ -20,7 +32,21 @@ const levelToSeverity: Partial<Record<LogLevel, ErrorSeverity>> = {
 }
 
 /**
- * Logger with 6 severity levels. Uses the `debug` library for output.
+ * Logger with 6 severity levels.
+ *
+ * **Format** is chosen automatically: human-readable (via the `debug` library)
+ * when stdout is a TTY, structured JSON (one object per line to stdout) when it
+ * is not — so dev looks familiar and prod is machine-parseable. Override with
+ * `WABOT_LOG_FORMAT=pretty|json` or `Logger.configure({ format })`.
+ *
+ * **Filtering** in pretty mode is the usual `debug` namespaces
+ * (`DEBUG=wabot:*:info,...`). In JSON mode you can additionally set a global
+ * floor with `WABOT_LOG_LEVEL=info` to emit everything at that level or above
+ * without listing namespaces.
+ *
+ * Every line carries the active {@link getLogContext} fields (requestId, chatId,
+ * …) so logs across a request/turn correlate. `warn`/`error`/`fatal` also go to
+ * the optional {@link IErrorMonitor}, independent of the console filter.
  *
  * ## Level verbosity contract
  *
@@ -45,6 +71,8 @@ const levelToSeverity: Partial<Record<LogLevel, ErrorSeverity>> = {
  */
 export class Logger {
   private static monitor: IErrorMonitor | null = null
+  private static formatOverride: LogFormat | null = null
+  private static levelFloorOverride: LogLevel | null | undefined = undefined
   private debuggers: Record<LogLevel, Debugger>
   private name: string
 
@@ -65,6 +93,28 @@ export class Logger {
 
   static getMonitor(): IErrorMonitor | null {
     return Logger.monitor
+  }
+
+  /**
+   * Programmatically override the output format and/or the JSON level floor.
+   * Pass `null` to clear an override and fall back to env / auto-detection.
+   */
+  static configure(options: { format?: LogFormat | null; level?: LogLevel | null }): void {
+    if (options.format !== undefined) Logger.formatOverride = options.format
+    if (options.level !== undefined) Logger.levelFloorOverride = options.level
+  }
+
+  private static resolveFormat(): LogFormat {
+    if (Logger.formatOverride) return Logger.formatOverride
+    const env = process.env.WABOT_LOG_FORMAT
+    if (env === 'json' || env === 'pretty') return env
+    return process.stdout?.isTTY ? 'pretty' : 'json'
+  }
+
+  private static resolveLevelFloor(): LogLevel | null {
+    if (Logger.levelFloorOverride !== undefined) return Logger.levelFloorOverride
+    const env = process.env.WABOT_LOG_LEVEL
+    return env && env in LEVEL_ORDER ? (env as LogLevel) : null
   }
 
   /** Very fine-grained: every HTTP request, socket event, message sent/received. */
@@ -98,11 +148,57 @@ export class Logger {
   }
 
   private log(level: LogLevel, args: any[]) {
-    const debugg = this.debuggers[level]
-    const formattedArgs = this.formatArgs(args)
-    debugg(...(formattedArgs as [any, ...any[]]))
+    if (Logger.resolveFormat() === 'json') {
+      if (this.jsonEnabled(level)) {
+        process.stdout.write(JSON.stringify(this.buildRecord(level, args)) + '\n')
+      }
+    } else {
+      // Pretty: unchanged `debug` output (it self-gates on DEBUG), with the
+      // correlation context appended as a compact suffix.
+      const debugg = this.debuggers[level]
+      if (debugg.enabled) {
+        const formattedArgs = this.formatArgs(args)
+        const suffix = this.contextSuffix()
+        const line = suffix ? [...formattedArgs, suffix] : formattedArgs
+        debugg(...(line as [any, ...any[]]))
+      }
+    }
 
     this.sendToMonitor(level, args)
+  }
+
+  /** In JSON mode, emit when the namespace is DEBUG-enabled or meets the WABOT_LOG_LEVEL floor. */
+  private jsonEnabled(level: LogLevel): boolean {
+    if (this.debuggers[level].enabled) return true
+    const floor = Logger.resolveLevelFloor()
+    return floor !== null && LEVEL_ORDER[level] >= LEVEL_ORDER[floor]
+  }
+
+  private buildRecord(level: LogLevel, args: any[]): Record<string, unknown> {
+    const error = args.find((arg) => arg instanceof Error) as Error | undefined
+    // String args form the human message; objects/primitives become structured
+    // fields (via extractExtra) and the Error becomes `err`.
+    const message = args.filter((arg) => typeof arg === 'string').join(' ')
+
+    return {
+      ...getLogContext(),
+      ...activeTraceContext(), // traceId/spanId when OpenTelemetry is active
+      ...this.extractExtra(args),
+      ...(error ? { err: errorToPlainObject(error) } : {}),
+      time: new Date().toISOString(),
+      level,
+      logger: this.name,
+      message,
+    }
+  }
+
+  private contextSuffix(): string {
+    const context = getLogContext()
+    if (!context) return ''
+    const parts = Object.entries(context)
+      .filter(([, value]) => value !== undefined && value !== null && typeof value !== 'object')
+      .map(([key, value]) => `${key}=${value}`)
+    return parts.length > 0 ? `[${parts.join(' ')}]` : ''
   }
 
   private sendToMonitor(level: LogLevel, args: any[]) {

@@ -1,4 +1,5 @@
-import { ConfigReference } from './types'
+import { ConfigError } from './ConfigError'
+import { ConfigReference, ConfigReferenceType } from './types'
 
 type ResolveConfigValue<V> = V extends ConfigReference<infer R> ? R : V
 
@@ -33,18 +34,23 @@ function isConfigReference(value: unknown): value is ConfigReference {
 
 export class ConfigResolver {
   static resolve(reference: ConfigReference): unknown {
-    const envValue = this.loadFromEnv(reference.path)
+    const envVar = this.pathToEnvVar(reference.path)
+    const raw = this.loadFromEnv(reference.path) ?? reference.default
 
-    if (envValue === undefined) {
-      if (reference.default !== undefined) {
-        return this.coerce(reference.default, reference.type)
-      }
-      throw new Error(
-        `Config not found: ${reference.path} (env: ${this.pathToEnvVar(reference.path)})`,
+    if (raw === undefined) {
+      throw new ConfigError(
+        `Config not found: ${reference.path} (env: ${envVar})`,
+        reference.path,
+        envVar,
       )
     }
 
-    return this.coerce(envValue, reference.type)
+    try {
+      return coerceConfigValue(raw, reference.type)
+    } catch (err) {
+      if (err instanceof ConfigError) throw err
+      throw new ConfigError((err as Error).message, reference.path, envVar)
+    }
   }
 
   private static loadFromEnv(path: string): string | undefined {
@@ -56,57 +62,64 @@ export class ConfigResolver {
   private static pathToEnvVar(path: string): string {
     return path.toUpperCase().replace(/\./g, '_')
   }
+}
 
-  private static coerce(value: string, type: ConfigReference['type']): unknown {
-    switch (type) {
-      case 'string':
-        return value
+/**
+ * Coerce a raw string to a config type. This is the single coercion engine —
+ * used by {@link ConfigResolver} (declarative config references) and by the
+ * imperative {@link Env} reader — so there is one place that turns env strings
+ * into typed values.
+ */
+export function coerceConfigValue(value: string, type: ConfigReferenceType): unknown {
+  switch (type) {
+    case 'string':
+      return value
 
-      case 'number':
-        const num = Number(value)
-        if (isNaN(num)) {
-          throw new Error(`Cannot coerce "${value}" to number`)
-        }
-        return num
-
-      case 'boolean':
-        return value.toLowerCase() === 'true' || value === '1' || value === 'yes'
-
-      case 'object':
-        try {
-          return JSON.parse(value)
-        } catch {
-          throw new Error(`Cannot coerce "${value}" to object (invalid JSON)`)
-        }
-
-      case 'string-array':
-      case 'number-array':
-      case 'boolean-array': {
-        const items = this.parseArrayItems(value)
-        const itemType =
-          type === 'string-array' ? 'string' : type === 'number-array' ? 'number' : 'boolean'
-        return items.map((item) => this.coerce(item, itemType))
+    case 'number': {
+      const num = Number(value)
+      if (isNaN(num)) {
+        throw new Error(`Cannot coerce "${value}" to number`)
       }
+      return num
     }
-  }
 
-  private static parseArrayItems(value: string): string[] {
-    const trimmed = value.trim()
-    if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
-      let parsed: unknown
+    case 'boolean':
+      return value.toLowerCase() === 'true' || value === '1' || value === 'yes'
+
+    case 'object':
       try {
-        parsed = JSON.parse(trimmed)
+        return JSON.parse(value)
       } catch {
-        throw new Error(`Cannot coerce "${value}" to array (invalid JSON)`)
+        throw new Error(`Cannot coerce "${value}" to object (invalid JSON)`)
       }
-      if (!Array.isArray(parsed)) {
-        throw new Error(`Expected JSON array but got ${typeof parsed}: "${value}"`)
-      }
-      return parsed.map((item) => String(item))
+
+    case 'string-array':
+    case 'number-array':
+    case 'boolean-array': {
+      const items = parseArrayItems(value)
+      const itemType =
+        type === 'string-array' ? 'string' : type === 'number-array' ? 'number' : 'boolean'
+      return items.map((item) => coerceConfigValue(item, itemType))
     }
-    return value
-      .split(',')
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0)
   }
+}
+
+function parseArrayItems(value: string): string[] {
+  const trimmed = value.trim()
+  if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(trimmed)
+    } catch {
+      throw new Error(`Cannot coerce "${value}" to array (invalid JSON)`)
+    }
+    if (!Array.isArray(parsed)) {
+      throw new Error(`Expected JSON array but got ${typeof parsed}: "${value}"`)
+    }
+    return parsed.map((item) => String(item))
+  }
+  return value
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
 }

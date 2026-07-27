@@ -8,6 +8,17 @@ import { Auth } from '@/core/auth'
 import { JwtConfig } from './JwtConfig'
 import { JwtTokenDto } from './JwtTokenDto'
 
+export interface IJwtSessionOptions {
+  /**
+   * Audience the session belongs to (`aud` claim). Guards declaring the same
+   * audience accept the access token; guards declaring another one reject it,
+   * even though every session is signed with the same secret. The refresh
+   * token remembers it, so `findRefreshTokenAuthInfo` can refuse to renew a
+   * session of one kind through the endpoint of another.
+   */
+  audience?: string
+}
+
 @injectable()
 export class Jwt {
   constructor(
@@ -17,11 +28,15 @@ export class Jwt {
     private config: JwtConfig,
   ) {}
 
-  async createToken(metadata?: Record<string, string>): Promise<JwtAccessAndRefreshTokenDto> {
+  async createToken(
+    metadata?: Record<string, string>,
+    options: IJwtSessionOptions = {},
+  ): Promise<JwtAccessAndRefreshTokenDto> {
     const authInfo = this.auth.require()
     const refreshToken = new JwtRefreshToken({
       metadata,
       authInfo,
+      audience: options.audience,
       expirationTime: Date.now() + this.config.refreshExpirationSeconds * 1000,
     })
     const refreshSecret = refreshToken.generateSecret()
@@ -38,7 +53,12 @@ export class Jwt {
     }
   }
 
-  async findRefreshTokenAuthInfo(secret: string) {
-    return await this.jwtRefreshTokenRepository.findAndValidate(secret)
+  /**
+   * Validate a refresh token secret and return its authInfo. Pass the same
+   * `audience` the session was created with so a refresh endpoint only renews
+   * sessions of its own kind.
+   */
+  async findRefreshTokenAuthInfo(secret: string, options: IJwtSessionOptions = {}) {
+    return await this.jwtRefreshTokenRepository.findAndValidate(secret, options)
   }
 }

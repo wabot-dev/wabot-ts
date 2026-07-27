@@ -2,7 +2,9 @@ import { singleton } from '@/core/injection'
 import { JobRunner } from './JobRunner'
 import { JobRepository } from './JobRepository'
 import { Env } from '@/core/env'
-import { Logger } from '@/core/logger'
+import { ILogContext, Logger, runWithLogContext } from '@/core/logger'
+import { setAuditActor, setAuditSource } from '@/core/audit'
+import { addCount, withSpan } from '@/core/observability'
 import { Job } from './Job'
 import { Locker } from '@/core/lock'
 
@@ -47,27 +49,42 @@ export class JobExecutor {
   async execute(job: Job) {
     if (!this.tryAcquire()) return
 
-    try {
-      await this.locker.withKey(`wabot-job-${job.id}`).tryRun(async () => {
-        const fresh = await this.repo.findOrThrow(job.id)
-        if (!fresh.isScheduleReady()) return
+    // Restore the dispatch-time correlation id when present, so async work stays
+    // correlated; otherwise a fresh one is generated.
+    const contextFields: ILogContext = { jobId: job.id, command: job.commandName }
+    if (job.requestId) contextFields.requestId = job.requestId
 
-        await this.runner.run(fresh)
-      })
-    } catch (e) {
-      this.logger.error(`Job ${job.id} execution error:`, e)
-      try {
-        const fresh = await this.repo.findOrThrow(job.id)
-        if (!fresh.hasFinished()) {
-          fresh.setAsFailed(e instanceof Error ? e : new Error('Job execution error'))
-          await this.repo.update(fresh)
+    await runWithLogContext(contextFields, () => {
+      // Attribute audited changes to the actor that dispatched the command; the
+      // command itself is provenance, not the actor.
+      if (job.actor) setAuditActor(job.actor)
+      setAuditSource(`command:${job.commandName}`)
+      return withSpan('job', { 'wabot.command': job.commandName }, async () => {
+        addCount('wabot.jobs.executed', 1, { command: job.commandName })
+        try {
+          await this.locker.withKey(`wabot-job-${job.id}`).tryRun(async () => {
+            const fresh = await this.repo.findOrThrow(job.id)
+            if (!fresh.isScheduleReady()) return
+
+            await this.runner.run(fresh)
+          })
+        } catch (e) {
+          addCount('wabot.jobs.failed', 1, { command: job.commandName })
+          this.logger.error(`Job ${job.id} execution error:`, e)
+          try {
+            const fresh = await this.repo.findOrThrow(job.id)
+            if (!fresh.hasFinished()) {
+              fresh.setAsFailed(e instanceof Error ? e : new Error('Job execution error'))
+              await this.repo.update(fresh)
+            }
+          } catch (updateError) {
+            this.logger.error(`Failed to update job ${job.id} status:`, updateError)
+          }
+        } finally {
+          this.release()
         }
-      } catch (updateError) {
-        this.logger.error(`Failed to update job ${job.id} status:`, updateError)
-      }
-    } finally {
-      this.release()
-    }
+      })
+    })
   }
 
   private tryAcquire(): boolean {

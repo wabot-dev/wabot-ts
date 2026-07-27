@@ -2,9 +2,11 @@ import { Pool } from 'pg'
 import { generate as generateShortUuid } from 'short-uuid'
 
 import { Entity, IEntityData } from '@/core/entity'
-import { ICrudRepository } from '@/core/repository'
+import { ICrudRepository, IPage, IPageOptions } from '@/core/repository'
+import { buildPage, decodeCursor } from '@/feature/repository'
 import { type IPgRepositoryConfig } from './IPgRepositoryConfig'
 import { PgRepositoryBase } from './PgRepositoryBase'
+import { buildPageSql } from './pgPageSql'
 import { CustomError } from '@/core/error'
 import { withPgClient } from './withPgClient'
 
@@ -63,6 +65,17 @@ export class PgCrudRepository<P extends Entity<IEntityData>>
     return items
   }
 
+  async findPage(options: IPageOptions): Promise<IPage<P>> {
+    const cursor = options.cursor ? decodeCursor(options.cursor) : undefined
+    const built = buildPageSql(this.table, this.columns, [], Object.keys(this.addColumns), {
+      cursorCreatedAt: cursor ? new Date(cursor.createdAt) : undefined,
+      cursorId: cursor?.id,
+      limit: options.limit,
+    })
+    const rows = await this.query(built.sql, built.buildParams([]))
+    return buildPage(rows, Math.max(1, Math.floor(options.limit)))
+  }
+
   async create(item: P): Promise<void> {
     if (item.wasCreated()) {
       throw new Error('Item already created')
@@ -74,6 +87,16 @@ export class PgCrudRepository<P extends Entity<IEntityData>>
 
     const sql = `
       INSERT INTO 
+        ${this.table}(${this.columns})
+      VALUES (${this.vars})
+    `
+    await this.exec(sql, this.values(item))
+  }
+
+  async restore(item: P): Promise<void> {
+    item.validate()
+    const sql = `
+      INSERT INTO
         ${this.table}(${this.columns})
       VALUES (${this.vars})
     `

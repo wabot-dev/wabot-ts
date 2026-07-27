@@ -4,4 +4,5 @@ import { IWhatsAppReceivedMessage } from './IWhatsAppReceivedMessage'
 export interface IWhatsAppChannelMessage extends IWhatsAppReceivedMessage {
   chatConnection: IChatConnection
   injectInstances?: [any, any][]
+  idempotencyKey?: string
 }

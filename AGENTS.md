@@ -242,6 +242,14 @@ export class PgMyRepository extends PgCrudRepository<MyEntity> implements IMyRep
 }
 ```
 
+**Storage strategy:** a repository declares where its fields live by the base class it extends — `PgJsonbRepository` (one JSONB blob, framework-managed schema) or `PgColumnsRepository` (a real column per field, schema owned by migrations). Plain `CrudRepository` declares nothing and the active backend picks its default. The declaration is read off the class by `storageOf()` (a `static storage = { engine, strategy }` inherited through the constructor chain) and handed to `adapter.build()`; the memory backend ignores it, which is what keeps `DATABASE_URL`-less runs working whatever the base class.
+
+Every repository the framework itself declares goes through this pattern and lives in the `wabot` schema: `ChatRepository`, `ChatItemRepository` (the store behind `ChatMemory`), `JobRepository`, `CronJobRepository`, `JwtRefreshTokenRepository`, `ApiKeyRepository`. Their custom queries ship as `*PgQueries` / `*MemoryQueries` extensions under `addon/*/pg` and `addon/*/in-memory`, which register themselves on import — the runner imports those index modules and never registers a repository implementation by hand.
+
+`@repository({ fields })` is an optional field subset: those fields alone are read and written, everything else in the row is invisible to that repository. The memory backend honours it too, so dev matches production. Two validations guard the pairing — `@dbExtension` refuses an extension whose strategy contradicts the repository's (at import time), and the adapter refuses a repository or extension declaring another engine (at build time).
+
+**Projections** (`@projection` + `Projection`) are the other shape: a read-only object built by its own SQL — a join or an aggregate — with no table, schema or entity to declare. The class body _is_ the database implementation (no `@dbExtension`, no `@query` DSL); the decorator configures only which database answers. Backends that cannot run statements serve it through the `@memExtension` registered for it, matched by method name and resolved through the container, and a projection without one fails at startup. Rows are mapped to classes with validators, coerced to the declared types first — the driver hands back `numeric` and `count(*)` as strings.
+
 ## Extending the Framework
 
 ### Adding a New Chat Channel
@@ -568,7 +576,7 @@ harness.tools()
 
 **Rest of the framework:**
 
-- `createRestHarness({ controllers, jwt: true, register })` — mounts `@restController`s on an ephemeral port via `registerRestControllers` (the no-listen split of `runRestControllers`); `api.request('POST', '/api/items', { body })`, `api.as(authInfo)` signs real JWTs for `@jwtGuard`, `TestApiKeyRepository` (register as `ApiKeyRepository`) backs `@apiKeyGuard`. Call `api.close()` when done.
+- `createRestHarness({ controllers, jwt: true, register })` — mounts `@restController`s on an ephemeral port via `registerRestControllers` (the no-listen split of `runRestControllers`); `api.request('POST', '/api/items', { body })`, `api.as(authInfo)` signs real JWTs for `@jwtGuard` (`api.as(authInfo, { cookie, audience })` sends them in a session cookie instead of the header and stamps the `aud` claim), `TestApiKeyRepository` (register as `ApiKeyRepository`) backs `@apiKeyGuard`. Call `api.close()` when done.
 - `createAsyncHarness()` — `execute(CommandCtor, data)` validates and runs the `@commandHandler` inline; `runCron(CronCtor)` runs a `@cronHandler` once. No PG, no workers.
 - `useMemoryRepositories()` — backs every `@repository` with `MemoryRepositoryAdapter` (`persist: false`). Call before resolving repositories (runtimes cache on first use).
 - Validation: `validateFixture` / `assertValid` / `assertInvalid(Ctor, data, { path })` with flattened issue paths.

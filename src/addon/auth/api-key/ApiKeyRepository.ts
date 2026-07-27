@@ -18,7 +18,7 @@ import { IApiKeyRepository, IGenerateApiKeyReq, IGenerateApiKeyRes } from './IAp
  * on the metadata object, so it delegates to a per-adapter extension (both
  * shipped by the framework — see ApiKeyMemoryQueries / ApiKeyPgQueries).
  */
-@repository({ table: 'api_key', constructor: ApiKey })
+@repository({ schema: 'wabot', table: 'api_key', constructor: ApiKey })
 export class ApiKeyRepository<A extends object>
   extends CrudRepository<ApiKey<A>, IApiKeyQueries<A>>
   implements IApiKeyRepository<A>

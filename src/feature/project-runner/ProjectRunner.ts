@@ -3,10 +3,16 @@ import type { Pool } from 'pg'
 import { container } from '@/core/injection'
 import { Logger } from '@/core/logger'
 import { Env } from '@/core/env'
+import { ConfigError, findConfigError, formatConfigErrorReport } from '@/core/config'
 import { IConstructor } from '@/core/generics'
 import { Locker } from '@/core/lock'
+import { Idempotency } from '@/core/idempotency'
+import { RateLimiter } from '@/core/rate-limit'
+import { initTelemetry } from '@/core/observability'
+import { AuditLog } from '@/core/audit'
 import { setupCrashHandlers, ShutdownManager } from '@/core/lifecycle'
-import { ChatRepository, IChatAdapter, runAudioAdapters, runChatAdapters } from '@/feature/chat-bot'
+import { buildPgPoolConfig, trackPgPool } from '@/feature/pg'
+import { IChatAdapter, runAudioAdapters, runChatAdapters } from '@/feature/chat-bot'
 import { IChatChannel, runChatControllers, stopChatControllers } from '@/feature/chat-controller'
 import { SocketServerProvider } from '@/feature/socket'
 import { JobExecutor } from '@/feature/async/JobExecutor'
@@ -26,8 +32,6 @@ import {
   TransactionMetadataStore,
   ICommandHandler,
   ICronHandler,
-  JobRepository,
-  CronJobRepository,
 } from '@/feature/async'
 import { runSocketControllers } from '@/feature/socket-controller'
 import { ExpressProvider } from '@/feature/express'
@@ -43,7 +47,13 @@ import { RestControllerMetadataStore } from '@/feature/rest-controller/metadata'
 import { SocketControllerMetadataStore } from '@/feature/socket-controller/metadata'
 import { UiControllerMetadataStore } from '@/feature/ui-controller/metadata'
 import {
+  DbPoolMetadataStore,
+  DefaultDbPool,
+  IDbPoolOverrides,
+  IDbPoolProvider,
+  IRepositoryAdapter,
   MemoryRepositoryAdapter,
+  normalizeAudit,
   RepositoryAdapterRegistry,
   RepositoryMetadataStore,
 } from '@/feature/repository'
@@ -64,6 +74,14 @@ export interface IProjectRunnerConfig {
    * mode used by the bundled output produced by src/build/build.ts.
    */
   preloaded?: boolean
+  /**
+   * Override the default database. When set, its `@dbPool` provider sources the
+   * connection for repositories that don't set `pool` (and for the framework's
+   * non-repository services) — e.g. to fetch `DATABASE_URL` from a secret store.
+   * A single value, so there is never more than one default. Omit to use
+   * `DATABASE_URL`.
+   */
+  defaultDatabase?: IConstructor<IDbPoolProvider>
   /** UI / island bundling options. */
   ui?: IUiRunnerConfig
 }
@@ -127,6 +145,11 @@ export class ProjectRunner {
   private preloaded: boolean
   private ui: IUiRunnerConfig
   private pool: Pool | null = null
+  private additionalPools: { name: string; pool: Pool }[] = []
+  private defaultDatabaseProvider?: IConstructor<IDbPoolProvider>
+  private defaultPoolOverrides: IDbPoolOverrides = {}
+  // Resolved pool per database provider, for routing audit streams to the right DB.
+  private providerPools = new Map<IConstructor<IDbPoolProvider>, Pool>()
 
   constructor(config: IProjectRunnerConfig = {}) {
     this.directories = config.directories ?? ['src']
@@ -135,6 +158,7 @@ export class ProjectRunner {
     this.connectionString = this.resolveConnectionString(config.connectionString)
     this.isPg = this.connectionString != null && isPostgresUrl(this.connectionString)
     this.preloaded = config.preloaded === true
+    this.defaultDatabaseProvider = config.defaultDatabase
     this.ui = config.ui ?? {}
   }
 
@@ -143,6 +167,15 @@ export class ProjectRunner {
     // to the error monitor, and exits cleanly. Graceful (SIGTERM/SIGINT) drain
     // is wired later, once components are running (setupGracefulShutdown).
     setupCrashHandlers()
+
+    // Load @opentelemetry/api if the app installed it, so spans/metrics and
+    // trace-correlated logs light up. A no-op otherwise.
+    await initTelemetry()
+
+    // A custom default database provider (config.defaultDatabase) sources the
+    // default connection — possibly async (a secret store) — so resolve it before
+    // deciding Postgres vs in-memory.
+    await this.resolveDefaultDatabase()
 
     let scannedFiles: string[] = []
     if (this.preloaded) {
@@ -159,6 +192,8 @@ export class ProjectRunner {
     const components = this.discoverComponents()
 
     await this.registerAdapters(components)
+    await this.registerAdditionalDatabases()
+    this.registerAuditStreams()
     await this.startComponents(components, scannedFiles)
   }
 
@@ -172,10 +207,110 @@ export class ProjectRunner {
     return cs
   }
 
+  private async resolveDefaultDatabase(): Promise<void> {
+    const provider = this.defaultDatabaseProvider
+    if (!provider) return
+    if (!container.resolve(DbPoolMetadataStore).isProvider(provider)) {
+      throw new Error(`config.defaultDatabase "${provider.name}" is missing the @dbPool decorator.`)
+    }
+    const instance = container.resolve(provider)
+    this.connectionString = (await instance.connection()) || null
+    this.isPg = this.connectionString != null && isPostgresUrl(this.connectionString)
+    this.defaultPoolOverrides = instance.pool?.() ?? {}
+  }
+
   private async initPool(): Promise<void> {
     const { Pool } = await import('pg')
-    this.pool = new Pool({ connectionString: this.connectionString! })
+    this.pool = new Pool(
+      buildPgPoolConfig(this.connectionString!, container.resolve(Env), this.defaultPoolOverrides),
+    )
+    // An idle client can emit 'error' when its connection drops (network blip, DB
+    // restart). Without a listener pg rethrows and crashes the process; log it and
+    // let the pool discard and replace the client.
+    this.pool.on('error', (err) => logger.error('pg pool idle client error', err))
+    trackPgPool('default', this.pool)
     container.registerInstance(Pool, this.pool)
+    this.providerPools.set(DefaultDbPool, this.pool)
+    if (this.defaultDatabaseProvider)
+      this.providerPools.set(this.defaultDatabaseProvider, this.pool)
+  }
+
+  /**
+   * Wire the databases that repositories reference via `@repository({ pool })`,
+   * beyond the default. Runs after imports so every `@repository` config is
+   * known. Each distinct provider gets its own tuned pool (or an in-memory
+   * fallback when its `connection()` is not Postgres), registered by provider
+   * class so the repo resolves it. Guarantees providers are ready before any
+   * repository is used.
+   */
+  /**
+   * Route each audited repository's stream to the pool of its audit database
+   * (defaulting to the repository's own data pool). Only the Postgres audit log
+   * needs routing; the in-memory one has no pools.
+   */
+  private registerAuditStreams(): void {
+    const auditLog = container.resolve(AuditLog) as {
+      setStreamPool?: (stream: string, pool: Pool) => void
+    }
+    if (typeof auditLog.setStreamPool !== 'function') return
+    for (const config of container.resolve(RepositoryMetadataStore).getAllConfigs()) {
+      const audit = normalizeAudit(config)
+      if (!audit) continue
+      const pool = this.providerPools.get(audit.pool ?? DefaultDbPool)
+      if (pool) auditLog.setStreamPool(audit.stream, pool)
+    }
+  }
+
+  private async registerAdditionalDatabases(): Promise<void> {
+    const metaStore = container.resolve(RepositoryMetadataStore)
+    const poolStore = container.resolve(DbPoolMetadataStore)
+    const registry = container.resolve(RepositoryAdapterRegistry)
+    const env = container.resolve(Env)
+
+    const providers = new Set<IConstructor<IDbPoolProvider>>()
+    for (const config of metaStore.getAllConfigs()) {
+      // Skip the default database — it (and a custom default provider) is already
+      // wired by registerAdapters.
+      if (
+        config.pool &&
+        config.pool !== DefaultDbPool &&
+        config.pool !== this.defaultDatabaseProvider
+      ) {
+        providers.add(config.pool)
+      }
+    }
+    if (providers.size === 0) return
+
+    for (const providerCtor of providers) {
+      const name = providerCtor.name
+      if (!poolStore.isProvider(providerCtor)) {
+        throw new Error(`Repository database provider "${name}" is missing the @dbPool decorator.`)
+      }
+      const provider = container.resolve(providerCtor)
+      const connectionString = await provider.connection()
+
+      let adapter: IRepositoryAdapter
+      if (connectionString && isPostgresUrl(connectionString)) {
+        const { Pool } = await import('pg')
+        const { PgJsonRepositoryAdapter } = await import('../../feature/pg/PgJsonRepositoryAdapter')
+        const poolConfig = buildPgPoolConfig(connectionString, env, {
+          applicationName: `wabot:${name}`,
+          ...(provider.pool?.() ?? {}),
+        })
+        const pool = new Pool(poolConfig)
+        pool.on('error', (err) => logger.error(`pg pool idle client error [${name}]`, err))
+        trackPgPool(name, pool)
+        this.additionalPools.push({ name, pool })
+        this.providerPools.set(providerCtor, pool)
+        adapter = new PgJsonRepositoryAdapter(pool)
+      } else {
+        // No Postgres connection → this database uses its own in-memory store.
+        adapter = new MemoryRepositoryAdapter()
+        logger.warn(`Database "${name}" has no Postgres connection; using in-memory fallback`)
+      }
+      registry.register(providerCtor, adapter)
+    }
+    logger.info(`Configured ${providers.size} additional database(s)`)
   }
 
   private async importFiles(files: string[]): Promise<void> {
@@ -187,21 +322,25 @@ export class ProjectRunner {
     const results = await Promise.allSettled(files.map((file) => import(pathToFileURL(file).href)))
 
     let imported = 0
-    let failed = 0
+    const configErrors: ConfigError[] = []
     const errorGroups = new Map<string, string[]>()
     for (let i = 0; i < results.length; i++) {
       const result = results[i]
       if (result.status === 'fulfilled') {
         imported++
+        continue
+      }
+      const configError = findConfigError(result.reason)
+      if (configError) {
+        configErrors.push(configError)
+        continue
+      }
+      const message = (result.reason as Error).message
+      const group = errorGroups.get(message)
+      if (group) {
+        group.push(files[i])
       } else {
-        failed++
-        const message = (result.reason as Error).message
-        const group = errorGroups.get(message)
-        if (group) {
-          group.push(files[i])
-        } else {
-          errorGroups.set(message, [files[i]])
-        }
+        errorGroups.set(message, [files[i]])
       }
     }
     for (const [message, affected] of errorGroups) {
@@ -210,6 +349,14 @@ export class ProjectRunner {
       logger.error(`Failed to import ${first}: ${message}${suffix}`)
     }
 
+    // Fail fast: a declared config reference with no value is a real
+    // misconfiguration (not an optional-dependency situation), so surface all of
+    // them at boot instead of letting the misconfigured component vanish silently.
+    if (configErrors.length > 0) {
+      throw new Error(formatConfigErrorReport(configErrors))
+    }
+
+    const failed = results.length - imported
     if (failed > 0) {
       logger.warn(`Imported ${imported}/${files.length} files (${failed} failed)`)
     } else {
@@ -247,31 +394,29 @@ export class ProjectRunner {
   private async registerMemoryAdapters(components: DiscoveredComponents): Promise<void> {
     const needsJobs = components.commandHandlers.length > 0 || components.cronHandlers.length > 0
 
-    const [chatBotMod, lockMod, jobMod, cronJobMod] = await Promise.all([
-      import('../../addon/chat-bot/in-memory/InMemoryChatRepository'),
+    // Repositories resolve through the adapter registry, so only their custom
+    // queries need importing — each extension registers itself on import.
+    const [lockMod, idempotencyMod, rateLimitMod, auditMod] = await Promise.all([
       import('../../addon/lock/InMemoryLocker'),
-      needsJobs
-        ? import('../../addon/async/in-memory/InMemoryJobRepository')
-        : Promise.resolve(null),
-      components.cronHandlers.length > 0
-        ? import('../../addon/async/in-memory/InMemoryCronJobRepository')
-        : Promise.resolve(null),
+      import('../../addon/idempotency/InMemoryIdempotency'),
+      import('../../addon/rate-limit/InMemoryRateLimiter'),
+      import('../../addon/audit/InMemoryAuditLog'),
+      import('../../addon/chat-bot/in-memory/index'),
+      needsJobs ? import('../../addon/async/in-memory/index') : Promise.resolve(null),
     ])
 
-    container.register(ChatRepository, { useToken: chatBotMod.InMemoryChatRepository as any })
     container.register(Locker, { useToken: lockMod.InMemoryLocker as any })
+    container.register(Idempotency, { useToken: idempotencyMod.InMemoryIdempotency as any })
+    container.register(RateLimiter, { useToken: rateLimitMod.InMemoryRateLimiter as any })
+    container.register(AuditLog, { useToken: auditMod.InMemoryAuditLog as any })
     const memoryAdapter = new MemoryRepositoryAdapter()
-    container.resolve(RepositoryAdapterRegistry).setDefault(memoryAdapter)
-    container.resolve(RepositoryMetadataStore).validateExtensionsRegistered(memoryAdapter.id)
-
-    if (jobMod) {
-      container.register(JobRepository, { useToken: jobMod.InMemoryJobRepository as any })
-    }
-    if (cronJobMod) {
-      container.register(CronJobRepository, {
-        useToken: cronJobMod.InMemoryCronJobRepository as any,
-      })
-    }
+    const registry = container.resolve(RepositoryAdapterRegistry)
+    registry.setDefault(memoryAdapter)
+    registry.register(DefaultDbPool, memoryAdapter)
+    if (this.defaultDatabaseProvider) registry.register(this.defaultDatabaseProvider, memoryAdapter)
+    // The memory backend runs no statements, so every projection needs its own
+    // in-memory implementation — checked here rather than at the first call.
+    container.resolve(RepositoryMetadataStore).validateExtensionsRegistered(memoryAdapter.id, false)
 
     logger.info('Configured with in-memory adapters')
   }
@@ -284,32 +429,35 @@ export class ProjectRunner {
     const hasCommandHandlers = components.commandHandlers.length > 0
     const hasCronHandlers = components.cronHandlers.length > 0
 
-    const [chatBotMod, lockerMod, repoAdapterMod, txMod, jobMod, cronJobMod] = await Promise.all([
-      import('../../addon/chat-bot/pg/PgChatRepository'),
-      import('../../feature/pg/PgLocker'),
-      import('../../feature/pg/PgJsonRepositoryAdapter'),
-      import('../../addon/async/pg/PgTransactionAdapter'),
-      hasCommandHandlers || hasCronHandlers
-        ? import('../../addon/async/pg/PgJobRepository')
-        : Promise.resolve(null),
-      hasCronHandlers ? import('../../addon/async/pg/PgCronJobRepository') : Promise.resolve(null),
-    ])
+    // Repositories resolve through the adapter registry, so only their custom
+    // queries need importing — each extension registers itself on import.
+    const [lockerMod, idempotencyMod, rateLimitMod, auditMod, repoAdapterMod, txMod] =
+      await Promise.all([
+        import('../../feature/pg/PgLocker'),
+        import('../../feature/pg/PgIdempotency'),
+        import('../../feature/pg/PgRateLimiter'),
+        import('../../feature/pg/PgAuditLog'),
+        import('../../feature/pg/PgJsonRepositoryAdapter'),
+        import('../../addon/async/pg/PgTransactionAdapter'),
+        import('../../addon/chat-bot/pg/index'),
+        hasCommandHandlers || hasCronHandlers
+          ? import('../../addon/async/pg/index')
+          : Promise.resolve(null),
+      ])
 
-    container.register(ChatRepository, { useToken: chatBotMod.PgChatRepository as any })
     container.register(Locker, { useToken: lockerMod.PgLocker as any })
+    container.register(Idempotency, { useToken: idempotencyMod.PgIdempotency as any })
+    container.register(RateLimiter, { useToken: rateLimitMod.PgRateLimiter as any })
+    container.register(AuditLog, { useToken: auditMod.PgAuditLog as any })
     const pgAdapter = new repoAdapterMod.PgJsonRepositoryAdapter(this.pool)
-    container.resolve(RepositoryAdapterRegistry).setDefault(pgAdapter)
+    const registry = container.resolve(RepositoryAdapterRegistry)
+    registry.setDefault(pgAdapter)
+    registry.register(DefaultDbPool, pgAdapter)
+    if (this.defaultDatabaseProvider) registry.register(this.defaultDatabaseProvider, pgAdapter)
     container.resolve(RepositoryMetadataStore).validateExtensionsRegistered(pgAdapter.id)
 
     const transactionStore = container.resolve(TransactionMetadataStore)
     transactionStore.registerAdapter('default', new txMod.PgTransactionAdapter(this.pool))
-
-    if (jobMod) {
-      container.register(JobRepository, { useToken: jobMod.PgJobRepository })
-    }
-    if (cronJobMod) {
-      container.register(CronJobRepository, { useToken: cronJobMod.PgCronJobRepository })
-    }
 
     logger.info('Configured with PostgreSQL adapters')
   }
@@ -477,6 +625,9 @@ export class ProjectRunner {
       const pool = this.pool
       shutdown.register({ name: 'pg-pool', phase: 'close', run: () => pool.end() })
     }
+    for (const { name, pool } of this.additionalPools) {
+      shutdown.register({ name: `pg-pool-${name}`, phase: 'close', run: () => pool.end() })
+    }
 
     shutdown.installSignalHandlers()
   }
@@ -539,11 +690,20 @@ export class ProjectRunner {
 
     const bundler = new bundlerMod.UiBundler({ islands, client, alias: this.ui.bundlerAlias })
     await bundler.startDev()
-    bundlerMod.mountUiDevAssets(container.resolve(ExpressProvider).getExpress(), bundler)
+    const devAssets = await bundlerMod.mountUiDevAssets(
+      container.resolve(ExpressProvider).getExpress(),
+      bundler,
+    )
+    container.resolve(ShutdownManager).register({
+      name: 'ui-live-reload',
+      phase: 'drain',
+      run: () => devAssets.close(),
+    })
 
     return (used) =>
       bundlerMod.pageAssetsFromManifest(bundler.getManifest(), used, {
         liveReloadPath: '/_wabot/livereload',
+        liveReloadPort: devAssets.liveReloadPort,
       })
   }
 

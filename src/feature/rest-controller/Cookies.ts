@@ -15,6 +15,23 @@ export interface ICookieOptions {
 }
 
 /**
+ * Parse a raw `Cookie` header into a name→value map. Exported because cookies
+ * also arrive outside the Express request scope — a Socket.IO handshake, for
+ * instance, carries them in `handshake.headers.cookie`.
+ */
+export function parseCookieHeader(header: string | undefined): Record<string, string> {
+  const out: Record<string, string> = {}
+  if (!header) return out
+  for (const pair of header.split(';')) {
+    const index = pair.indexOf('=')
+    if (index === -1) continue
+    const name = pair.slice(0, index).trim()
+    if (name) out[name] = decodeURIComponent(pair.slice(index + 1).trim())
+  }
+  return out
+}
+
+/**
  * Request-scoped helper to read and write cookies — agnostic of what they hold.
  * Inject it in any REST or UI handler/middleware. `@jwtGuard` uses it to read
  * the auth cookie, but you can use it for anything (sessions, prefs, flags).
@@ -33,16 +50,7 @@ export class Cookies {
 
   /** All cookies as a name→value map. */
   getAll(): Record<string, string> {
-    const out: Record<string, string> = {}
-    const header = this.req.headers.cookie
-    if (!header) return out
-    for (const pair of header.split(';')) {
-      const index = pair.indexOf('=')
-      if (index === -1) continue
-      const name = pair.slice(0, index).trim()
-      if (name) out[name] = decodeURIComponent(pair.slice(index + 1).trim())
-    }
-    return out
+    return parseCookieHeader(this.req.headers.cookie)
   }
 
   /** Write a cookie on the response. Defaults to `path: '/'`. */

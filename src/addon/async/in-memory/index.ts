@@ -1,2 +1,2 @@
-export * from './InMemoryJobRepository'
-export * from './InMemoryCronJobRepository'
+export * from './CronJobMemoryQueries'
+export * from './JobMemoryQueries'

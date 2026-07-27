@@ -1,6 +1,6 @@
 ---
 name: wabot-di-config
-description: Use when wiring services, choosing service lifecycles, reading env vars, or expressing typed config references for Wabot apps. Covers @injectable / @singleton / @scoped / @inject, the container, the Env service, and the config tag functions (str, num, bool, obj, strArr, numArr, boolArr) that drive resolveConfigReferences in channel and adapter decorators.
+description: Use when wiring services, choosing service lifecycles, reading env vars, or expressing typed config references for Wabot apps. Covers @injectable / @singleton / @scoped / @inject, the container, the Env service, the config tag functions (str, num, bool, obj, strArr, numArr, boolArr) that drive resolveConfigReferences in channel and adapter decorators, and fail-fast config validation at startup (ConfigError).
 ---
 
 # DI, Env, and config references
@@ -116,6 +116,10 @@ Syntax: `<fn>\`path.with.dots:default\``. The default after the colon is optiona
 Available factories: `str`, `num`, `bool`, `obj` (parses JSON), `strArr`, `numArr`, `boolArr` (comma-separated).
 
 If you call `resolveConfigReferences(cfg)` yourself it returns a typed object where each `ConfigReference<T>` field is replaced by `T`.
+
+### Fail-fast at startup
+
+Config references resolve when their module is imported at boot. If any required reference has no value (and no default) — or a value fails to coerce — the project runner **fails startup** with a single aggregated `ConfigError` report listing every offending env var, instead of letting the misconfigured component vanish silently. So prefer config references over `Env.requireString` for anything a component needs to exist: the reference is checked at boot, whereas `Env.requireString` only throws when the code that calls it runs.
 
 ## Rules
 

@@ -32,7 +32,17 @@ function navEntrySource(runtimeModule: string): string {
 export interface IServedFile {
   contents: Uint8Array
   type: string
+  /**
+   * The file name carries a hash of its contents, so its URL can never point at
+   * different bytes and it is safe to cache forever. True for split chunks
+   * (`chunks/<name>-<hash>.js`), false for entries, whose URL is stable across
+   * rebuilds.
+   */
+  immutable: boolean
 }
+
+/** Output subdirectory holding the content-hashed split chunks. */
+const CHUNKS_DIR = 'chunks/'
 
 export interface IUiBundlerOptions {
   islands: IDiscoveredIsland[]
@@ -141,8 +151,18 @@ export class UiBundler {
 
   private ctx: esbuild.BuildContext | null = null
   private served = new Map<string, IServedFile>()
+  /**
+   * Output of the build before the current one. A rebuild renames every chunk
+   * whose contents changed, so a page loaded seconds ago still asks for the old
+   * URLs; keeping one generation lets those requests succeed instead of 404ing
+   * until the live reload kicks in.
+   */
+  private previous = new Map<string, IServedFile>()
   private manifest: IUiManifest
   private rebuildListeners = new Set<() => void>()
+  /** Resolves when the rebuild in flight finishes; null while idle. */
+  private building: Promise<void> | null = null
+  private buildFinished: (() => void) | null = null
 
   constructor(options: IUiBundlerOptions) {
     this.islands = options.islands
@@ -160,8 +180,17 @@ export class UiBundler {
     const onEnd: esbuild.Plugin = {
       name: 'wabot-dev-refresh',
       setup: (build) => {
+        build.onStart(() => {
+          if (!this.building) {
+            this.building = new Promise<void>((resolve) => (this.buildFinished = resolve))
+          }
+        })
         build.onEnd((result) => {
           this.ingest(result, outdir)
+          const finished = this.buildFinished
+          this.building = null
+          this.buildFinished = null
+          finished?.()
           for (const listener of this.rebuildListeners) listener()
         })
       },
@@ -205,11 +234,16 @@ export class UiBundler {
   }
 
   private ingest(result: esbuild.BuildResult, outdir: string): void {
-    this.served.clear()
+    this.previous = this.served
+    this.served = new Map()
     for (const file of result.outputFiles ?? []) {
       const rel = path.relative(outdir, file.path).split(path.sep).join('/')
       const servePath = this.base + rel
-      this.served.set(servePath, { contents: file.contents, type: mimeFor(servePath) })
+      this.served.set(servePath, {
+        contents: file.contents,
+        type: mimeFor(servePath),
+        immutable: rel.startsWith(CHUNKS_DIR),
+      })
     }
     if (result.metafile) {
       this.manifest = manifestFromMetafile(result.metafile, {
@@ -220,8 +254,22 @@ export class UiBundler {
     }
   }
 
-  getFile(servePath: string): IServedFile | undefined {
-    return this.served.get(servePath)
+  /**
+   * Asset for a served URL. A miss while a rebuild is in flight waits for it
+   * instead of answering 404, so a request that raced an edit gets the file the
+   * build is about to produce.
+   */
+  async getFile(servePath: string): Promise<IServedFile | undefined> {
+    const hit = this.lookup(servePath)
+    if (hit || !this.building) {
+      return hit
+    }
+    await this.building
+    return this.lookup(servePath)
+  }
+
+  private lookup(servePath: string): IServedFile | undefined {
+    return this.served.get(servePath) ?? this.previous.get(servePath)
   }
 
   getManifest(): IUiManifest {

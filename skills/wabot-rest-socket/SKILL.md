@@ -1,6 +1,6 @@
 ---
 name: wabot-rest-socket
-description: Use when exposing HTTP endpoints or Socket.IO namespaces from a Wabot app. Covers @restController, @onGet / @onPost / @onPut / @onDelete, @middleware and IMiddleware, the EXPRESS_REQ / EXPRESS_RES tokens, the RestRequest base for raw-request access, plus @socketController, @onSocketEvent, @handshakeMiddlewares and IHandshakeMiddleware. Argument validation is shared with wabot-validation.
+description: Use when exposing HTTP endpoints or Socket.IO namespaces from a Wabot app. Covers @restController, @onGet / @onPost / @onPut / @onDelete, @middleware and IMiddleware, @rateLimit (fixed-window, 429 + rate-limit headers), the EXPRESS_REQ / EXPRESS_RES tokens, the RestRequest base for raw-request access, plus @socketController, @onSocketEvent, @handshakeMiddlewares and IHandshakeMiddleware. Argument validation is shared with wabot-validation.
 ---
 
 # REST and Socket controllers
@@ -67,16 +67,17 @@ Argument binding:
 import { IMiddleware, injectable, middleware } from '@wabot-dev/framework'
 
 @injectable()
-export class RateLimit implements IMiddleware {
+export class RequireApiVersion implements IMiddleware {
   async handle(req, res, container) {
-    if (overLimit(req.ip)) throw new CustomError({ httpCode: 429, message: 'Slow down' })
+    if (req.header('x-api-version') !== '2')
+      throw new CustomError({ httpCode: 400, message: 'Unsupported API version' })
   }
 }
 
 @restController('/api')
 class ApiController {
   @onGet('/me')
-  @middleware(RateLimit)
+  @middleware(RequireApiVersion)
   async me() {
     /* ... */
   }
@@ -84,6 +85,27 @@ class ApiController {
 ```
 
 Multiple `@middleware(X)` decorations run in declaration order. Middlewares are resolved out of the request's child container, so per-request injectables (e.g. `Auth`) work.
+
+### Rate limiting
+
+For rate limiting, use the built-in `@rateLimit` rather than a hand-rolled middleware. It counts each request in a fixed window (in-memory or Postgres, chosen by `DATABASE_URL`), sets `X-RateLimit-Limit` / `X-RateLimit-Remaining` / `Retry-After`, and throws HTTP 429 when the limit is exceeded:
+
+```typescript
+import { onPost, rateLimit, restController } from '@wabot-dev/framework'
+
+@restController('/api')
+class ApiController {
+  @onPost('/messages')
+  @rateLimit({ limit: 20, windowSeconds: 60 }) // default key: per-route-per-IP
+  async send(req: SendRequest) {
+    /* ... */
+  }
+}
+```
+
+Pass `key: (req) => ...` to bucket per user / API key instead of per IP. For non-HTTP paths (e.g. per-user LLM limits) resolve the `RateLimiter` utility directly — see `wabot-ops`.
+
+This is app-level fairness / cost control, not a DoS shield — reject volumetric floods at the edge (nginx / gateway / CDN).
 
 ### Inheritance
 
@@ -167,4 +189,4 @@ Both share one Express + HTTP server via `ExpressProvider` / `HttpServerProvider
 
 ## Testing
 
-`createRestHarness({ controllers, jwt?, register? })` from `@wabot-dev/framework/testing` mounts `@restController` classes on a private ephemeral-port server and exercises the real pipeline (parsers, middlewares/guards, validation, error mapping). `harness.request(...)` returns `{ status, body, headers }`; `harness.as(authInfo)` sends signed Bearer tokens through the real `@jwtGuard`. See the `wabot-testing` skill.
+`createRestHarness({ controllers, jwt?, register? })` from `@wabot-dev/framework/testing` mounts `@restController` classes on a private ephemeral-port server and exercises the real pipeline (parsers, middlewares/guards, validation, error mapping). `harness.request(...)` returns `{ status, body, headers }`; `harness.as(authInfo)` sends signed Bearer tokens through the real `@jwtGuard`, and `harness.as(authInfo, { cookie, audience })` sends them in a session cookie with an `aud` claim. See the `wabot-testing` skill.

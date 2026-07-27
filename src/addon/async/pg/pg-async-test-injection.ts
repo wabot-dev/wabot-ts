@@ -1,13 +1,13 @@
 import { Env } from '@/core/env'
 import { container, singleton } from '@/core/injection'
-import { JobRepository } from '@/feature/async'
 import { Pool } from 'pg'
-import { PgJobRepository } from './PgJobRepository'
-import { PgCrudRepository, PgLocker } from '@/feature/pg'
+import { PgCrudRepository, PgLocker, PgRepositoryAdapter } from '@/feature/pg'
 import { ITestTagRepository, TestTag, TestTagRepository } from '@/feature/async/testAsyncHelpers'
-import { CronJobRepository } from '@/feature/async/CronJobRepository'
-import { PgCronJobRepository } from './PgCronJobRepository'
+import { RepositoryAdapterRegistry } from '@/feature/repository'
 import { Locker } from '@/core/lock'
+// Importing the extensions registers the job/cron custom queries for Postgres.
+import './CronJobPgQueries'
+import './JobPgQueries'
 
 @singleton()
 class PgTestTagRepository extends PgCrudRepository<TestTag> implements ITestTagRepository {
@@ -46,11 +46,9 @@ class PgTestTagRepository extends PgCrudRepository<TestTag> implements ITestTagR
 }
 
 const env = container.resolve(Env)
-container.registerInstance(
-  Pool,
-  new Pool({ connectionString: env.requireString('DATABASE_URL'), max: 2 }),
-)
-container.registerType(JobRepository, PgJobRepository)
-container.registerType(CronJobRepository, PgCronJobRepository)
+const pool = new Pool({ connectionString: env.requireString('DATABASE_URL'), max: 2 })
+container.registerInstance(Pool, pool)
+// Job and cron repositories now resolve through the adapter, like any other.
+container.resolve(RepositoryAdapterRegistry).setDefault(new PgRepositoryAdapter(pool))
 container.registerType(TestTagRepository, PgTestTagRepository)
 container.registerType(Locker, PgLocker)

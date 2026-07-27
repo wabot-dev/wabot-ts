@@ -23,7 +23,7 @@ if (process.env.WABOT_BUNDLED !== '1') {
 
 - `run(config)` is the entry point. It scans `directories` (default `['src']`), imports every `.ts`/`.js` it finds (so decorators register), then starts every discovered subsystem.
 - `WABOT_BUNDLED=1` is set in production by `npm start` after `npm run build` produces `dist/entry.js` (bundled by `@wabot-dev/framework/dist/build/build.js`). In that mode you must not call `run()` at import time — the bundled entry calls it.
-- If `DATABASE_URL` is set to `postgres://…` the runner registers Pg adapters (chat memory/repo, jobs, cron jobs, locker, transaction). Otherwise it registers the in-memory equivalents. There is no manual `container.registerType(ChatRepository, …)` to write.
+- If `DATABASE_URL` is set to `postgres://…` the runner selects the Postgres backend (repositories, locker, idempotency, rate limiter, audit, transactions). Otherwise it selects the in-memory equivalents. Repositories — the framework's own included — resolve through the active adapter, so there is no manual `container.registerType(ChatRepository, …)` to write.
 
 `IProjectRunnerConfig` fields: `directories?`, `exclude?`, `connectionString?`, `chatAdapters?` (override auto-detect by env keys: `OPENAI_API_KEY` → OpenAI, `OPENROUTER_API_KEY` → OpenRouter, `ANTHROPIC_API_KEY` → Anthropic, `GOOGLE_API_KEY` → Google), `preloaded?` (used by the bundled output — skip filesystem scan).
 

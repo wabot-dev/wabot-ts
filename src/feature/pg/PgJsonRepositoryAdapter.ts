@@ -4,15 +4,25 @@ import { Entity, IEntityData } from '@/core/entity'
 import { IConstructor } from '@/core/generics'
 import {
   DB_EXTENSION_ID,
+  IPage,
+  IPageOptions,
   IQueryAst,
+  IQueryCondition,
   IRepositoryAdapter,
+  IProjectionRuntime,
   IRepositoryConfig,
   IRepositoryRuntime,
+  buildPage,
+  decodeCursor,
 } from '@/feature/repository'
+import { describeStorage, IStorageDeclaration, storageOf } from '@/core/repository'
 import { IPgRepositoryConfig } from './IPgRepositoryConfig'
+import { PG_ENGINE } from './pgEngine'
+import { PgProjectionRuntime } from './PgProjectionRuntime'
 import { PgCrudRepository } from './PgCrudRepository'
 import { PgSqlRepositoryBase } from './PgSqlRepositoryBase'
 import { buildQuerySql } from './buildQuerySql'
+import { buildPageSql } from './pgPageSql'
 import { withPgClient } from './withPgClient'
 
 function inheritsFrom(ctor: Function, base: Function): boolean {
@@ -59,12 +69,28 @@ class PgJsonRepositoryRuntime<P extends Entity<IEntityData>>
     const params = built.buildParams(args)
     await this.exec(built.sql, params)
   }
+
+  async runPage(
+    conditions: IQueryCondition[],
+    args: unknown[],
+    options: IPageOptions,
+  ): Promise<IPage<P>> {
+    const cursor = options.cursor ? decodeCursor(options.cursor) : undefined
+    const built = buildPageSql(this.table, this.columns, conditions, Object.keys(this.addColumns), {
+      cursorCreatedAt: cursor ? new Date(cursor.createdAt) : undefined,
+      cursorId: cursor?.id,
+      limit: options.limit,
+    })
+    const rows = await this.query(built.sql, built.buildParams(args))
+    return buildPage(rows, Math.max(1, Math.floor(options.limit)))
+  }
 }
 
 /**
- * The Postgres backend. Supports two storage strategies, chosen per repository
- * by the base class its `@dbExtension` extends: `PgSqlRepositoryExtension` →
- * relational (real columns), anything else (including no extension) → JSONB.
+ * The Postgres backend. Serves two storage strategies, chosen per repository by
+ * the base class it extends: `PgColumnsRepository` → real columns,
+ * `PgJsonbRepository` → JSONB. A repository that declares nothing (plain
+ * `CrudRepository`) gets JSONB, which is what it has always got.
  */
 export class PgRepositoryAdapter implements IRepositoryAdapter {
   readonly id = DB_EXTENSION_ID
@@ -74,16 +100,48 @@ export class PgRepositoryAdapter implements IRepositoryAdapter {
   build<P extends Entity<IEntityData>>(
     config: IRepositoryConfig<P>,
     extensionCtor?: IConstructor<any>,
+    storage?: IStorageDeclaration,
   ): IRepositoryRuntime<P> {
     const pgConfig = config as unknown as IPgRepositoryConfig<P>
-    if (extensionCtor && inheritsFrom(extensionCtor, PgSqlRepositoryBase)) {
+    if (this.usesColumns(config, storage, extensionCtor)) {
       return new PgSqlRepositoryBase<P>(this.pool, pgConfig)
     }
     return new PgJsonRepositoryRuntime<P>(this.pool, pgConfig)
   }
 
   buildExtension<E>(config: IRepositoryConfig<any>, ExtensionCtor: IConstructor<E>): E {
+    const declared = storageOf(ExtensionCtor)
+    if (declared && declared.engine !== PG_ENGINE) {
+      throw new Error(
+        `${ExtensionCtor.name} is an extension for ${describeStorage(declared)}, but the ` +
+          `active backend is Postgres. Extend PgJsonbRepositoryExtension or ` +
+          `PgColumnsRepositoryExtension.`,
+      )
+    }
     return new ExtensionCtor(this.pool, config as unknown as IPgRepositoryConfig<any>)
+  }
+
+  /** Projections run their own SQL on this backend's pool. */
+  buildProjection(): IProjectionRuntime {
+    return new PgProjectionRuntime(this.pool)
+  }
+
+  private usesColumns(
+    config: IRepositoryConfig<any>,
+    storage: IStorageDeclaration | undefined,
+    extensionCtor?: IConstructor<any>,
+  ): boolean {
+    if (storage) {
+      if (storage.engine !== PG_ENGINE) {
+        throw new Error(
+          `${config.table}: the repository declares ${describeStorage(storage)} storage, but the ` +
+            `active backend is Postgres. Extend PgJsonbRepository or PgColumnsRepository.`,
+        )
+      }
+      return storage.strategy === 'columns'
+    }
+    // Nothing declared on the repository: fall back to the extension's base.
+    return Boolean(extensionCtor && inheritsFrom(extensionCtor, PgSqlRepositoryBase))
   }
 }
 

@@ -4,7 +4,6 @@ import { Storable } from '../storable'
 export interface IEntityData {
   id?: string
   createdAt?: number | null
-  discardedAt?: number | null
 }
 
 export class Entity<D extends IEntityData> extends Storable<D> implements ILockerKey {
@@ -36,8 +35,8 @@ export class Entity<D extends IEntityData> extends Storable<D> implements ILocke
     return this.createdAt
   }
 
-  update(newData: Partial<Omit<D, 'id' | 'createdAt' | 'discardedAt'>>) {
-    const protectedFields = ['id', 'createdAt', 'discardedAt']
+  update(newData: Partial<Omit<D, 'id' | 'createdAt'>>) {
+    const protectedFields = ['id', 'createdAt']
     const filteredData = Object.entries(newData).reduce((acc, [key, value]) => {
       if (value !== undefined && !protectedFields.includes(key)) {
         ;(acc as any)[key] = value
