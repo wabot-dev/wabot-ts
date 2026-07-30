@@ -6,6 +6,16 @@ export interface IEntityData {
   createdAt?: number | null
 }
 
+export interface IEntityValidateOptions {
+  /**
+   * Require an id. A repository whose table assigns the id (`id: 'database'`)
+   * validates with `false` on the way in: the value exists only once the INSERT
+   * returns. Override `validate()` accordingly if your entity adds its own
+   * checks and may be stored that way.
+   */
+  requireId?: boolean
+}
+
 export class Entity<D extends IEntityData> extends Storable<D> implements ILockerKey {
   get id() {
     if (!this.data.id) {
@@ -50,8 +60,8 @@ export class Entity<D extends IEntityData> extends Storable<D> implements ILocke
     return !!this.data.createdAt || !!this.data.id
   }
 
-  validate() {
-    if (!this.data.id) {
+  validate(options: IEntityValidateOptions = {}) {
+    if (options.requireId !== false && !this.data.id) {
       throw new Error('id is required')
     }
     if (!this.data.createdAt) {

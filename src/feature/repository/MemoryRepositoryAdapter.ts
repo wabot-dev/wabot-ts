@@ -1,12 +1,12 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { generate as generateShortUuid } from 'short-uuid'
 
 import { Entity, IEntityData } from '@/core/entity'
 import { CustomError } from '@/core/error'
 import { IConstructor } from '@/core/generics'
 import { Logger } from '@/core/logger'
 import { evaluateQueryAst } from './evaluateQueryAst'
+import { resolveIdStrategy, type IResolvedIdStrategy } from './idStrategy'
 import { IRepositoryAdapter } from './IRepositoryAdapter'
 import { IRepositoryConfig } from './IRepositoryConfig'
 import { IRepositoryRuntime } from './IRepositoryRuntime'
@@ -70,9 +70,20 @@ interface IPersistOptions {
   maxItems: number
 }
 
+/**
+ * Stand-ins for real database sequences, by name. Shared across stores because
+ * the sequences they replace are: two repositories drawing from one sequence
+ * must not be handed the same number here either.
+ */
+const namedSequences = new Map<string, number>()
+
 class MemoryStore<P extends Entity<IEntityData>> {
   // Insertion order acts as LRU: most-recently-touched at the end.
   readonly items = new Map<string, P>()
+  /** Highest numeric id this store has seen — the unnamed, per-table sequence. */
+  private sequence = 0
+  /** Set when the repository draws ids from a named sequence. */
+  private sequenceName?: string
 
   constructor(
     private readonly config: IRepositoryConfig<P>,
@@ -84,6 +95,37 @@ class MemoryStore<P extends Entity<IEntityData>> {
   touch(item: P): void {
     this.items.delete(item.id)
     this.items.set(item.id, item)
+    this.noteId(item.id)
+  }
+
+  /** Draw this store's ids from the shared counter standing in for `name`. */
+  useSequence(name: string): void {
+    this.sequenceName = name
+    if (!namedSequences.has(name)) namedSequences.set(name, 0)
+    // Rows already in the store (loaded from disk) came from that sequence too.
+    this.noteId(String(this.sequence))
+  }
+
+  /**
+   * The id a database-assigned repository would get for the next row. Numeric
+   * and monotonic like a `bigserial`, and never reuses one a deleted row had.
+   */
+  nextSequenceId(): string {
+    if (this.sequenceName === undefined) return String(this.sequence + 1)
+    const next = (namedSequences.get(this.sequenceName) ?? 0) + 1
+    namedSequences.set(this.sequenceName, next)
+    return String(next)
+  }
+
+  /** Keep the sequence ahead of every id the store has seen, however it arrived. */
+  private noteId(id: string): void {
+    if (!/^\d+$/.test(id)) return
+    const value = Number(id)
+    if (!Number.isSafeInteger(value)) return
+    if (value > this.sequence) this.sequence = value
+    if (this.sequenceName !== undefined && value > (namedSequences.get(this.sequenceName) ?? 0)) {
+      namedSequences.set(this.sequenceName, value)
+    }
   }
 
   enforceLimit(): void {
@@ -118,6 +160,7 @@ class MemoryStore<P extends Entity<IEntityData>> {
         if (!data?.id) continue
         const item = new this.config.constructor(data as any)
         this.items.set(data.id, item)
+        this.noteId(data.id)
       }
       this.enforceLimit()
     } catch (err) {
@@ -142,10 +185,18 @@ export class MemoryRepositoryExtension<P extends Entity<IEntityData>> {
 }
 
 class MemoryRepositoryRuntime<P extends Entity<IEntityData>> implements IRepositoryRuntime<P> {
+  private readonly idStrategy: IResolvedIdStrategy<P>
+
   constructor(
     private readonly store: MemoryStore<P>,
     private readonly config: IRepositoryConfig<P>,
-  ) {}
+  ) {
+    // A database-assigned id is served from the store's own sequence, and a
+    // named one from the counter standing in for that sequence — so a
+    // repository over a `bigserial` table behaves the same with no database.
+    this.idStrategy = resolveIdStrategy<P>(config.id, { label: config.table })
+    if (this.idStrategy.kind === 'sequence') store.useSequence(this.idStrategy.sequence)
+  }
 
   private get items(): Map<string, P> {
     return this.store.items
@@ -184,7 +235,10 @@ class MemoryRepositoryRuntime<P extends Entity<IEntityData>> implements IReposit
     if (item.wasCreated()) {
       throw new Error('Item already created')
     }
-    item['data'].id = generateShortUuid()
+    item['data'].id =
+      this.idStrategy.kind === 'generated'
+        ? await this.idStrategy.next(item)
+        : this.store.nextSequenceId()
     item['data'].createdAt = new Date().getTime()
     item.validate()
     const stored = cloneEntity(this.config, item)

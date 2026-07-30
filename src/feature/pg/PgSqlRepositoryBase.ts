@@ -1,5 +1,4 @@
 import { Pool } from 'pg'
-import { generate as generateShortUuid } from 'short-uuid'
 
 import { Entity, IEntityData } from '@/core/entity'
 import { CustomError } from '@/core/error'
@@ -9,14 +8,22 @@ import {
   IQueryAst,
   IQueryCondition,
   IRepositoryRuntime,
+  IResolvedIdStrategy,
   buildPage,
   decodeCursor,
+  resolveIdStrategy,
 } from '@/feature/repository'
 import { DbRepositoryExtension } from '@/feature/repository/DbRepositoryExtension'
 import { IPgRepositoryConfig } from './IPgRepositoryConfig'
 import { buildQuerySql, type IPromotedColumns } from './buildQuerySql'
 import { buildPageSql } from './pgPageSql'
-import { columnarInsertSql, columnarSelectList, columnarUpdateSql } from './pgColumnarSql'
+import { nextSequenceValue } from './pgSequence'
+import {
+  columnarInsertSql,
+  columnarSelectList,
+  columnarUpdateSql,
+  type IColumnarWriteOptions,
+} from './pgColumnarSql'
 import { withPgClient } from './withPgClient'
 import { PG_COLUMNS } from './pgEngine'
 
@@ -48,12 +55,17 @@ export class PgSqlRepositoryBase<P extends Entity<IEntityData>>
   protected selectColumns: string
   /** Field references for the SQL builders: every field is a column here. */
   protected promotedColumns: IPromotedColumns
+  /** Where a new entity's id comes from — see `@repository({ id })`. */
+  protected idStrategy: IResolvedIdStrategy<P>
 
   constructor(
     protected pool: Pool,
     protected config: IPgRepositoryConfig<any>,
   ) {
     super()
+    // The table is owned by the app's migrations, so it may well assign the id
+    // itself; `id: 'database'` is available here.
+    this.idStrategy = resolveIdStrategy<P>(config.id, { label: config.table })
     this.table = [config.schema, config.table]
       .filter((x) => x && x.trim())
       .map((x) => `"${x}"`)
@@ -112,12 +124,15 @@ export class PgSqlRepositoryBase<P extends Entity<IEntityData>>
     return new this.config.constructor(data)
   }
 
-  protected values(item: P, fields: string[] = this.writeFields(item)): any[] {
-    return [
-      item.id,
-      item.createdAt,
-      ...fields.map((f) => (item['data'] as Record<string, any>)[f] ?? null),
-    ]
+  protected values(
+    item: P,
+    fields: string[] = this.writeFields(item),
+    options: IColumnarWriteOptions = {},
+  ): any[] {
+    // With `databaseId` the entity has no id yet, and the statement does not
+    // name the column — so nothing is passed for it.
+    const reserved = options.databaseId ? [item.createdAt] : [item.id, item.createdAt]
+    return [...reserved, ...fields.map((f) => (item['data'] as Record<string, any>)[f] ?? null)]
   }
 
   async find(id: string): Promise<P | null> {
@@ -152,10 +167,43 @@ export class PgSqlRepositoryBase<P extends Entity<IEntityData>>
     if (item.wasCreated()) {
       throw new Error('Item already created')
     }
-    item['data'].id = generateShortUuid()
+    // Only a table-assigned id is unknown at this point; a sequence hands its
+    // number over before the row exists, like a generator does.
+    const databaseId = this.idStrategy.kind === 'database'
+    if (this.idStrategy.kind === 'generated') {
+      item['data'].id = await this.idStrategy.next(item)
+    } else if (this.idStrategy.kind === 'sequence') {
+      item['data'].id = await nextSequenceValue(this.pool, this.idStrategy.sequence)
+    }
     item['data'].createdAt = new Date().getTime()
-    item.validate()
-    await this.insert(item)
+    item.validate({ requireId: !databaseId })
+    if (!databaseId) {
+      await this.insert(item)
+      return
+    }
+    item['data'].id = await this.insertReturningId(item)
+  }
+
+  /**
+   * Insert without an id and take back the one the table assigned. Postgres
+   * hands a `bigint` over the wire as a string, which is what an entity id
+   * already is.
+   */
+  private async insertReturningId(item: P): Promise<string> {
+    const fields = this.writeFields(item)
+    const sql = columnarInsertSql(this.table, fields, { databaseId: true })
+    const params = this.values(item, fields, { databaseId: true })
+    const id = await withPgClient(this.pool, async (client) => {
+      const { rows } = await client.query(sql, params)
+      return rows[0]?.id
+    })
+    if (id === undefined || id === null) {
+      throw new Error(
+        `${this.config.table}: INSERT ... RETURNING id gave back no id. ` +
+          `id: 'database' needs the id column to assign itself (a sequence default or a trigger).`,
+      )
+    }
+    return String(id)
   }
 
   async restore(item: P): Promise<void> {

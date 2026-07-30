@@ -29,6 +29,18 @@ test.describe('pgColumnarSql', () => {
     )
   })
 
+  test('databaseId leaves the id column out and reads back the assigned one', () => {
+    assert.deepEqual(columnarColumns(['email'], { databaseId: true }), ['"created_at"', '"email"'])
+    assert.equal(
+      columnarInsertSql('"app"."users"', ['email', 'age'], { databaseId: true }),
+      'INSERT INTO "app"."users" ("created_at", "email", "age") VALUES ($1, $2, $3) RETURNING id',
+    )
+  })
+
+  test('the select list always names id, whoever assigns it', () => {
+    assert.equal(columnarSelectList(['email']), '"id", "created_at", "email"')
+  })
+
   test('columnarUpdateSql updates only field columns; id is the last param', () => {
     assert.equal(
       columnarUpdateSql('"users"', ['email', 'age']),

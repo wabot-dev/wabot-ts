@@ -1,6 +1,6 @@
 ---
 name: wabot-persistence
-description: Use when defining entities, repositories, queries, pagination, indexes, per-adapter query extensions, or database migrations in Wabot. Covers Entity / IEntityData, @repository, the @query method-name DSL (find/findOne/count/exists/delete + And/Or + operators), cursor/keyset pagination (findPage, IPageOptions, IPage, opaque nextCursor, fixed created_at ordering), multiple databases via @dbPool / IDbPoolProvider providers referenced by @repository({ pool }), read-only repositories (ReadRepository) for CQRS read models / replicas, connection pool tuning (WABOT_PG_*), per-repository audit trails (audit: config, append-only audit_<stream> tables, recover() as a soft-delete replacement, AuditLog.record/query for custom streams, IAuditActor + optional AuditActorResolver, actor carried across commands), @queryExtension, @memExtension / MemoryRepositoryExtension, @dbExtension with PgJsonbRepositoryExtension or PgColumnsRepositoryExtension, the storage strategy declared by the repository base class (PgJsonbRepository / PgColumnsRepository and their Read variants), the optional fields subset, automatic + explicit indexes, add.columns promotion, plain-SQL migrations via the wabot-migrate CLI, the document-to-columns swap, projections (@projection / Projection / MemoryProjectionExtension) for read-only objects built by their own SQL — joins and aggregates — with pool resolution, transaction participation and rows mapped to validated classes, and how the active backend is chosen automatically by the project runner.
+description: Use when defining entities, repositories, queries, pagination, indexes, per-adapter query extensions, or database migrations in Wabot. Covers Entity / IEntityData, @repository, the @query method-name DSL (find/findOne/count/exists/delete + And/Or + operators), where a new entity's id comes from (@repository({ id }): the default short-uuid, 'uuid', a custom generator function, { sequence } drawn with nextval, or 'database' for a bigserial/trigger column inserted with RETURNING id — and inheriting a legacy table generally), cursor/keyset pagination (findPage, IPageOptions, IPage, opaque nextCursor, fixed created_at ordering), multiple databases via @dbPool / IDbPoolProvider providers referenced by @repository({ pool }), read-only repositories (ReadRepository) for CQRS read models / replicas, connection pool tuning (WABOT_PG_*), per-repository audit trails (audit: config, append-only audit_<stream> tables, recover() as a soft-delete replacement, AuditLog.record/query for custom streams, IAuditActor + optional AuditActorResolver, actor carried across commands), @queryExtension, @memExtension / MemoryRepositoryExtension, @dbExtension with PgJsonbRepositoryExtension or PgColumnsRepositoryExtension, the storage strategy declared by the repository base class (PgJsonbRepository / PgColumnsRepository and their Read variants), the optional fields subset, automatic + explicit indexes, add.columns promotion, plain-SQL migrations via the wabot-migrate CLI, the document-to-columns swap, projections (@projection / Projection / MemoryProjectionExtension) for read-only objects built by their own SQL — joins and aggregates — with pool resolution, transaction participation and rows mapped to validated classes, and how the active backend is chosen automatically by the project runner.
 ---
 
 # Persistence
@@ -25,7 +25,7 @@ export interface IGameData extends IEntityData {
 export class Game extends Entity<IGameData> {}
 ```
 
-`IEntityData` adds `id?: string`, `createdAt?: number | null`. The id/createdAt are filled in by the repository on `create`. There is no soft-delete field: `delete()` is a hard delete — use `audit` (below) to keep destroyed objects reviewable/recoverable.
+`IEntityData` adds `id?: string`, `createdAt?: number | null`. The id/createdAt are filled in by the repository on `create` (see [`id`](#where-the-id-comes-from-id) for tables that assign the id themselves). There is no soft-delete field: `delete()` is a hard delete — use `audit` (below) to keep destroyed objects reviewable/recoverable.
 
 `Entity` exposes:
 
@@ -58,6 +58,56 @@ export class GameRepository
 The decorator generates concrete implementations for `CrudRepository`'s methods (`find`, `findOrThrow`, `findByIds`, `findAll`, `create`, `update`, `delete`) and for every `@query()` declare. It also installs a lazy `.extension` accessor backed by the active adapter.
 
 `@repository` applies `@singleton()` for you. Inject `GameRepository` directly anywhere.
+
+## Where the id comes from (`id`)
+
+`create()` assigns a short UUID before inserting. `id` changes that:
+
+| `id`                   | Who assigns it                        | Known before the INSERT? | For                                                    |
+| ---------------------- | ------------------------------------- | ------------------------ | ------------------------------------------------------ |
+| omitted                | the framework, a short UUID           | yes                      | the default; a `TEXT` primary key                      |
+| `'uuid'`               | the framework, RFC 4122 v4            | yes                      | a `uuid` column                                        |
+| `(item) => string`     | you (sync or async, gets the entity)  | yes                      | your own scheme — prefixed, derived, externally issued |
+| `{ sequence: 'name' }` | a database sequence, drawn by the app | yes                      | a numeric key you need before the row exists           |
+| `'database'`           | the table itself                      | no                       | `bigserial`, a `DEFAULT nextval(...)`, a trigger       |
+
+### From a sequence
+
+```typescript
+@repository({ table: 'game', constructor: Game, id: { sequence: 'game_id_seq' } })
+export class GameRepository extends PgColumnsRepository<Game> {}
+```
+
+`create()` runs `SELECT nextval('game_id_seq')` first and inserts the number it got, so `item.id` is set **before** the row is written — which is what you need to reference the id from children, an outbox row or a URL inside the same unit of work. Schema-qualify the name (`'legacy.game_id_seq'`) when it lives elsewhere; the name is passed as a parameter cast to `regclass`, never pasted into SQL. The sequence must already exist — the framework issues no DDL for it:
+
+```sql
+CREATE SEQUENCE game_id_seq OWNED BY game.id;
+```
+
+The draw goes through the repository's own pool, so inside a transaction it uses that transaction's connection. Sequences are outside transactions by design: a rolled-back insert still consumes its number, so **ids have gaps** — as they do with `bigserial`.
+
+Unlike `'database'`, a sequence works on either storage strategy, because the app supplies the value.
+
+### Assigned by the table
+
+```typescript
+@repository({ table: 'funding_call', constructor: FundingCall, id: 'database' })
+export class FundingCallRepository extends PgColumnsRepository<FundingCall> {}
+```
+
+The INSERT leaves the column out and reads back what the table assigned, so **`item.id` is only readable once `create()` resolves** — Postgres returns a `bigint` as a string, which is what an entity id already is. It needs a table you own: it is rejected on the document (JSONB) strategy, whose table the framework creates with a plain `TEXT` primary key and no default (draw from a sequence there instead).
+
+Inheriting a table this way is the common case for an app replacing an older system. Pair it with `schema` when those tables do not live in `public`:
+
+```typescript
+@repository({ schema: 'legacy', table: 'users', constructor: User, id: 'database' })
+```
+
+If your entity overrides `validate()`, note that a database-assigned repository validates with `{ requireId: false }` on the way in — the id does not exist yet at that point.
+
+### Without a database
+
+The memory backend stands in for both: `'database'` counts per table, and a named sequence gets a counter shared by every repository naming it — so two tables drawing from one sequence interleave instead of colliding, exactly as they would in Postgres. Tests and `npm run dev` without `DATABASE_URL` behave like production.
 
 ## `@query` method-name DSL
 

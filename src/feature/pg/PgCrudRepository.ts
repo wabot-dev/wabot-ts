@@ -1,12 +1,17 @@
 import { Pool } from 'pg'
-import { generate as generateShortUuid } from 'short-uuid'
 
 import { Entity, IEntityData } from '@/core/entity'
 import { ICrudRepository, IPage, IPageOptions } from '@/core/repository'
-import { buildPage, decodeCursor } from '@/feature/repository'
+import {
+  buildPage,
+  decodeCursor,
+  resolveIdStrategy,
+  type IResolvedIdStrategy,
+} from '@/feature/repository'
 import { type IPgRepositoryConfig } from './IPgRepositoryConfig'
 import { PgRepositoryBase } from './PgRepositoryBase'
 import { buildPageSql } from './pgPageSql'
+import { nextSequenceValue } from './pgSequence'
 import { CustomError } from '@/core/error'
 import { withPgClient } from './withPgClient'
 
@@ -14,11 +19,20 @@ export class PgCrudRepository<P extends Entity<IEntityData>>
   extends PgRepositoryBase<P>
   implements ICrudRepository<P>
 {
+  /** Where a new entity's id comes from — see `@repository({ id })`. */
+  protected readonly idStrategy: IResolvedIdStrategy<P>
+
   constructor(
     pool: Pool,
     protected readonly config: IPgRepositoryConfig<P>,
   ) {
     super(pool, config)
+    // This strategy creates the table itself, with a plain TEXT primary key and
+    // no default, so there is nothing for the database to assign.
+    this.idStrategy = resolveIdStrategy<P>(config.id, {
+      label: config.table,
+      supportsDatabaseAssigned: false,
+    })
   }
 
   async find(id: string): Promise<P | null> {
@@ -76,12 +90,27 @@ export class PgCrudRepository<P extends Entity<IEntityData>>
     return buildPage(rows, Math.max(1, Math.floor(options.limit)))
   }
 
+  /**
+   * The id for a new entity. `kind: 'database'` cannot occur — this strategy
+   * creates the table itself, so the constructor refuses it.
+   */
+  private async nextId(item: P): Promise<string> {
+    switch (this.idStrategy.kind) {
+      case 'generated':
+        return this.idStrategy.next(item)
+      case 'sequence':
+        return nextSequenceValue(this.pool, this.idStrategy.sequence)
+      default:
+        throw new Error(`${this.config.table}: this storage cannot let the database assign the id`)
+    }
+  }
+
   async create(item: P): Promise<void> {
     if (item.wasCreated()) {
       throw new Error('Item already created')
     }
 
-    item['data'].id = generateShortUuid()
+    item['data'].id = await this.nextId(item)
     item['data'].createdAt = new Date().getTime()
     item.validate()
 

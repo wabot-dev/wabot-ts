@@ -1,11 +1,13 @@
 import { Entity, IEntityData } from '@/core/entity'
 import { IConstructor } from '@/core/generics'
-import { IIndexDecl } from '@/feature/repository'
+import { IIdStrategy, IIndexDecl } from '@/feature/repository'
 
 export type IPgRepositoryConfig<P extends Entity<IEntityData>> = {
   schema?: string
   table: string
   constructor: IConstructor<P>
+  /** Where a new entity's id comes from. Default: a short UUID set before the INSERT. */
+  id?: IIdStrategy<P>
   /** Explicit + auto-derived indexes (populated by `@repository`). */
   indexes?: IIndexDecl[]
   /**
