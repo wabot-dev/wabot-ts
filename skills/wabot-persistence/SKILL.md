@@ -1,6 +1,6 @@
 ---
 name: wabot-persistence
-description: Use when defining entities, repositories, queries, pagination, indexes, per-adapter query extensions, or database migrations in Wabot. Covers Entity / IEntityData, @repository, the @query method-name DSL (find/findOne/count/exists/delete + And/Or + operators), where a new entity's id comes from (@repository({ id }): the default short-uuid, 'uuid', a custom generator function, { sequence } drawn with nextval, or 'database' for a bigserial/trigger column inserted with RETURNING id — and inheriting a legacy table generally), cursor/keyset pagination (findPage, IPageOptions, IPage, opaque nextCursor, fixed created_at ordering), multiple databases via @dbPool / IDbPoolProvider providers referenced by @repository({ pool }), read-only repositories (ReadRepository) for CQRS read models / replicas, connection pool tuning (WABOT_PG_*), per-repository audit trails (audit: config, append-only audit_<stream> tables, recover() as a soft-delete replacement, AuditLog.record/query for custom streams, IAuditActor + optional AuditActorResolver, actor carried across commands), @queryExtension, @memExtension / MemoryRepositoryExtension, @dbExtension with PgJsonbRepositoryExtension or PgColumnsRepositoryExtension, the storage strategy declared by the repository base class (PgJsonbRepository / PgColumnsRepository and their Read variants), the optional fields subset, automatic + explicit indexes, add.columns promotion, plain-SQL migrations via the wabot-migrate CLI, the document-to-columns swap, projections (@projection / Projection / MemoryProjectionExtension) for read-only objects built by their own SQL — joins and aggregates — with pool resolution, transaction participation and rows mapped to validated classes, and how the active backend is chosen automatically by the project runner.
+description: Use when defining entities, repositories, queries, pagination, indexes, per-adapter query extensions, or database migrations in Wabot. Covers Entity / IEntityData, @repository, the @query method-name DSL (find/findOne/count/exists/delete + And/Or + operators, with derived names resolved against snake_case columns), where a new entity's id comes from (@repository({ id }): the default short-uuid, 'uuid', a custom generator function, { sequence } drawn with nextval, or 'database' for a bigserial/trigger column inserted with RETURNING id — and inheriting a legacy table generally), cursor/keyset pagination (findPage, IPageOptions, IPage, opaque nextCursor, fixed created_at ordering), multiple databases via @dbPool / IDbPoolProvider providers referenced by @repository({ pool }), read-only repositories (ReadRepository) for CQRS read models / replicas, connection pool tuning (WABOT_PG_*), per-repository audit trails (audit: config, append-only audit_<stream> tables, recover() as a soft-delete replacement, AuditLog.record/query for custom streams, IAuditActor + optional AuditActorResolver, actor carried across commands), @queryExtension, @memExtension / MemoryRepositoryExtension, @dbExtension with PgJsonbRepositoryExtension or PgColumnsRepositoryExtension, the storage strategy declared by the repository base class (PgJsonbRepository / PgColumnsRepository and their Read variants), the optional fields subset, automatic + explicit indexes, add.columns promotion, plain-SQL migrations via the wabot-migrate CLI, the document-to-columns swap, projections (@projection / Projection / MemoryProjectionExtension) for read-only objects built by their own SQL — joins and aggregates — with pool resolution, transaction participation and rows mapped to validated classes, and how the active backend is chosen automatically by the project runner.
 ---
 
 # Persistence
@@ -131,6 +131,26 @@ Examples that work:
 ```
 
 Argument count and order must match the conditions left-to-right. `IsNull`/`IsNotNull` take no argument; `In`/`NotIn` take an array.
+
+### snake_case fields
+
+A method name is PascalCase, so `findOneByFundingOpportunityId` derives the field `fundingOpportunityId`. When the repository declares `fields`, the derived name is matched against that list — **as written first, then its snake_case form** — so a table with `snake_case` columns is addressed by the same method names:
+
+```typescript
+@repository({
+  table: 'funding_call',
+  constructor: FundingCall,
+  fields: ['funding_opportunity_id', 'start_date', 'status'],
+})
+export class FundingCallRepository extends PgColumnsRepository<FundingCall> {
+  // → WHERE "funding_opportunity_id" = $1
+  @query() declare findByFundingOpportunityId: (id: string) => Promise<FundingCall[]>
+  // → ORDER BY "start_date" DESC
+  @query() declare findByStatusOrderByStartDateDesc: (status: string) => Promise<FundingCall[]>
+}
+```
+
+This applies to conditions and `OrderBy` alike, on every backend, and to the indexes auto-derived from those method names. A field declared as written always wins, so mixing spellings in one `fields` list works. Nothing is renamed for a repository without `fields`, and `id`/`createdAt` stay as they are — the framework maps them to `id`/`created_at` itself.
 
 If your query cannot be expressed by the DSL (joins, aggregates, JSON paths) use `@queryExtension()` instead — see below.
 
