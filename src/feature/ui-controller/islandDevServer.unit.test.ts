@@ -12,7 +12,7 @@ import { uiController, view } from './metadata'
 import { IslandRegistry } from './island'
 import { UiRendererRegistry } from './renderer'
 import { registerUiControllers } from './runUiControllers'
-import { UiBundler, mountUiDevAssets, pageAssetsFromManifest } from './bundler'
+import { UiBundler, mountUiDevAssets, pageAssetsFromManifest, type IUiDevAssets } from './bundler'
 import GreeterIsland from './__fixtures__/Greeter.island'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
@@ -32,7 +32,7 @@ let server: Server
 let baseUrl = ''
 let bundler: UiBundler
 let islandId = ''
-let devAssets: { liveReloadPort: number; close(): Promise<void> }
+let devAssets: IUiDevAssets
 
 test.before(async () => {
   const child = container.createChildContainer()
@@ -63,6 +63,9 @@ test.before(async () => {
         liveReloadPort: devAssets.liveReloadPort,
       }),
   })
+  // Last, as the project runner does: the asset-not-found responder ends the
+  // request, so everything else under the prefix has to be registered first.
+  devAssets.mountNotFound()
 
   server = httpServerProvider.getHttpServer()
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', () => resolve()))
