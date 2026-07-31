@@ -178,7 +178,7 @@ export class PanelController {
 
 - **`layout: Component`** — a persistent shell rendered once around every view; it renders `<Outlet/>` where the current view goes. During boosted nav only the outlet swaps, so the shell and its islands keep their state. Full loads render inside the layout; boosted-nav fragments render just the view.
 - **`swr: { maxAge?, version? }`** on `@view` tunes the boosted-nav cache. `maxAge` (seconds) serves a revisit from cache without revalidating. `version(request)` returns a short deterministic string; boosted-nav revalidation answers `304` from it _without running the handler or SSR_. Parameterized `app` views should declare `swr.version` keyed off their route params.
-- **`head: { preconnect?, preload? }`** on `@uiController` emits `<link rel="preconnect|preload">` hints on full loads (the natural home for app-wide fonts — the head persists across boosted nav).
+- **`head: { stylesheets?, preconnect?, preload? }`** on `@uiController` emits `<link rel="stylesheet">` for each URL (see [Styling](#styling)) and `<link rel="preconnect|preload">` hints on full loads (the natural home for app-wide fonts — the head persists across boosted nav).
 
 ## Static generation (SSG)
 
@@ -209,6 +209,18 @@ CSS modules are supported in islands and components:
 import styles from './styles.module.css'
 export default island(() => <div class={styles.box}>styled</div>)
 ```
+
+A **plain** (non-module) stylesheet imports as the URL it is served at, which is what `head.stylesheets` takes — the way to pull in a design system once, cached, instead of inlining it into every document:
+
+```tsx
+import reset from '@acme/ui/reset.css'
+import tokens from '@acme/ui/tokens.css'
+
+@uiController('/dash', { head: { stylesheets: [reset, tokens] } })
+export class DashboardController {}
+```
+
+The URL carries a hash of the file's contents (`/_wabot/css/<hash>.css`) and is served with a long immutable cache, so a changed stylesheet gets a new URL. Order matters: controller stylesheets are emitted before the CSS-module styles of the page.
 
 Inline `<style dangerouslySetInnerHTML={{ __html: css }} />` works too (as in a layout that injects a design-system stylesheet once).
 

@@ -39,6 +39,7 @@
       "import": "./dist/src/ui/cssModuleLoader.js"
     },
     "./ui/css-runtime": {
+      "types": "./dist/src/ui/cssRegistry.d.ts",
       "import": "./dist/src/ui/cssRegistry.js"
     }
   },

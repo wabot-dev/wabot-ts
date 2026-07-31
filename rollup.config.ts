@@ -180,6 +180,9 @@ const dtsConfig: RollupOptions = {
     'ui/index': 'src/ui/index.ts',
     'ui/jsx-runtime': 'src/ui/jsx-runtime.ts',
     'ui/jsx-dev-runtime': 'src/ui/jsx-dev-runtime.ts',
+    // Public as `@wabot-dev/framework/ui/css-runtime`, and imported by the
+    // modules the CSS loader generates, so it needs its own declarations.
+    'ui/cssRegistry': 'src/ui/cssRegistry.ts',
   },
   output: {
     dir: 'dist/src',
