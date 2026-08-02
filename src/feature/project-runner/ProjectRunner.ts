@@ -42,6 +42,9 @@ import {
   IslandRegistry,
   IRegisterUiControllersOptions,
 } from '@/feature/ui-controller'
+// Type-only: the bundler is imported dynamically (it pulls in esbuild), and a
+// type import is erased, so naming this here costs nothing at runtime.
+import type { IUiDevAssets } from '@/feature/ui-controller/bundler/devMiddleware'
 import { ControllerMetadataStore } from '@/feature/chat-controller/metadata'
 import { RestControllerMetadataStore } from '@/feature/rest-controller/metadata'
 import { SocketControllerMetadataStore } from '@/feature/socket-controller/metadata'
@@ -134,6 +137,16 @@ interface DiscoveredComponents {
   cronHandlers: IConstructor<ICronHandler>[]
   socketControllers: IConstructor<any>[]
   uiControllers: IConstructor<any>[]
+}
+
+/**
+ * What dev UI asset setup hands back: the closure that resolves a page's
+ * assets, and the dev server itself — kept so its not-found responder can be
+ * registered after the UI controllers, not before them.
+ */
+interface IDevUiAssets {
+  pageAssets: IRegisterUiControllersOptions['pageAssets']
+  devAssets: IUiDevAssets
 }
 
 export class ProjectRunner {
@@ -644,17 +657,26 @@ export class ProjectRunner {
 
     const client = rendererRegistry.get().client
     let pageAssets: IRegisterUiControllersOptions['pageAssets'] | undefined
+    let devAssets: IUiDevAssets | undefined
 
     if (client) {
       // The bundler pulls in esbuild, so only load it when UI islands are in play.
       const bundlerMod = await import('../ui-controller/bundler/index')
-      pageAssets = this.preloaded
-        ? await this.setupProdUiAssets(bundlerMod)
-        : await this.setupDevUiAssets(bundlerMod, client, files)
+      if (this.preloaded) {
+        pageAssets = await this.setupProdUiAssets(bundlerMod)
+      } else {
+        const dev = await this.setupDevUiAssets(bundlerMod, client, files)
+        pageAssets = dev?.pageAssets
+        devAssets = dev?.devAssets
+      }
     }
 
     logger.info(`Starting ${uiControllers.length} UI controller(s)`)
     runUiControllers(uiControllers, { pageAssets })
+
+    // Last, so the routes registered just above — the plain-CSS asset registry
+    // among them — are reached before an asset URL is called missing.
+    devAssets?.mountNotFound()
 
     if (!this.preloaded) {
       this.printUiDevUrl(uiControllers)
@@ -684,7 +706,7 @@ export class ProjectRunner {
     bundlerMod: typeof import('../ui-controller/bundler/index'),
     client: NonNullable<ReturnType<UiRendererRegistry['get']>['client']>,
     files: string[],
-  ): Promise<IRegisterUiControllersOptions['pageAssets'] | undefined> {
+  ): Promise<IDevUiAssets | undefined> {
     const islands = await container.resolve(IslandRegistry).discover(files)
     if (islands.length === 0) return undefined
 
@@ -700,11 +722,14 @@ export class ProjectRunner {
       run: () => devAssets.close(),
     })
 
-    return (used) =>
-      bundlerMod.pageAssetsFromManifest(bundler.getManifest(), used, {
-        liveReloadPath: '/_wabot/livereload',
-        liveReloadPort: devAssets.liveReloadPort,
-      })
+    return {
+      pageAssets: (used) =>
+        bundlerMod.pageAssetsFromManifest(bundler.getManifest(), used, {
+          liveReloadPath: '/_wabot/livereload',
+          liveReloadPort: devAssets.liveReloadPort,
+        }),
+      devAssets,
+    }
   }
 
   private async setupProdUiAssets(

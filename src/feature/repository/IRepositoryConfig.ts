@@ -1,6 +1,7 @@
 import { Entity, IEntityData } from '@/core/entity'
 import { IConstructor } from '@/core/generics'
 import { IDbPoolProvider } from './IDbPoolProvider'
+import { IIdStrategy } from './idStrategy'
 import { IIndexDecl } from './indexes'
 
 export type IRepositoryAuditEvent = 'create' | 'update' | 'destroy'
@@ -29,6 +30,18 @@ export interface IRepositoryConfig<P extends Entity<IEntityData>> {
    * to several databases (and route CQRS reads to a replica).
    */
   pool?: IConstructor<IDbPoolProvider>
+  /**
+   * Where a new entity's id comes from. Defaults to `'short-uuid'`, assigned
+   * before the INSERT — what every repository did before this option existed.
+   *
+   * `'uuid'` for a `uuid` column, a function for your own scheme, and
+   * `'database'` for a table that assigns the id itself (`bigserial`, a
+   * sequence default, a trigger): the INSERT then omits the column and reads
+   * the value back, so `item.id` is only readable once `create()` resolves.
+   * `'database'` needs a table the app owns — it is not available on the
+   * document (JSONB) strategy, whose table the framework creates.
+   */
+  id?: IIdStrategy<P>
   /**
    * Enable an append-only audit trail for this repository. `true` audits all
    * lifecycle events to a stream named after the table; the object supports

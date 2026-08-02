@@ -4,6 +4,7 @@ import { CrudRepository, ReadRepository, storageOf } from '@/core/repository'
 import { container, singleton } from '@/core/injection'
 import { IConstructor } from '@/core/generics'
 import { normalizeAudit } from './auditConfig'
+import { resolveAstFields } from './fieldNames'
 import { IRepositoryAuditEvent } from './IRepositoryConfig'
 import { IQueryAst } from './types'
 import { deriveIndexes, mergeIndexes } from './indexes'
@@ -98,7 +99,10 @@ function getAst(self: any, methodName: string): IQueryAst {
   }
   let ast = cache.get(methodName)
   if (!ast) {
-    ast = parseQueryMethodName(methodName)
+    // Resolved here rather than in each backend: every runtime then receives an
+    // AST whose field names are the repository's own.
+    const fields = getConfig(self).fields as string[] | undefined
+    ast = resolveAstFields(parseQueryMethodName(methodName), fields)
     cache.set(methodName, ast)
   }
   return ast
@@ -266,8 +270,11 @@ export function repository<P extends Entity<IEntityData>>(config: IRepositoryCon
     // Auto-derive indexes from the declared query methods and merge them with
     // any explicit `indexes`. Backends that manage schema (Postgres JSONB) read
     // config.indexes to create them; the memory backend ignores them.
+    // Resolved too, so an index is declared on the column the query will name.
     const derivedIndexes = deriveIndexes(
-      queryMethods.map((m) => parseQueryMethodName(m.functionName)),
+      queryMethods.map((m) =>
+        resolveAstFields(parseQueryMethodName(m.functionName), config.fields as string[]),
+      ),
     )
     config.indexes = mergeIndexes(config.indexes ?? [], derivedIndexes)
 

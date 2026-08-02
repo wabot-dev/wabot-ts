@@ -20,6 +20,13 @@ export interface IUiDevAssetsOptions {
 export interface IUiDevAssets {
   /** Port the live-reload SSE server ended up on. */
   liveReloadPort: number
+  /**
+   * Answer for an asset URL nothing else claimed. Call it **after** every other
+   * route under the prefix is registered — it ends the request, so anything
+   * mounted under `/_wabot/` afterwards would never be reached. Optional: skip
+   * it and a missing asset falls through to the app's own 404.
+   */
+  mountNotFound(): void
   /** Stop the live-reload server and drop its open connections. */
   close(): Promise<void>
 }
@@ -129,14 +136,27 @@ export async function mountUiDevAssets(
   }, 30_000)
   heartbeat.unref()
 
+  // The bundler shares `/_wabot/` with routes registered later — the plain-CSS
+  // asset registry among them — so a URL it does not serve has to fall through
+  // rather than be answered here. Ending the request on a miss made this
+  // handler the owner of the whole prefix and 404'd every one of those routes.
   app.use(mountPath, async (req: Request, res: Response, next) => {
-    const servePath = mountPath + req.path
-    const file = await bundler.getFile(servePath)
-    if (!file) {
-      // An asset that a rebuild renamed away. Answering with the app's HTML 404
-      // would hand a module script something it cannot parse, so reply in the
-      // asset's own language and say why in the console.
-      const notice = `[wabot] dev asset not found: ${servePath}`
+    const file = await bundler.getFile(mountPath + req.path)
+    if (!file) return next()
+    res.set('Content-Type', file.type)
+    // Chunk URLs carry a hash of their contents, so they can be cached hard;
+    // entry URLs are stable across rebuilds and must be revalidated.
+    res.set('Cache-Control', file.immutable ? 'public, max-age=31536000, immutable' : 'no-cache')
+    res.send(Buffer.from(file.contents))
+  })
+
+  const mountNotFound = () => {
+    app.use(mountPath, (req: Request, res: Response, next) => {
+      // An asset that a rebuild renamed away, once everything else has passed.
+      // Answering with the app's HTML 404 would hand a module script something
+      // it cannot parse, so reply in the asset's own language and say why in
+      // the console.
+      const notice = `[wabot] dev asset not found: ${mountPath + req.path}`
       if (req.path.endsWith('.css')) {
         res.status(404).type('text/css').send(`/* ${notice} */`)
         return
@@ -148,19 +168,15 @@ export async function mountUiDevAssets(
           .send(`console.error(${JSON.stringify(notice)})`)
         return
       }
-      return next()
-    }
-    res.set('Content-Type', file.type)
-    // Chunk URLs carry a hash of their contents, so they can be cached hard;
-    // entry URLs are stable across rebuilds and must be revalidated.
-    res.set('Cache-Control', file.immutable ? 'public, max-age=31536000, immutable' : 'no-cache')
-    res.send(Buffer.from(file.contents))
-  })
+      next()
+    })
+  }
 
   logger.info(`serving island assets at ${base} (live reload on port ${liveReloadPort})`)
 
   return {
     liveReloadPort,
+    mountNotFound,
     close: async () => {
       clearInterval(heartbeat)
       for (const res of clients) res.end()

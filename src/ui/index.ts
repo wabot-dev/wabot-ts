@@ -17,6 +17,11 @@ export * from '@/feature/ui-controller'
 // Layout <Outlet/> for `app: true` controllers (boosted navigation).
 export { Outlet } from '@/addon/ui/preact/outlet'
 
+// Plain-CSS assets registered by `import href from './x.css'`. Also published
+// as `@wabot-dev/framework/ui/css-runtime`, which is what the generated CSS
+// modules import; re-exported here so app code has a typed path to it.
+export { getCssAsset } from '@/ui/cssRegistry'
+
 // Preact rendering primitives.
 export {
   Fragment,

@@ -7,9 +7,21 @@ function quoteIdent(name: string): string {
   return `"${name.replace(/"/g, '""')}"`
 }
 
+export interface IColumnarWriteOptions {
+  /**
+   * The table assigns `id` itself (`id: 'database'`): leave the column out of
+   * the statement so its default — a sequence, a trigger — supplies the value.
+   */
+  databaseId?: boolean
+}
+
 /** Ordered, quoted column identifiers: id, created_at, then the field columns. */
-export function columnarColumns(columnFields: string[]): string[] {
-  return ['id', 'created_at', ...columnFields].map(quoteIdent)
+export function columnarColumns(
+  columnFields: string[],
+  options: IColumnarWriteOptions = {},
+): string[] {
+  const reserved = options.databaseId ? ['created_at'] : ['id', 'created_at']
+  return [...reserved, ...columnFields].map(quoteIdent)
 }
 
 /** Comma-joined column list for SELECT / INSERT. */
@@ -17,11 +29,20 @@ export function columnarSelectList(columnFields: string[]): string {
   return columnarColumns(columnFields).join(', ')
 }
 
-/** `INSERT INTO <table> (cols) VALUES ($1..$n)` — value order matches columnarColumns. */
-export function columnarInsertSql(table: string, columnFields: string[]): string {
-  const cols = columnarColumns(columnFields)
+/**
+ * `INSERT INTO <table> (cols) VALUES ($1..$n)` — value order matches
+ * columnarColumns. With `databaseId` the id is neither named nor passed, and
+ * the statement reads back the one the table assigned.
+ */
+export function columnarInsertSql(
+  table: string,
+  columnFields: string[],
+  options: IColumnarWriteOptions = {},
+): string {
+  const cols = columnarColumns(columnFields, options)
   const vars = cols.map((_, i) => `$${i + 1}`)
-  return `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${vars.join(', ')})`
+  const sql = `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${vars.join(', ')})`
+  return options.databaseId ? `${sql} RETURNING id` : sql
 }
 
 /**
