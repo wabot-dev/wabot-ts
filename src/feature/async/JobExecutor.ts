@@ -7,6 +7,7 @@ import { setAuditActor, setAuditSource } from '@/core/audit'
 import { addCount, withSpan } from '@/core/observability'
 import { Job } from './Job'
 import { Locker } from '@/core/lock'
+import { runDetached } from '@/core/async-scope'
 
 @singleton()
 export class JobExecutor {
@@ -54,37 +55,46 @@ export class JobExecutor {
     const contextFields: ILogContext = { jobId: job.id, command: job.commandName }
     if (job.requestId) contextFields.requestId = job.requestId
 
-    await runWithLogContext(contextFields, () => {
-      // Attribute audited changes to the actor that dispatched the command; the
-      // command itself is provenance, not the actor.
-      if (job.actor) setAuditActor(job.actor)
-      setAuditSource(`command:${job.commandName}`)
-      return withSpan('job', { 'wabot.command': job.commandName }, async () => {
-        addCount('wabot.jobs.executed', 1, { command: job.commandName })
-        try {
-          await this.locker.withKey(`wabot-job-${job.id}`).tryRun(async () => {
-            const fresh = await this.repo.findOrThrow(job.id)
-            if (!fresh.isScheduleReady()) return
-
-            await this.runner.run(fresh)
-          })
-        } catch (e) {
-          addCount('wabot.jobs.failed', 1, { command: job.commandName })
-          this.logger.error(`Job ${job.id} execution error:`, e)
+    // A job is a unit of work of its own. Whatever started it, the scheduler loop
+    // inside its lock or a handler dispatching a command, must not lend it its
+    // connection: the job would take its lock and run its transactions on that
+    // session, and keep using it after the caller gives it back to the pool.
+    await runDetached(() =>
+      runWithLogContext(contextFields, () => {
+        // Attribute audited changes to the actor that dispatched the command; the
+        // command itself is provenance, not the actor.
+        if (job.actor) setAuditActor(job.actor)
+        setAuditSource(`command:${job.commandName}`)
+        return withSpan('job', { 'wabot.command': job.commandName }, async () => {
+          addCount('wabot.jobs.executed', 1, { command: job.commandName })
           try {
-            const fresh = await this.repo.findOrThrow(job.id)
-            if (!fresh.hasFinished()) {
-              fresh.setAsFailed(e instanceof Error ? e : new Error('Job execution error'))
-              await this.repo.update(fresh)
+            await this.locker.withKey(`wabot-job-${job.id}`).tryRun(async () => {
+              // Missing when it was dispatched inside a transaction that has not
+              // committed yet: the scheduler picks it up once it does, and never
+              // if it rolls back.
+              const fresh = await this.repo.find(job.id)
+              if (!fresh || !fresh.isScheduleReady()) return
+
+              await this.runner.run(fresh)
+            })
+          } catch (e) {
+            addCount('wabot.jobs.failed', 1, { command: job.commandName })
+            this.logger.error(`Job ${job.id} execution error:`, e)
+            try {
+              const fresh = await this.repo.findOrThrow(job.id)
+              if (!fresh.hasFinished()) {
+                fresh.setAsFailed(e instanceof Error ? e : new Error('Job execution error'))
+                await this.repo.update(fresh)
+              }
+            } catch (updateError) {
+              this.logger.error(`Failed to update job ${job.id} status:`, updateError)
             }
-          } catch (updateError) {
-            this.logger.error(`Failed to update job ${job.id} status:`, updateError)
+          } finally {
+            this.release()
           }
-        } finally {
-          this.release()
-        }
-      })
-    })
+        })
+      }),
+    )
   }
 
   private tryAcquire(): boolean {

@@ -19,6 +19,7 @@ export * from './core/audit'
 export * from './core/idempotency'
 export * from './core/rate-limit'
 export * from './core/observability'
+export * from './core/async-scope'
 
 export * from './feature/agent'
 export * from './feature/async'
