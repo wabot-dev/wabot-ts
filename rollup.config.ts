@@ -125,7 +125,7 @@ const buildScriptConfig: RollupOptions = {
     nodeResolve({ preferBuiltins: true }),
     json(),
   ],
-  external: [...sharedExternal, 'tsup'],
+  external: [...sharedExternal, 'tsup', 'typescript'],
   output: {
     file: 'dist/build/build.js',
     format: 'es',

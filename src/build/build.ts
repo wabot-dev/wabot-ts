@@ -1,8 +1,9 @@
 import { existsSync, realpathSync } from 'node:fs'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
-import { isAbsolute, relative, resolve, sep } from 'node:path'
+import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as esbuild from 'esbuild'
+import ts from 'typescript'
 import { scanProjectFiles } from '@/feature/project-runner/scanner'
 import { isIslandFile, toIslandId } from '@/feature/ui-controller/island/IslandRegistry'
 import { UiBundler } from '@/feature/ui-controller/bundler'
@@ -27,6 +28,60 @@ const cssModulesPlugin: esbuild.Plugin = {
       loader: 'js',
     }))
   },
+}
+
+/**
+ * Compiler options for the decorator metadata pass: the project's tsconfig, read
+ * the way the dev loader (@yucacodes/ts) reads it, but emitting ES modules and
+ * leaving JSX untouched so esbuild applies the same automatic runtime it uses
+ * for every other file.
+ */
+function loadTranspileOptions(
+  tsconfigPath: string | undefined,
+  sourcemap: boolean,
+): ts.CompilerOptions {
+  let fromFile: ts.CompilerOptions = {}
+  if (tsconfigPath) {
+    const { config, error } = ts.readConfigFile(tsconfigPath, ts.sys.readFile)
+    if (error) throw new Error(ts.flattenDiagnosticMessageText(error.messageText, '\n'))
+    fromFile = ts.parseJsonConfigFileContent(config, ts.sys, dirname(tsconfigPath)).options
+  }
+  return {
+    experimentalDecorators: true,
+    emitDecoratorMetadata: true,
+    ...fromFile,
+    module: ts.ModuleKind.ESNext,
+    jsx: ts.JsxEmit.Preserve,
+    sourceMap: false,
+    inlineSourceMap: sourcemap,
+    inlineSources: sourcemap,
+  }
+}
+
+/**
+ * esbuild plugin that restores `emitDecoratorMetadata`, which esbuild does not
+ * implement. Without it every bundled class loses `design:paramtypes`: the
+ * container cannot build a constructor with dependencies ("TypeInfo not known
+ * for X") and views, actions, REST and socket handlers receive no DTO. Files that
+ * may carry decorators go through TypeScript, as they do in dev; the rest keep
+ * esbuild's own loader.
+ */
+function decoratorMetadataPlugin(compilerOptions: ts.CompilerOptions): esbuild.Plugin {
+  return {
+    name: 'wabot-decorator-metadata',
+    setup(build) {
+      build.onLoad({ filter: /\.tsx?$/ }, async (args) => {
+        const source = await readFile(args.path, 'utf-8')
+        // No `@`, no decorator: nothing to emit metadata for.
+        if (!source.includes('@')) return undefined
+        const { outputText } = ts.transpileModule(source, {
+          compilerOptions,
+          fileName: args.path,
+        })
+        return { contents: outputText, loader: args.path.endsWith('.tsx') ? 'jsx' : 'js' }
+      })
+    },
+  }
 }
 
 export interface IBuildConfig {
@@ -109,6 +164,10 @@ export async function runBuild(options: IBuildOptions = {}): Promise<void> {
     )
   }
 
+  const tsconfigPath = existsSync(resolve(cwd, 'tsconfig.json'))
+    ? resolve(cwd, 'tsconfig.json')
+    : undefined
+
   try {
     await rm(outDir, { recursive: true, force: true })
     // Bundle the server with esbuild directly (not tsup): tsup ignores the JSX
@@ -126,11 +185,12 @@ export async function runBuild(options: IBuildOptions = {}): Promise<void> {
       minify,
       jsx: 'automatic',
       jsxImportSource: 'preact',
-      tsconfig: existsSync(resolve(cwd, 'tsconfig.json'))
-        ? resolve(cwd, 'tsconfig.json')
-        : undefined,
+      tsconfig: tsconfigPath,
       external: config.external ?? ['pg'],
-      plugins: [cssModulesPlugin],
+      plugins: [
+        cssModulesPlugin,
+        decoratorMetadataPlugin(loadTranspileOptions(tsconfigPath, sourcemap)),
+      ],
       // ESM output: provide `require` so bundled CommonJS deps (e.g. `debug`,
       // which does `require('tty')`) work instead of hitting esbuild's dynamic
       // require shim.

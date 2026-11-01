@@ -13,6 +13,7 @@ Wabot is a modern TypeScript framework for building AI-powered chatbots across m
 npm run test:units              # Unit tests
 npm run test:integration        # Integration tests (requires env vars)
 npm run test:multiprocess       # Multiprocess tests
+npm run test:bundle             # Bundles and runs a sample app (requires npm run build)
 
 # Building
 npm run build                   # Build with Rollup + tsup
